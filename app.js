@@ -2187,8 +2187,19 @@ function setupNav() {
       e.preventDefault();
       exitSearch();
       setFilter(a.dataset.filter || "home");
+      $("#nav-links").classList.remove("open");
       window.scrollTo(0, 0);
     });
+  });
+  $("#nav-burger")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("#nav-links").classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    const links = $("#nav-links");
+    if (links && links.classList.contains("open") && !links.contains(e.target) && e.target !== $("#nav-burger")) {
+      links.classList.remove("open");
+    }
   });
 }
 
