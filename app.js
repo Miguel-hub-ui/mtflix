@@ -1,6 +1,6 @@
 "use strict";
 
-const TMDB_API_KEY = "";
+const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p/";
