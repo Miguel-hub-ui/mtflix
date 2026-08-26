@@ -394,6 +394,7 @@ button { font-family: inherit; cursor: pointer; }
   gap: 44px;
   padding-bottom: 60px;
 }
+.rows.no-hero { margin-top: 0; }
 
 .row-header {
   display: flex;
