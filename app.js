@@ -716,7 +716,9 @@ function setFilter(filter) {
   document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  $("#hero").classList.toggle("hidden", filter === "list" || filter === "movie" || filter === "tv");
+  const heroHidden = filter === "list" || filter === "movie" || filter === "tv";
+  $("#hero").classList.toggle("hidden", heroHidden);
+  $("#rows").classList.toggle("no-hero", heroHidden);
   renderRows(filter);
 }
 
@@ -1911,6 +1913,8 @@ function enterApp(id) {
     document.querySelectorAll(".nav-links a").forEach((a) =>
       a.classList.toggle("active", a.dataset.filter === "home")
     );
+    $("#hero").classList.remove("hidden");
+    $("#rows").classList.remove("no-hero");
   }
   if (!apiKey) showSetup(false);
   else startApp();
