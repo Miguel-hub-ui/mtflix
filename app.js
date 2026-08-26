@@ -77,6 +77,8 @@ const I18N = {
     row_poptv: "Binge-Worthy TV Shows", row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
     row_romance: "Romance Night In", row_airing: "Airing This Week", row_continue: "Continue Watching",
+    filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
+    filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
   es: {
     nav_home: "Inicio", nav_movies: "Películas", nav_tv: "Series", nav_list: "Mi Lista",
@@ -484,19 +486,17 @@ async function renderRows(filter) {
     }
   }
 
-  const defs = ROWS.filter((r) => {
-    if (filter === "home") return true;
-    if (filter === "movie") return r.path.includes("/movie/") || r.path.includes("/discover/");
-    if (filter === "tv") return r.path.includes("/tv/");
-    return true;
-  });
-
   if (filter === "list") {
     renderMyListView(container);
     return;
   }
 
-  for (const def of defs) {
+  if (filter === "movie" || filter === "tv") {
+    renderDiscoverGrid(filter, container);
+    return;
+  }
+
+  for (const def of ROWS) {
     const section = buildRowSection(def);
     container.appendChild(section);
     wireRowArrows(section);
@@ -510,6 +510,105 @@ async function renderRows(filter) {
     } catch (err) {
       handleFetchError(err, section);
     }
+  }
+}
+
+let discoverState = { type: "movie", genre: "", year: "", page: 1, totalPages: 1, loading: false };
+
+function yearOptions() {
+  const current = new Date().getFullYear() + 1;
+  const opts = [];
+  for (let y = current; y >= 1950; y--) opts.push(y);
+  return opts;
+}
+
+function renderDiscoverGrid(type, container) {
+  discoverState = { type, genre: "", year: "", page: 1, totalPages: 1, loading: false };
+
+  const genreMap = genreMaps[type] || {};
+  const genreOptionsHTML = Object.entries(genreMap)
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+    .join("");
+  const yearOptionsHTML = yearOptions()
+    .map((y) => `<option value="${y}">${y}</option>`)
+    .join("");
+
+  const section = document.createElement("section");
+  section.className = "discover-view";
+  section.innerHTML = `
+    <div class="discover-filterbar">
+      <select id="discover-genre">
+        <option value="">${t("filter_all_genres")}</option>
+        ${genreOptionsHTML}
+      </select>
+      <select id="discover-year">
+        <option value="">${t("filter_all_years")}</option>
+        ${yearOptionsHTML}
+      </select>
+    </div>
+    <div class="discover-grid" id="discover-grid">${skeletonRow(12)}</div>
+    <div class="discover-load-wrap">
+      <button class="btn btn-ghost hidden" id="discover-load-more">${t("filter_load_more")}</button>
+    </div>`;
+  container.appendChild(section);
+
+  $("#discover-genre").addEventListener("change", (e) => {
+    discoverState.genre = e.target.value;
+    discoverState.page = 1;
+    loadDiscoverPage(true);
+  });
+  $("#discover-year").addEventListener("change", (e) => {
+    discoverState.year = e.target.value;
+    discoverState.page = 1;
+    loadDiscoverPage(true);
+  });
+  $("#discover-load-more").addEventListener("click", () => {
+    discoverState.page += 1;
+    loadDiscoverPage(false);
+  });
+
+  loadDiscoverPage(true);
+}
+
+async function loadDiscoverPage(reset) {
+  if (discoverState.loading) return;
+  discoverState.loading = true;
+  const { type, genre, year, page } = discoverState;
+  const grid = $("#discover-grid");
+  const loadBtn = $("#discover-load-more");
+  if (!grid) {
+    discoverState.loading = false;
+    return;
+  }
+  if (reset) grid.innerHTML = skeletonRow(12);
+  loadBtn?.classList.add("hidden");
+
+  const params = { sort_by: "popularity.desc", page };
+  if (genre) params.with_genres = genre;
+  if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = year;
+
+  try {
+    const data = await tmdb(`/discover/${type}`, params);
+    discoverState.totalPages = data.total_pages || 1;
+    const items = data.results.map((r) => normalizeItem(r, type)).filter((i) => i.poster_path);
+
+    if (reset) {
+      if (!items.length) {
+        grid.innerHTML = `<div class="empty-state"><h2>${t("filter_no_results")}</h2><p>${t("filter_no_results_sub")}</p></div>`;
+      } else {
+        grid.innerHTML = items.map(cardHTML).join("");
+      }
+    } else {
+      grid.querySelectorAll(".skeleton-card").forEach((s) => s.remove());
+      grid.insertAdjacentHTML("beforeend", items.map(cardHTML).join(""));
+    }
+
+    if (loadBtn) loadBtn.classList.toggle("hidden", discoverState.page >= discoverState.totalPages);
+  } catch (err) {
+    handleFetchError(err, grid);
+  } finally {
+    discoverState.loading = false;
   }
 }
 
@@ -617,7 +716,7 @@ function setFilter(filter) {
   document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  $("#hero").classList.toggle("hidden", filter === "list");
+  $("#hero").classList.toggle("hidden", filter === "list" || filter === "movie" || filter === "tv");
   renderRows(filter);
 }
 
@@ -2005,7 +2104,7 @@ function exitSearch() {
   $("#search-input").value = "";
   $("#search-results").classList.add("hidden");
   $("#rows").classList.remove("hidden");
-  if (currentFilter !== "list") {
+  if (currentFilter !== "list" && currentFilter !== "movie" && currentFilter !== "tv") {
     $("#hero").classList.remove("hidden");
   }
 }
