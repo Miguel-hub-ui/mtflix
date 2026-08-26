@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTFlix — Movies &amp; TV</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="setup-overlay" class="setup-overlay hidden">
+    <div class="setup-panel">
+      <div class="setup-logo"><img src="logo.svg" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
+      <h1>Connect to TMDB</h1>
+      <p>
+        This site streams live data from <strong>TMDB</strong> (The Movie Database).
+        Grab a free API key, paste it below, and you're in.
+      </p>
+      <ol class="setup-steps">
+        <li>Create a free account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a></li>
+        <li>Go to <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Settings → API</a> and request an API key</li>
+        <li>Copy the <strong>API Key (v3 auth)</strong> and paste it here</li>
+      </ol>
+      <input id="api-key-input" type="text" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
+      <button id="api-key-save" class="btn btn-accent">Save &amp; Continue</button>
+      <p id="api-key-error" class="setup-error hidden">That key didn't work. Please check it and try again.</p>
+    </div>
+  </div>
+
+  <div id="auth-screen" class="auth-screen hidden">
+    <div class="auth-panel">
+      <div class="setup-logo"><img src="logo.svg" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
+      <div class="auth-tabs">
+        <button id="tab-signin" class="active" type="button" data-i18n="auth_in">Sign In</button>
+        <button id="tab-signup" type="button" data-i18n="auth_up">Sign Up</button>
+      </div>
+      <form id="form-signin" novalidate>
+        <input id="signin-email" type="email" placeholder="Email" autocomplete="email" data-i18n-placeholder="auth_email" />
+        <input id="signin-pass" type="password" placeholder="Password" autocomplete="current-password" data-i18n-placeholder="auth_pass" />
+        <p id="signin-error" class="auth-error hidden"></p>
+        <button type="submit" class="btn btn-accent" data-i18n="signin_btn">Sign In</button>
+      </form>
+      <form id="form-signup" class="hidden" novalidate>
+        <input id="signup-name" type="text" maxlength="30" placeholder="Display name" autocomplete="name" data-i18n-placeholder="auth_name" />
+        <input id="signup-email" type="email" placeholder="Email" autocomplete="email" data-i18n-placeholder="auth_email" />
+        <input id="signup-pass" type="password" placeholder="Password (min 6 characters)" autocomplete="new-password" data-i18n-placeholder="auth_pass_min" />
+        <input id="signup-confirm" type="password" placeholder="Confirm password" autocomplete="new-password" data-i18n-placeholder="auth_pass2" />
+        <p id="signup-error" class="auth-error hidden"></p>
+        <button type="submit" class="btn btn-accent" data-i18n="signup_btn">Create Account</button>
+      </form>
+      <form id="form-verify" class="hidden" novalidate>
+        <p class="verify-title">Check your email</p>
+        <p class="verify-sub" id="verify-sub"></p>
+        <div class="demo-email">
+          <div class="demo-email-head">📧 New message — <strong>MTFlix</strong> &lt;no-reply@mtflix.app&gt;</div>
+          <div class="demo-email-body" id="demo-email-body"></div>
+        </div>
+        <div class="code-row" id="code-row"></div>
+        <p id="verify-error" class="auth-error hidden"></p>
+        <button type="submit" class="btn btn-accent">Verify &amp; Continue</button>
+        <div class="verify-links">
+          <button id="resend-btn" class="link-btn" type="button">Resend code</button>
+          <button id="verify-back" class="link-btn" type="button">Back</button>
+        </div>
+      </form>
+      <button id="guest-btn" class="guest-link" type="button" data-i18n="guest_link">Continue as guest</button>
+      <p class="auth-note">Accounts are stored locally in this browser. Your password is hashed and never saved in plain text.</p>
+    </div>
+  </div>
+
+  <div id="profile-gate" class="profile-gate hidden">
+    <div class="gate-inner">
+      <h1 class="gate-title" data-i18n="gate_title">Who's watching?</h1>
+      <div class="profile-grid" id="profile-grid"></div>
+      <button id="gate-manage" class="btn btn-ghost gate-manage" data-i18n="gate_manage">Manage Profiles</button>
+      <div id="add-profile-panel" class="add-profile-panel hidden"></div>
+    </div>
+  </div>
+
+  <div id="pin-screen" class="pin-screen hidden">
+    <div class="auth-panel pin-panel">
+      <p class="verify-title" data-i18n="pin_enter_title">Enter profile PIN</p>
+      <p class="verify-sub" id="pin-sub"></p>
+      <div class="code-row" id="pin-row"></div>
+      <p id="pin-error" class="auth-error hidden"></p>
+      <div class="verify-links">
+        <button id="pin-cancel" class="link-btn" type="button" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-screen" class="settings-screen hidden">
+    <div class="settings-panel">
+      <button class="settings-close" id="settings-close" aria-label="Close">✕</button>
+      <aside class="settings-sidebar">
+        <h2 data-i18n="settings_title">Settings</h2>
+        <button class="side-link active" data-sec="playback" type="button" data-i18n="sec_playback">Playback</button>
+        <button class="side-link" data-sec="language" type="button" data-i18n="sec_language">Language</button>
+        <button class="side-link" data-sec="privacy" type="button" data-i18n="sec_privacy">Privacy &amp; Security</button>
+      </aside>
+      <div class="settings-content" id="settings-content"></div>
+    </div>
+  </div>
+
+  <header class="navbar" id="navbar">
+    <a href="#" class="logo" id="nav-home">
+      <img src="logo.svg" alt="MT" class="logo-mark" />
+      <span class="logo-text">FLIX</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
+      <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
+      <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
+      <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
+    </nav>
+    <div class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
+    </div>
+    <div class="avatar-wrap">
+      <div class="avatar" id="nav-avatar" title="Account">M</div>
+      <div class="avatar-menu hidden" id="avatar-menu">
+        <div class="avatar-menu-head" id="menu-user-head"></div>
+        <button id="menu-settings" type="button" data-i18n="menu_settings">Settings</button>
+        <button id="menu-manage" type="button" data-i18n="menu_manage">Manage Profiles</button>
+        <button id="menu-switch" type="button" data-i18n="menu_switch">Switch Profile</button>
+        <button id="menu-signout" type="button" data-i18n="menu_signout">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="hero" class="hero"></section>
+    <section id="rows" class="rows"></section>
+    <section id="search-results" class="search-results hidden"></section>
+  </main>
+
+  <footer class="footer">
+    <p>Built with the TMDB API. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+    <p class="muted">© 2026 MTFlix — a demo project.</p>
+  </footer>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <div id="messageArea"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
