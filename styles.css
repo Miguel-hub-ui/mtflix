@@ -65,6 +65,13 @@ button { font-family: inherit; cursor: pointer; }
 .logo-text {
   color: var(--text);
 }
+.logo-text small,
+.setup-logo small {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  vertical-align: baseline;
+}
 
 .nav-links {
   display: flex;

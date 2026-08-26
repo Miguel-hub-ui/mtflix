@@ -1,4 +1,4 @@
-# MTFlix — Movie & TV Streaming Site
+# MTFlix.com — Movie & TV Streaming Site
 
 A Netflix-style movie/TV browse site built with plain **HTML/CSS/JavaScript**, powered by live data from [TMDB](https://www.themoviedb.org).
 
