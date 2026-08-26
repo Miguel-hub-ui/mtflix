@@ -238,19 +238,23 @@ button { font-family: inherit; cursor: pointer; }
   animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .add-profile-panel h2 { margin-bottom: 18px; }
-#new-profile-name {
+#new-profile-name,
+#editor-name {
+  display: block;
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  padding: 11px 13px;
+  padding: 12px 14px;
   font-family: inherit;
   font-size: 0.95rem;
   outline: none;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
+  box-sizing: border-box;
 }
-#new-profile-name:focus { border-color: var(--accent); }
+#new-profile-name:focus,
+#editor-name:focus { border-color: var(--accent); }
 .swatch-row {
   display: flex;
   gap: 10px;
