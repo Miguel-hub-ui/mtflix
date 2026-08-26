@@ -111,12 +111,15 @@
       <img src="logo.svg" alt="MT" class="logo-mark" />
       <span class="logo-text">FLIX<small>.com</small></span>
     </a>
-    <nav class="nav-links">
+    <nav class="nav-links" id="nav-links">
       <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
       <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
     </nav>
+    <button class="nav-burger" id="nav-burger" aria-label="Menu" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
     <div class="nav-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
       <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
