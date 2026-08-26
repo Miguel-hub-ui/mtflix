@@ -1459,6 +1459,18 @@ button { font-family: inherit; cursor: pointer; }
   .nav-search input { width: 100%; }
   .avatar-wrap { order: 3; flex-shrink: 0; }
   .card, .skeleton-card { width: 138px; }
+  .discover-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 0;
+  }
+  .discover-grid .card, .discover-grid .skeleton-card { width: auto; }
+  .discover-view { padding: 100px 3% 40px; }
+  .discover-filterbar { gap: 8px; margin-bottom: 18px; }
+  .discover-filterbar select { min-width: 0; flex: 1; padding: 9px 10px; font-size: 0.8rem; }
+  .discover-grid .card-title { font-size: 0.72rem; }
+  .discover-grid .card-sub { font-size: 0.65rem; }
+  .discover-grid .card-info { padding: 18px 7px 7px; }
   .hero-content { bottom: 12%; right: 4%; }
   .rows { margin-top: -70px; gap: 32px; }
   .modal-body { padding: 20px 20px 28px; }
