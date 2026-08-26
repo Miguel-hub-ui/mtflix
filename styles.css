@@ -518,6 +518,38 @@ button { font-family: inherit; cursor: pointer; }
   to { background-position: -200% 0; }
 }
 
+.discover-view { padding: 130px 4% 60px; min-height: 100vh; }
+.discover-filterbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+.discover-filterbar select {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 150px;
+}
+.discover-filterbar select:focus { border-color: var(--accent); }
+.discover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+}
+.discover-grid .card { width: auto; }
+.discover-load-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 34px;
+}
+
 .search-results { padding: 120px 4% 60px; min-height: 100vh; }
 .results-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
 .results-sub { color: var(--muted); margin-bottom: 28px; }
