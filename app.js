@@ -1980,7 +1980,13 @@ function setTrackEntry(id, patch, meta) {
 
 function initProfiles() {
   const profiles = getProfiles();
-  if (!profiles.length) {
+  const uid = getAuthUserId();
+  // Only run the old legacy-data migration for guest/local-only sessions.
+  // Running it for a signed-in cloud account risks overwriting profiles
+  // (and anything on them, like a PIN) that were just pulled down from Firestore
+  // with a blank default profile — which then gets pushed back up, corrupting
+  // the synced data for every device on that account.
+  if (!profiles.length && (!uid || uid === "guest")) {
     const legacyList =
       localStorage.getItem(`${LS_LIST}_p_main`) || localStorage.getItem(LS_LIST);
     const legacyProgress =
