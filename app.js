@@ -49,6 +49,7 @@ let listTab = "list";
 const LS_USERS = "cineverse_users";
 const LS_AUTH = "cineverse_auth";
 const LS_TRACK = "cineverse_track";
+const LS_EPWATCH = "cineverse_epwatch";
 const TRACK_STATUSES = [
   { id: "plan", label: "Plan to Watch" },
   { id: "watching", label: "Watching" },
@@ -825,12 +826,156 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   return `${base}?${params.toString()}`;
 }
 
+function injectPlayer(url) {
+  const heroArea = $("#modal-hero");
+  if (!heroArea) return;
+  heroArea.querySelector(".modal-trailer")?.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "modal-trailer";
+  wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+  heroArea.appendChild(wrap);
+}
+
+async function openEpisodesView(data) {
+  const seasons = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
+  if (!seasons.length) return;
+  let currentSeason = seasons[0].season_number;
+
+  const overlay = document.createElement("div");
+  overlay.className = "episodes-overlay";
+  overlay.id = "episodes-overlay";
+  overlay.innerHTML = `
+    <div class="episodes-panel">
+      <div class="episodes-head">
+        <button class="episodes-back" id="episodes-back" aria-label="Back">←</button>
+        <h2>Episodes</h2>
+        <span class="episodes-showname">${escapeHtml(data.name || data.title || "")}</span>
+      </div>
+      <div class="episodes-progress" id="episodes-progress"></div>
+      <div class="episodes-season-row">
+        <span>Season</span>
+        <select id="episodes-season-select">
+          ${seasons.map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>
+    </div>`;
+  $("#modal-root").appendChild(overlay);
+
+  $("#episodes-back").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  $("#episodes-season-select").addEventListener("change", (e) => {
+    currentSeason = Number(e.target.value);
+    loadSeasonEpisodes(data, currentSeason);
+  });
+
+  await loadSeasonEpisodes(data, currentSeason);
+}
+
+async function loadSeasonEpisodes(data, seasonNumber) {
+  const list = $("#episodes-list");
+  const progressBox = $("#episodes-progress");
+  if (!list) return;
+  list.innerHTML = skeletonRow(4);
+
+  let seasonData;
+  try {
+    seasonData = await tmdb(`/tv/${data.id}/season/${seasonNumber}`, {});
+  } catch {
+    list.innerHTML = `<div class="empty-state"><h2>Couldn't load episodes</h2><p>Check your connection and try again.</p></div>`;
+    return;
+  }
+
+  const episodes = seasonData.episodes || [];
+  const watchedCount = countWatchedInSeason(data.id, seasonNumber, episodes.length);
+  const pct = episodes.length ? Math.round((watchedCount / episodes.length) * 100) : 0;
+
+  if (progressBox) {
+    progressBox.innerHTML = `
+      <div class="ep-progress-card">
+        <div class="ep-progress-top">
+          <span class="ep-progress-label">YOUR SEASON PROGRESS</span>
+          <span class="ep-progress-pct">${pct}%</span>
+        </div>
+        <p class="ep-progress-sub">${watchedCount} of ${episodes.length} episodes watched</p>
+        <div class="ep-progress-track"><div class="ep-progress-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }
+
+  list.innerHTML = episodes
+    .map((ep) => {
+      const watched = isEpWatched(data.id, seasonNumber, ep.episode_number);
+      return `
+      <div class="episode-row">
+        <img class="episode-thumb" loading="lazy" src="${img(ep.still_path, "w300")}" alt="" onerror="this.onerror=null;this.src=placeholderImage('No Image');" />
+        <div class="episode-info">
+          <div class="episode-num">${String(ep.episode_number).padStart(2, "0")}</div>
+          <div class="episode-title">${escapeHtml(ep.name || `Episode ${ep.episode_number}`)}</div>
+          <div class="episode-desc">${escapeHtml(ep.overview || "No description available.")}</div>
+        </div>
+        <button class="episode-play" data-ep="${ep.episode_number}" aria-label="Play episode">›</button>
+        <button class="episode-watched-toggle${watched ? " watched" : ""}" data-ep="${ep.episode_number}" type="button" aria-label="Mark watched"></button>
+      </div>`;
+    })
+    .join("");
+
+  list.querySelectorAll(".episode-play").forEach((btn) =>
+    btn.addEventListener("click", () => playEpisode(data, seasonNumber, Number(btn.dataset.ep)))
+  );
+  list.querySelectorAll(".episode-watched-toggle").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleEpWatched(data.id, seasonNumber, Number(btn.dataset.ep));
+      loadSeasonEpisodes(data, seasonNumber);
+    })
+  );
+}
+
+function playEpisode(data, season, episode) {
+  $("#episodes-overlay")?.remove();
+  const watch = getWatch(data.id);
+  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
+}
+
 function getWatchStore() {
   try {
     return JSON.parse(localStorage.getItem(pKey(LS_PROGRESS))) || {};
   } catch {
     return {};
   }
+}
+
+function getEpWatchStore() {
+  try {
+    return JSON.parse(localStorage.getItem(pKey(LS_EPWATCH))) || {};
+  } catch {
+    return {};
+  }
+}
+
+function isEpWatched(showId, season, ep) {
+  return !!getEpWatchStore()[`${showId}_s${season}e${ep}`];
+}
+
+function toggleEpWatched(showId, season, ep) {
+  const store = getEpWatchStore();
+  const key = `${showId}_s${season}e${ep}`;
+  if (store[key]) delete store[key];
+  else store[key] = true;
+  localStorage.setItem(pKey(LS_EPWATCH), JSON.stringify(store));
+  scheduleCloudSync();
+  return !!store[key];
+}
+
+function countWatchedInSeason(showId, season, totalEpisodes) {
+  const store = getEpWatchStore();
+  let n = 0;
+  for (let i = 1; i <= totalEpisodes; i++) {
+    if (store[`${showId}_s${season}e${i}`]) n++;
+  }
+  return n;
 }
 
 function getWatch(id) {
@@ -935,10 +1080,8 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
-            canStream && seasonsForPicker.length
-              ? `<div class="ep-picker"><select id="season-select">${seasonsForPicker
-                  .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
-                  .join("")}</select><select id="episode-select"></select></div>`
+            canStream && type === "tv" && seasonsForPicker.length
+              ? `<button class="btn btn-ghost" id="open-episodes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>Episodes</button>`
               : ""
           }
           ${
@@ -998,38 +1141,12 @@ async function openDetail(type, id, autoplayTrailer) {
   });
   $("#modal-close").addEventListener("click", closeModal);
 
-  const populateEpisodes = () => {
-    const seasonSel = $("#season-select");
-    const episodeSel = $("#episode-select");
-    if (!seasonSel || !episodeSel) return;
-    const seasonData = (data.seasons || []).find((s) => s.season_number === Number(seasonSel.value));
-    const count = seasonData?.episode_count || 1;
-    episodeSel.innerHTML = Array.from(
-      { length: count },
-      (_, i) => `<option value="${i + 1}">Episode ${i + 1}</option>`
-    ).join("");
-  };
-  populateEpisodes();
-  $("#season-select")?.addEventListener("change", populateEpisodes);
-
   const playNow = () => {
-    const heroArea = $("#modal-hero");
-    if (!heroArea) return;
-    const url = buildPlayerUrl(
-      type,
-      data.id,
-      $("#season-select")?.value,
-      $("#episode-select")?.value,
-      watch.t
-    );
-    heroArea.querySelector(".modal-trailer")?.remove();
-    const wrap = document.createElement("div");
-    wrap.className = "modal-trailer";
-    wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
-    heroArea.appendChild(wrap);
+    injectPlayer(buildPlayerUrl(type, data.id, 1, 1, watch.t));
   };
 
   $("#play-now")?.addEventListener("click", playNow);
+  $("#open-episodes")?.addEventListener("click", () => openEpisodesView(data));
 
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
@@ -1136,14 +1253,16 @@ async function pushCloudData() {
   const watchlist = {};
   const progress = {};
   const tracking = {};
+  const epwatch = {};
   profiles.forEach((p) => {
     try { watchlist[p.id] = JSON.parse(localStorage.getItem(`${LS_LIST}_${p.id}`)) || []; } catch { watchlist[p.id] = []; }
     try { progress[p.id] = JSON.parse(localStorage.getItem(`${LS_PROGRESS}_${p.id}`)) || {}; } catch { progress[p.id] = {}; }
     try { tracking[p.id] = JSON.parse(localStorage.getItem(`${LS_TRACK}_${p.id}`)) || {}; } catch { tracking[p.id] = {}; }
+    try { epwatch[p.id] = JSON.parse(localStorage.getItem(`${LS_EPWATCH}_${p.id}`)) || {}; } catch { epwatch[p.id] = {}; }
   });
   try {
     await db.collection("users").doc(uid).set(
-      { profiles, watchlist, progress, tracking, updatedAt: Date.now() },
+      { profiles, watchlist, progress, tracking, epwatch, updatedAt: Date.now() },
       { merge: true }
     );
   } catch (e) {
@@ -1170,6 +1289,11 @@ async function pullCloudData(uid) {
     if (data.tracking) {
       Object.entries(data.tracking).forEach(([pid, val]) =>
         localStorage.setItem(`${LS_TRACK}_${pid}`, JSON.stringify(val))
+      );
+    }
+    if (data.epwatch) {
+      Object.entries(data.epwatch).forEach(([pid, val]) =>
+        localStorage.setItem(`${LS_EPWATCH}_${pid}`, JSON.stringify(val))
       );
     }
   } catch (e) {
@@ -1233,6 +1357,13 @@ function friendlyAuthError(err) {
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
     if (fbUser) {
+      try {
+        await fbUser.reload();
+      } catch {}
+      if (!fbUser.emailVerified) {
+        showEmailVerifyGate(fbUser);
+        return;
+      }
       localStorage.setItem(LS_AUTH, fbUser.uid);
       await pullCloudData(fbUser.uid);
       const user = {
@@ -1262,12 +1393,6 @@ function wireAuth() {
     handleSignUp();
   });
   $("#guest-btn").addEventListener("click", continueAsGuest);
-  $("#form-verify").addEventListener("submit", (e) => {
-    e.preventDefault();
-    handleVerify();
-  });
-  $("#resend-btn").addEventListener("click", resendCode);
-  $("#verify-back").addEventListener("click", verifyBack);
 }
 
 function switchAuthTab(tab) {
@@ -1330,60 +1455,10 @@ function continueAsGuest() {
   enterAfterAuth({ id: "guest", name: "Guest", email: "" });
 }
 
-let pendingVerification = null;
-
-function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
 function maskEmail(email) {
   const [name, domain] = email.split("@");
   if (!domain) return email;
   return `${name[0]}${"*".repeat(Math.max(3, name.length - 1))}@${domain}`;
-}
-
-function showVerifyScreen() {
-  const pv = pendingVerification;
-  if (!pv) return;
-  $("#form-signin").classList.add("hidden");
-  $("#form-signup").classList.add("hidden");
-  $("#tab-signin").classList.remove("active");
-  $("#tab-signup").classList.remove("active");
-  $("#form-verify").classList.remove("hidden");
-
-  const email = pv.mode === "signup" ? pv.draft.email : pv.user.email;
-  $("#verify-sub").textContent =
-    (pv.mode === "signup"
-      ? "We sent a 6-digit code to activate your account. "
-      : "New browser detected — we sent a security code to ")
-    + maskEmail(email) + ".";
-  renderDemoEmail(pv.code);
-  buildCodeRow($("#code-row"), 6, () => $("#form-verify").requestSubmit(), false);
-  $("#verify-back").textContent = pv.mode === "signup" ? "← " + t("auth_in") : t("cancel");
-  authErrorVerify("");
-}
-
-function renderDemoEmail(code) {
-  const minutes = Math.max(1, Math.round((pendingVerification.expiresAt - Date.now()) / 60000));
-  $("#demo-email-body").innerHTML = `
-    <p><strong>Hi${pendingVerification.mode === "signup" ? " and welcome" : ""}!</strong></p>
-    <p>Your MTFlix verification code is:</p>
-    <div class="code-big">${code}</div>
-    <p>This code expires in ${minutes} minute${minutes > 1 ? "s" : ""}. If you didn't request it, you can ignore this email.</p>
-    <p class="muted">— The MTFlix Team</p>`;
-}
-
-function collectCode() {
-  return Array.from($("#code-row").children)
-    .map((b) => b.value || "")
-    .join("");
-}
-
-function clearCodeBoxes() {
-  $("#code-row")
-    .querySelectorAll(".code-box")
-    .forEach((b) => (b.value = ""));
-  $("#code-row").querySelector(".code-box")?.focus();
 }
 
 function authErrorVerify(msg) {
@@ -1392,47 +1467,64 @@ function authErrorVerify(msg) {
   el.classList.toggle("hidden", !msg);
 }
 
-async function handleVerify() {
-  const pv = pendingVerification;
-  if (!pv) return;
-  if (Date.now() > pv.expiresAt) {
-    authErrorVerify("This code has expired. Tap “Resend code” to get a new one.");
-    clearCodeBoxes();
-    return;
-  }
-  if (collectCode() !== pv.code) {
-    authErrorVerify("Incorrect code. Please check and try again.");
-    clearCodeBoxes();
-    return;
-  }
-  pendingVerification = null;
-  if (pv.mode === "signup") {
-    const users = getUsers();
-    users.push(pv.draft);
-    saveUsers(users);
-    localStorage.setItem(LS_AUTH, pv.draft.id);
-    localStorage.setItem(`cineverse_trusted_${pv.draft.id}`, "1");
-    enterAfterAuth(pv.draft);
-  } else {
-    localStorage.setItem(`cineverse_trusted_${pv.user.id}`, "1");
-    localStorage.setItem(LS_AUTH, pv.user.id);
-    enterAfterAuth(pv.user);
-  }
-}
-
-function resendCode() {
-  if (!pendingVerification) return;
-  pendingVerification.code = generateCode();
-  pendingVerification.expiresAt = Date.now() + 10 * 60 * 1000;
-  renderDemoEmail(pendingVerification.code);
-  clearCodeBoxes();
+function showEmailVerifyGate(fbUser) {
+  $("#auth-screen").classList.remove("hidden");
+  $("#form-signin").classList.add("hidden");
+  $("#form-signup").classList.add("hidden");
+  $("#tab-signin").classList.remove("active");
+  $("#tab-signup").classList.remove("active");
+  $("#form-verify").classList.remove("hidden");
+  $("#verify-sub").textContent =
+    "We sent a verification link to " + maskEmail(fbUser.email || "") +
+    ". Open it, then come back here and tap Continue.";
   authErrorVerify("");
+
+  $("#verify-continue-btn").onclick = async () => {
+    authErrorVerify("");
+    try {
+      await fbUser.reload();
+    } catch {}
+    if (fbUser.emailVerified) {
+      $("#form-verify").classList.add("hidden");
+      localStorage.setItem(LS_AUTH, fbUser.uid);
+      await pullCloudData(fbUser.uid);
+      enterAfterAuth({
+        id: fbUser.uid,
+        name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
+        email: fbUser.email || "",
+      });
+    } else {
+      authErrorVerify("Still not verified. Check your inbox (and spam folder), open the link, then try again.");
+    }
+  };
+
+  $("#resend-btn").onclick = async () => {
+    try {
+      await fbUser.sendEmailVerification();
+      authErrorVerify("Verification email sent — check your inbox.");
+    } catch (e) {
+      authErrorVerify(friendlyAuthError(e));
+    }
+  };
+
+  $("#verify-back").onclick = () => {
+    auth.signOut();
+    localStorage.removeItem(LS_AUTH);
+    $("#form-verify").classList.add("hidden");
+    switchAuthTab("signin");
+  };
 }
 
-function verifyBack() {
-  pendingVerification = null;
-  switchAuthTab("signin");
+function signOut() {
+  const uid = getAuthUserId();
+  localStorage.removeItem(LS_AUTH);
+  if (uid && uid !== "guest") {
+    auth.signOut().finally(() => location.reload());
+  } else {
+    location.reload();
+  }
 }
+
 
 function signOut() {
   const uid = getAuthUserId();
