@@ -953,7 +953,10 @@ button { font-family: inherit; cursor: pointer; }
   background: var(--surface-2);
   border-radius: 12px;
   padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
+.episode-row:hover { background: rgba(255, 255, 255, 0.06); }
 .episode-thumb {
   width: 130px;
   height: 74px;
