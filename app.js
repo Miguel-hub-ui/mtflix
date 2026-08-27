@@ -12,6 +12,13 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Add your own account email(s) here to unlock the Admin Dashboard for that account.
+const ADMIN_EMAILS = ["bigdoogg12@outlook.com"];
+
+function isAdmin(email) {
+  return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
+}
+
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -939,6 +946,101 @@ function playEpisode(data, season, episode) {
   injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
 }
 
+async function openAdminDashboard() {
+  const overlay = document.createElement("div");
+  overlay.className = "admin-overlay";
+  overlay.id = "admin-overlay";
+  overlay.innerHTML = `
+    <div class="admin-panel">
+      <div class="admin-head">
+        <button class="episodes-back" id="admin-close" aria-label="Close">←</button>
+        <h2>Admin Dashboard</h2>
+      </div>
+      <input id="admin-search" class="admin-search" type="text" placeholder="Search by email…" autocomplete="off" />
+      <div class="admin-stats" id="admin-stats"></div>
+      <div class="admin-list" id="admin-list">${skeletonRow(4)}</div>
+    </div>`;
+  $("#modal-root").appendChild(overlay);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  $("#admin-close").addEventListener("click", () => overlay.remove());
+
+  let allAccounts = [];
+  try {
+    const snap = await db.collection("users").get();
+    allAccounts = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  } catch (e) {
+    $("#admin-list").innerHTML = `<div class="empty-state"><h2>Couldn't load accounts</h2><p>${escapeHtml(
+      e.message || "Check your Firestore rules allow admin read access."
+    )}</p></div>`;
+    return;
+  }
+
+  allAccounts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  const renderList = (accounts) => {
+    const totalProfiles = accounts.reduce((s, a) => s + (a.profiles?.length || 0), 0);
+    const totalWatchlist = accounts.reduce(
+      (s, a) => s + Object.values(a.watchlist || {}).reduce((n, arr) => n + (arr?.length || 0), 0),
+      0
+    );
+    $("#admin-stats").innerHTML = `
+      <div class="admin-stat"><span class="admin-stat-num">${accounts.length}</span><span class="admin-stat-label">Accounts</span></div>
+      <div class="admin-stat"><span class="admin-stat-num">${totalProfiles}</span><span class="admin-stat-label">Profiles</span></div>
+      <div class="admin-stat"><span class="admin-stat-num">${totalWatchlist}</span><span class="admin-stat-label">Watchlist items</span></div>`;
+
+    if (!accounts.length) {
+      $("#admin-list").innerHTML = `<div class="empty-state"><h2>No accounts found</h2></div>`;
+      return;
+    }
+
+    $("#admin-list").innerHTML = accounts
+      .map((a) => {
+        const profiles = a.profiles || [];
+        const wlCount = Object.values(a.watchlist || {}).reduce((n, arr) => n + (arr?.length || 0), 0);
+        const trackCount = Object.values(a.tracking || {}).reduce(
+          (n, obj) => n + Object.keys(obj || {}).length,
+          0
+        );
+        const created = a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—";
+        const lastSeen = a.lastSignIn ? new Date(a.lastSignIn).toLocaleString() : "—";
+        return `
+        <div class="admin-card">
+          <div class="admin-card-top">
+            <div>
+              <div class="admin-email">${escapeHtml(a.email || "(no email)")}</div>
+              <div class="admin-uid">UID: ${escapeHtml(a.uid)}</div>
+            </div>
+            <div class="admin-dates">
+              <div>Joined: ${created}</div>
+              <div>Last sign-in: ${lastSeen}</div>
+            </div>
+          </div>
+          <div class="admin-profiles">
+            ${
+              profiles.map((p) => `<span class="admin-profile-chip">${escapeHtml(p.name || "Profile")}</span>`).join("") ||
+              `<span class="admin-profile-chip empty">No profiles yet</span>`
+            }
+          </div>
+          <div class="admin-card-stats">
+            <span>📺 ${wlCount} in watchlist</span>
+            <span>📊 ${trackCount} tracked</span>
+          </div>
+        </div>`;
+      })
+      .join("");
+  };
+
+  renderList(allAccounts);
+
+  $("#admin-search").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) return renderList(allAccounts);
+    renderList(allAccounts.filter((a) => (a.email || "").toLowerCase().includes(q)));
+  });
+}
+
 function getWatchStore() {
   try {
     return JSON.parse(localStorage.getItem(pKey(LS_PROGRESS))) || {};
@@ -1262,7 +1364,17 @@ async function pushCloudData() {
   });
   try {
     await db.collection("users").doc(uid).set(
-      { profiles, watchlist, progress, tracking, epwatch, updatedAt: Date.now() },
+      {
+        profiles,
+        watchlist,
+        progress,
+        tracking,
+        epwatch,
+        email: auth.currentUser?.email || "",
+        createdAt: auth.currentUser?.metadata?.creationTime || "",
+        lastSignIn: auth.currentUser?.metadata?.lastSignInTime || "",
+        updatedAt: Date.now(),
+      },
       { merge: true }
     );
   } catch (e) {
@@ -1546,6 +1658,7 @@ function applyUserChrome(user) {
   const head = $("#menu-user-head");
   if (!head) return;
   head.innerHTML = `<strong>${escapeHtml(user.name)}</strong>${user.email ? `<span>${escapeHtml(user.email)}</span>` : "<span>Browsing as guest</span>"}`;
+  $("#menu-admin")?.classList.toggle("hidden", !isAdmin(user.email));
 }
 
 function wireAvatarMenu() {
@@ -1568,6 +1681,10 @@ function wireAvatarMenu() {
     $("#avatar-menu").classList.add("hidden");
     gateEditing = true;
     renderGate(false);
+  });
+  $("#menu-admin")?.addEventListener("click", () => {
+    $("#avatar-menu").classList.add("hidden");
+    openAdminDashboard();
   });
   $("#settings-close").addEventListener("click", closeSettings);
   document.querySelectorAll(".side-link").forEach((b) =>
