@@ -238,7 +238,8 @@ button { font-family: inherit; cursor: pointer; }
   animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .add-profile-panel h2 { margin-bottom: 18px; }
-#new-profile-name {
+#editor-name {
+  display: block;
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -248,9 +249,10 @@ button { font-family: inherit; cursor: pointer; }
   font-family: inherit;
   font-size: 0.95rem;
   outline: none;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
-#new-profile-name:focus { border-color: var(--accent); }
+#editor-name::placeholder { color: var(--muted); }
+#editor-name:focus { border-color: var(--accent); }
 .swatch-row {
   display: flex;
   gap: 10px;
