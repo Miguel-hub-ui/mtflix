@@ -2059,16 +2059,109 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 2600);
 }
 
+let suggestToken = 0;
+
 function setupSearch() {
   const input = $("#search-input");
+  const box = $("#search-suggest");
+
   input.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = input.value.trim();
-    if (q.length < 2) {
-      exitSearch();
+    if (!q) {
+      hideSuggest();
+      if (!$("#search-results").classList.contains("hidden")) exitSearch();
       return;
     }
-    searchTimer = setTimeout(() => runSearch(q), 400);
+    showSuggestLoading();
+    searchTimer = setTimeout(() => runSuggest(q), 300);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      clearTimeout(searchTimer);
+      const q = input.value.trim();
+      if (q) {
+        hideSuggest();
+        runSearch(q);
+      }
+    } else if (e.key === "Escape") {
+      hideSuggest();
+      input.blur();
+    }
+  });
+
+  input.addEventListener("focus", () => {
+    if (input.value.trim() && box.innerHTML) box.classList.remove("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".nav-search")) hideSuggest();
+  });
+}
+
+function showSuggestLoading() {
+  const box = $("#search-suggest");
+  box.innerHTML = `<div class="search-suggest-loading">Searching…</div>`;
+  box.classList.remove("hidden");
+}
+
+function hideSuggest() {
+  $("#search-suggest").classList.add("hidden");
+}
+
+async function runSuggest(query) {
+  const box = $("#search-suggest");
+  const myToken = ++suggestToken;
+  let data;
+  try {
+    data = await tmdb("/search/multi", { query, include_adult: false });
+  } catch {
+    if (myToken !== suggestToken) return;
+    box.innerHTML = `<div class="search-suggest-empty">Couldn't load results. Check your connection.</div>`;
+    box.classList.remove("hidden");
+    return;
+  }
+  if (myToken !== suggestToken) return;
+  if ($("#search-input").value.trim() !== query) return;
+
+  const results = data.results
+    .map((r) => normalizeItem(r))
+    .filter((r) => r.poster_path && (r.media_type === "movie" || r.media_type === "tv"))
+    .slice(0, 6);
+
+  if (!results.length) {
+    box.innerHTML = `<div class="search-suggest-empty">No matches for “${escapeHtml(query)}”</div>`;
+    box.classList.remove("hidden");
+    return;
+  }
+
+  box.innerHTML =
+    results
+      .map(
+        (r) => `
+      <div class="search-suggest-item" data-id="${r.id}" data-type="${r.media_type}">
+        <img src="${img(r.poster_path, "w92")}" alt="" loading="lazy" />
+        <div>
+          <div class="ss-title">${escapeHtml(r.title)}</div>
+          <div class="ss-sub">${r.media_type === "tv" ? "TV Show" : "Movie"}${r.date ? " • " + r.date.slice(0, 4) : ""}</div>
+        </div>
+      </div>`
+      )
+      .join("") +
+    `<div class="search-suggest-more" id="suggest-see-all">See all results for “${escapeHtml(query)}”</div>`;
+  box.classList.remove("hidden");
+
+  box.querySelectorAll(".search-suggest-item").forEach((el) =>
+    el.addEventListener("click", () => {
+      hideSuggest();
+      openDetail(el.dataset.type, el.dataset.id, false);
+    })
+  );
+  $("#suggest-see-all")?.addEventListener("click", () => {
+    hideSuggest();
+    runSearch(query);
   });
 }
 
@@ -2106,6 +2199,7 @@ async function runSearch(query) {
 
 function exitSearch() {
   $("#search-input").value = "";
+  hideSuggest();
   $("#search-results").classList.add("hidden");
   $("#rows").classList.remove("hidden");
   if (currentFilter !== "list" && currentFilter !== "movie" && currentFilter !== "tv") {
