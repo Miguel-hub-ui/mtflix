@@ -497,34 +497,42 @@ function wireRowArrows(section) {
 }
 
 async function renderRows(filter) {
-  const container = $("#rows");
+  const rowsContainer = $("#rows");
+  const browseContainer = $("#browse-results");
   if (browseObserver) {
     browseObserver.disconnect();
     browseObserver = null;
   }
-  container.innerHTML = "";
 
-  if (filter === "list") {
-    renderMyListView(container);
+  if (filter === "list" || filter === "movie" || filter === "tv") {
+    rowsContainer.classList.add("hidden");
+    rowsContainer.innerHTML = "";
+    browseContainer.classList.remove("hidden");
+    browseContainer.innerHTML = "";
+    if (filter === "list") {
+      renderMyListView(browseContainer);
+    } else {
+      renderBrowseGrid(filter, browseContainer);
+    }
     return;
   }
 
-  if (filter === "movie" || filter === "tv") {
-    renderBrowseGrid(filter, container);
-    return;
-  }
+  browseContainer.classList.add("hidden");
+  browseContainer.innerHTML = "";
+  rowsContainer.classList.remove("hidden");
+  rowsContainer.innerHTML = "";
 
   const continueWatching = continueItems();
   if (continueWatching.length) {
     const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
-    container.appendChild(cwSection);
+    rowsContainer.appendChild(cwSection);
     wireRowArrows(cwSection);
     fillRow(cwSection, continueWatching);
   }
 
   for (const def of ROWS) {
     const section = buildRowSection(def);
-    container.appendChild(section);
+    rowsContainer.appendChild(section);
     wireRowArrows(section);
     try {
       const data = await tmdb(def.path, { language: "en-US", ...def.params });
@@ -546,15 +554,12 @@ async function renderBrowseGrid(filter, container) {
   const path = filter === "movie" ? "/discover/movie" : "/discover/tv";
   const heading = filter === "movie" ? t("nav_movies") : t("nav_tv");
 
-  const section = document.createElement("section");
-  section.className = "browse-section";
-  section.innerHTML = `
+  container.innerHTML = `
     <h2 class="results-title">${escapeHtml(heading)}</h2>
     <div class="browse-grid"></div>
     <div class="browse-sentinel"></div>`;
-  container.appendChild(section);
-  const grid = section.querySelector(".browse-grid");
-  const sentinel = section.querySelector(".browse-sentinel");
+  const grid = container.querySelector(".browse-grid");
+  const sentinel = container.querySelector(".browse-sentinel");
 
   browseState = { filter, page: 0, totalPages: 1, loading: false };
 
@@ -586,7 +591,7 @@ async function renderBrowseGrid(filter, container) {
       grid.insertAdjacentHTML("beforeend", items.map(browseCardHTML).join(""));
     } catch (err) {
       skeletons.forEach((s) => s.remove());
-      handleFetchError(err, section);
+      handleFetchError(err, container);
     } finally {
       browseState.loading = false;
     }
@@ -604,24 +609,20 @@ async function renderBrowseGrid(filter, container) {
 }
 
 function renderMyListView(container) {
-  const section = document.createElement("section");
-  section.className = "search-results";
-  section.style.padding = "140px 4% 60px";
-  section.innerHTML = `
+  container.innerHTML = `
     <h2 class="results-title">${listTab === "list" ? t("list_watchlist") : t("list_tracking")}</h2>
     <div class="view-tabs">
       <button data-tab="list" class="${listTab === "list" ? "active" : ""}" type="button">${t("list_watchlist")}</button>
       <button data-tab="tracking" class="${listTab === "tracking" ? "active" : ""}" type="button">${t("list_tracking")}</button>
     </div>
     <div id="tab-content"></div>`;
-  container.appendChild(section);
-  section.querySelectorAll(".view-tabs button").forEach((b) =>
+  container.querySelectorAll(".view-tabs button").forEach((b) =>
     b.addEventListener("click", () => {
       listTab = b.dataset.tab;
       renderRows("list");
     })
   );
-  const content = section.querySelector("#tab-content");
+  const content = container.querySelector("#tab-content");
   if (listTab === "tracking") renderTrackingTab(content);
   else renderWatchlistTab(content);
 }
@@ -1905,6 +1906,7 @@ function enterApp(id) {
   $("#search-results").classList.add("hidden");
   $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
+  $("#browse-results").classList.add("hidden");
   if (appStarted) {
     currentFilter = "home";
     document.querySelectorAll(".nav-links a").forEach((a) =>
@@ -2084,6 +2086,7 @@ async function runSearch(query) {
   section.classList.remove("hidden");
   $("#hero").classList.add("hidden");
   $("#rows").classList.add("hidden");
+  $("#browse-results").classList.add("hidden");
 
   if (!results.length) {
     section.innerHTML = `
@@ -2103,8 +2106,10 @@ async function runSearch(query) {
 function exitSearch() {
   $("#search-input").value = "";
   $("#search-results").classList.add("hidden");
-  $("#rows").classList.remove("hidden");
-  if (currentFilter !== "list") {
+  if (currentFilter === "list" || currentFilter === "movie" || currentFilter === "tv") {
+    $("#browse-results").classList.remove("hidden");
+  } else {
+    $("#rows").classList.remove("hidden");
     $("#hero").classList.remove("hidden");
   }
 }
