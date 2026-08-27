@@ -614,7 +614,7 @@ let currentFilter = "home";
 
 function setFilter(filter) {
   currentFilter = filter;
-  document.querySelectorAll(".nav-links a, .mobile-nav-menu a").forEach((a) =>
+  document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
   $("#hero").classList.toggle("hidden", filter === "list");
@@ -724,32 +724,6 @@ function getWatch(id) {
   return getWatchStore()[String(id)] || { t: 0, d: 0 };
 }
 
-const LS_EPWATCHED = "cineverse_epwatched";
-function getEpWatchedStore() {
-  try {
-    return JSON.parse(localStorage.getItem(pKey(LS_EPWATCHED))) || {};
-  } catch {
-    return {};
-  }
-}
-function isEpWatched(showId, season, ep) {
-  const arr = getEpWatchedStore()[showId]?.[season];
-  return Array.isArray(arr) && arr.includes(ep);
-}
-function toggleEpWatched(showId, season, ep) {
-  const store = getEpWatchedStore();
-  store[showId] = store[showId] || {};
-  store[showId][season] = store[showId][season] || [];
-  const idx = store[showId][season].indexOf(ep);
-  if (idx >= 0) store[showId][season].splice(idx, 1);
-  else store[showId][season].push(ep);
-  localStorage.setItem(pKey(LS_EPWATCHED), JSON.stringify(store));
-}
-function countEpWatched(showId) {
-  const seasons = getEpWatchedStore()[showId] || {};
-  return Object.values(seasons).reduce((sum, arr) => sum + (arr?.length || 0), 0);
-}
-
 function fmtTime(total) {
   total = Math.max(0, Math.floor(total || 0));
   const h = Math.floor(total / 3600);
@@ -848,8 +822,10 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
-            type === "tv" && seasonsForPicker.length
-              ? `<button class="btn btn-ghost" id="episodes-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Episodes</button>`
+            canStream && seasonsForPicker.length
+              ? `<div class="ep-picker"><select id="season-select">${seasonsForPicker
+                  .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
+                  .join("")}</select><select id="episode-select"></select></div>`
               : ""
           }
           ${
@@ -909,30 +885,38 @@ async function openDetail(type, id, autoplayTrailer) {
   });
   $("#modal-close").addEventListener("click", closeModal);
 
-  let playSeason = 1;
-  let playEpisode = 1;
+  const populateEpisodes = () => {
+    const seasonSel = $("#season-select");
+    const episodeSel = $("#episode-select");
+    if (!seasonSel || !episodeSel) return;
+    const seasonData = (data.seasons || []).find((s) => s.season_number === Number(seasonSel.value));
+    const count = seasonData?.episode_count || 1;
+    episodeSel.innerHTML = Array.from(
+      { length: count },
+      (_, i) => `<option value="${i + 1}">Episode ${i + 1}</option>`
+    ).join("");
+  };
+  populateEpisodes();
+  $("#season-select")?.addEventListener("change", populateEpisodes);
 
-  const playNow = (season, episode) => {
-    if (season) playSeason = Number(season);
-    if (episode) playEpisode = Number(episode);
+  const playNow = () => {
     const heroArea = $("#modal-hero");
     if (!heroArea) return;
-    const url = buildPlayerUrl(type, data.id, playSeason, playEpisode, watch.t);
+    const url = buildPlayerUrl(
+      type,
+      data.id,
+      $("#season-select")?.value,
+      $("#episode-select")?.value,
+      watch.t
+    );
     heroArea.querySelector(".modal-trailer")?.remove();
     const wrap = document.createElement("div");
     wrap.className = "modal-trailer";
     wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
     heroArea.appendChild(wrap);
-    heroArea.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  $("#play-now")?.addEventListener("click", () => playNow());
-
-  $("#episodes-btn")?.addEventListener("click", () => {
-    openEpisodesScreen(data.id, data, (season, episode) => {
-      playNow(season, episode);
-    });
-  });
+  $("#play-now")?.addEventListener("click", playNow);
 
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
@@ -999,126 +983,6 @@ function syncModalListButton(id) {
 
 function closeModal() {
   $("#modal-overlay")?.remove();
-}
-
-function closeEpisodesScreen() {
-  $("#episodes-overlay")?.remove();
-}
-
-async function openEpisodesScreen(id, showData, onPlay) {
-  closeEpisodesScreen();
-  const seasonsForPicker = (showData.seasons || []).filter(
-    (s) => s.season_number > 0 && s.episode_count > 0
-  );
-  if (!seasonsForPicker.length) return;
-
-  const totalEpisodes = showData.number_of_episodes || 0;
-
-  const overlay = document.createElement("div");
-  overlay.className = "episodes-overlay";
-  overlay.id = "episodes-overlay";
-  overlay.innerHTML = `
-    <div class="episodes-screen">
-      <div class="episodes-top">
-        <button class="episodes-back" id="episodes-back" aria-label="Back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <h1>Episodes</h1>
-        <span class="episodes-season-label" id="episodes-season-label"></span>
-      </div>
-      <div class="ep-progress-card">
-        <div class="ep-progress-head">
-          <span class="ep-progress-title">Your Series Progress</span>
-          <span class="ep-progress-pct" id="ep-progress-pct">0%</span>
-        </div>
-        <p class="ep-progress-count" id="ep-progress-count">0 of ${totalEpisodes} episodes watched</p>
-        <div class="ep-progress-track"><span id="ep-progress-fill" style="width:0%"></span></div>
-      </div>
-      <div class="ep-season-row">
-        <label for="ep-season-select">Season</label>
-        <select id="ep-season-select">
-          ${seasonsForPicker
-            .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
-            .join("")}
-        </select>
-      </div>
-      <div class="ep-list" id="ep-list"><div class="ep-list-loading">Loading episodes…</div></div>
-    </div>`;
-  $("#modal-root").appendChild(overlay);
-
-  const close = () => closeEpisodesScreen();
-  $("#episodes-back").addEventListener("click", close);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) close();
-  });
-
-  const refreshProgress = () => {
-    const watched = countEpWatched(id);
-    const pct = totalEpisodes ? Math.round((watched / totalEpisodes) * 100) : 0;
-    $("#ep-progress-count").textContent = `${watched} of ${totalEpisodes} episodes watched`;
-    $("#ep-progress-pct").textContent = `${pct}%`;
-    $("#ep-progress-fill").style.width = `${pct}%`;
-  };
-
-  const loadSeason = async (seasonNumber) => {
-    const list = $("#ep-list");
-    const seasonMeta = seasonsForPicker.find((s) => s.season_number === seasonNumber);
-    $("#episodes-season-label").textContent = seasonMeta?.name || `Season ${seasonNumber}`;
-    list.innerHTML = `<div class="ep-list-loading">Loading episodes…</div>`;
-    let season;
-    try {
-      season = await tmdb(`/tv/${id}/season/${seasonNumber}`);
-    } catch (err) {
-      handleFetchError(err);
-      list.innerHTML = `<div class="ep-list-loading">Couldn't load episodes.</div>`;
-      return;
-    }
-    const episodes = season.episodes || [];
-    list.innerHTML = episodes
-      .map((ep) => {
-        const watched = isEpWatched(id, seasonNumber, ep.episode_number);
-        return `
-        <div class="ep-row" data-ep="${ep.episode_number}">
-          <img class="ep-thumb" loading="lazy" src="${img(ep.still_path, "w300")}" alt="" onerror="this.onerror=null;this.src=placeholderImage()">
-          <div class="ep-info">
-            <div class="ep-num">${String(ep.episode_number).padStart(2, "0")}</div>
-            <div class="ep-text">
-              <div class="ep-name">${escapeHtml(ep.name || `Episode ${ep.episode_number}`)}</div>
-              <div class="ep-overview">${escapeHtml(ep.overview || "")}</div>
-            </div>
-          </div>
-          <button class="ep-play" aria-label="Play episode">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
-          </button>
-          <button class="ep-watched${watched ? " active" : ""}" aria-label="Mark watched">
-            <span></span>
-          </button>
-        </div>`;
-      })
-      .join("");
-
-    list.querySelectorAll(".ep-play").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const epNum = Number(btn.closest(".ep-row").dataset.ep);
-        close();
-        onPlay(seasonNumber, epNum);
-      });
-    });
-    list.querySelectorAll(".ep-watched").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const epNum = Number(btn.closest(".ep-row").dataset.ep);
-        toggleEpWatched(id, seasonNumber, epNum);
-        btn.classList.toggle("active");
-        refreshProgress();
-      });
-    });
-  };
-
-  $("#ep-season-select").addEventListener("change", (e) => loadSeason(Number(e.target.value)));
-
-  refreshProgress();
-  await loadSeason(seasonsForPicker[0].season_number);
 }
 
 function pKey(key) {
@@ -1945,7 +1809,7 @@ function enterApp(id) {
   $("#rows").classList.remove("hidden");
   if (appStarted) {
     currentFilter = "home";
-    document.querySelectorAll(".nav-links a, .mobile-nav-menu a").forEach((a) =>
+    document.querySelectorAll(".nav-links a").forEach((a) =>
       a.classList.toggle("active", a.dataset.filter === "home")
     );
   }
@@ -2094,14 +1958,101 @@ function showToast(msg) {
 
 function setupSearch() {
   const input = $("#search-input");
+  const suggestBox = $("#search-suggest");
+
   input.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = input.value.trim();
     if (q.length < 2) {
+      hideSuggestions();
       exitSearch();
       return;
     }
-    searchTimer = setTimeout(() => runSearch(q), 400);
+    searchTimer = setTimeout(() => runSuggest(q), 250);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const q = input.value.trim();
+      if (q.length >= 2) {
+        hideSuggestions();
+        runSearch(q);
+      }
+    }
+  });
+
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 2 && suggestBox.dataset.hasResults === "1") {
+      suggestBox.classList.remove("hidden");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#nav-search-wrap")) hideSuggestions();
+  });
+}
+
+function hideSuggestions() {
+  const box = $("#search-suggest");
+  box.classList.add("hidden");
+  box.innerHTML = "";
+  box.dataset.hasResults = "0";
+}
+
+async function runSuggest(query) {
+  const box = $("#search-suggest");
+  let data;
+  try {
+    data = await tmdb("/search/multi", { query, include_adult: false });
+  } catch (err) {
+    console.error("MTFlix search failed:", err);
+    handleFetchError(err);
+    box.innerHTML = `<div class="search-suggest-empty">Search unavailable right now.</div>`;
+    box.classList.remove("hidden");
+    box.dataset.hasResults = "0";
+    return;
+  }
+
+  const results = (data.results || [])
+    .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+    .map((r) => normalizeItem(r))
+    .filter((r) => r.poster_path)
+    .slice(0, 6);
+
+  if (!results.length) {
+    box.innerHTML = `<div class="search-suggest-empty">No matches for "${escapeHtml(query)}"</div>`;
+    box.classList.remove("hidden");
+    box.dataset.hasResults = "0";
+    return;
+  }
+
+  box.innerHTML =
+    results
+      .map(
+        (r) => `
+      <div class="search-suggest-item" data-id="${r.id}" data-type="${r.media_type}">
+        <img src="${IMG_BASE}w92${r.poster_path}" alt="" />
+        <div class="search-suggest-info">
+          <span class="search-suggest-title">${escapeHtml(r.title)}</span>
+          <span class="search-suggest-meta">${r.media_type === "tv" ? "TV" : "Movie"}${r.date ? " • " + year(r.date) : ""}</span>
+        </div>
+      </div>`
+      )
+      .join("") +
+    `<div class="search-suggest-more" id="search-see-all">See all results for "${escapeHtml(query)}"</div>`;
+
+  box.classList.remove("hidden");
+  box.dataset.hasResults = "1";
+
+  box.querySelectorAll(".search-suggest-item").forEach((el) => {
+    el.addEventListener("click", () => {
+      hideSuggestions();
+      openDetail(el.dataset.type, el.dataset.id, false);
+    });
+  });
+  $("#search-see-all").addEventListener("click", () => {
+    hideSuggestions();
+    runSearch(query);
   });
 }
 
@@ -2139,6 +2090,7 @@ async function runSearch(query) {
 
 function exitSearch() {
   $("#search-input").value = "";
+  hideSuggestions();
   $("#search-results").classList.add("hidden");
   $("#rows").classList.remove("hidden");
   if (currentFilter !== "list") {
@@ -2215,159 +2167,14 @@ function setupNav() {
   window.addEventListener("scroll", () => {
     $("#navbar").classList.toggle("scrolled", window.scrollY > 40);
   });
-  document.querySelectorAll(".nav-links a, .mobile-nav-menu a, #nav-home").forEach((a) => {
+  document.querySelectorAll(".nav-links a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       exitSearch();
       setFilter(a.dataset.filter || "home");
-      closeMobileMenu();
       window.scrollTo(0, 0);
     });
   });
-  setupMobileMenu();
-  setupFilterPanel();
-}
-
-function closeMobileMenu() {
-  $("#mobile-nav-menu")?.classList.add("hidden");
-  $("#mobile-menu-btn")?.classList.remove("open");
-  $("#mobile-menu-btn")?.setAttribute("aria-expanded", "false");
-}
-
-function setupMobileMenu() {
-  const btn = $("#mobile-menu-btn");
-  const menu = $("#mobile-nav-menu");
-  if (!btn || !menu) return;
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const open = menu.classList.toggle("hidden") === false;
-    btn.classList.toggle("open", open);
-    btn.setAttribute("aria-expanded", String(open));
-    closeFilterPanel();
-  });
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#mobile-nav-menu") && !e.target.closest("#mobile-menu-btn")) {
-      closeMobileMenu();
-    }
-  });
-}
-
-let activeFilters = { type: "movie", genre: "", year: "" };
-
-function closeFilterPanel() {
-  $("#filter-panel")?.classList.add("hidden");
-  $("#filter-btn")?.classList.remove("open");
-  $("#filter-btn")?.setAttribute("aria-expanded", "false");
-}
-
-function populateFilterGenres() {
-  const type = $("#filter-type").value;
-  const select = $("#filter-genre");
-  const map = genreMaps[type] || {};
-  const entries = Object.entries(map).sort((a, b) => a[1].localeCompare(b[1]));
-  select.innerHTML =
-    `<option value="">All genres</option>` +
-    entries.map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`).join("");
-  select.value = activeFilters.type === type ? activeFilters.genre : "";
-}
-
-function populateFilterYears() {
-  const select = $("#filter-year");
-  const current = new Date().getFullYear();
-  let opts = `<option value="">All years</option>`;
-  for (let y = current + 1; y >= 1950; y--) {
-    opts += `<option value="${y}">${y}</option>`;
-  }
-  select.innerHTML = opts;
-  select.value = activeFilters.year || "";
-}
-
-function setupFilterPanel() {
-  const btn = $("#filter-btn");
-  const panel = $("#filter-panel");
-  if (!btn || !panel) return;
-
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const opening = panel.classList.contains("hidden");
-    if (opening) {
-      $("#filter-type").value = activeFilters.type;
-      populateFilterGenres();
-      populateFilterYears();
-    }
-    panel.classList.toggle("hidden");
-    btn.classList.toggle("open", opening);
-    btn.setAttribute("aria-expanded", String(opening));
-    closeMobileMenu();
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#filter-panel") && !e.target.closest("#filter-btn")) {
-      closeFilterPanel();
-    }
-  });
-
-  $("#filter-type").addEventListener("change", populateFilterGenres);
-
-  $("#filter-apply").addEventListener("click", async () => {
-    activeFilters = {
-      type: $("#filter-type").value,
-      genre: $("#filter-genre").value,
-      year: $("#filter-year").value,
-    };
-    $("#filter-dot").classList.toggle("hidden", !activeFilters.genre && !activeFilters.year);
-    closeFilterPanel();
-    await runFilteredDiscover();
-  });
-
-  $("#filter-clear").addEventListener("click", () => {
-    activeFilters = { type: $("#filter-type").value, genre: "", year: "" };
-    $("#filter-dot").classList.add("hidden");
-    closeFilterPanel();
-    exitSearch();
-    setFilter(currentFilter === "list" ? "home" : currentFilter);
-  });
-}
-
-async function runFilteredDiscover() {
-  const { type, genre, year } = activeFilters;
-  const params = { sort_by: "popularity.desc" };
-  if (genre) params.with_genres = genre;
-  if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = year;
-
-  let data;
-  try {
-    data = await tmdb(`/discover/${type}`, params);
-  } catch (err) {
-    handleFetchError(err);
-    return;
-  }
-  const results = data.results.map((r) => normalizeItem(r)).filter((r) => r.poster_path);
-
-  const genreName = genre ? genreMaps[type][genre] : "";
-  const labelParts = [type === "movie" ? "Movies" : "TV Shows"];
-  if (genreName) labelParts.push(genreName);
-  if (year) labelParts.push(year);
-  const label = labelParts.join(" · ");
-
-  const section = $("#search-results");
-  section.classList.remove("hidden");
-  $("#hero").classList.add("hidden");
-  $("#rows").classList.add("hidden");
-
-  if (!results.length) {
-    section.innerHTML = `
-      <h2 class="results-title">${escapeHtml(label)}</h2>
-      <p class="results-sub">0 titles found</p>
-      <div class="empty-state"><h2>No matches found</h2><p>Try a different genre or year.</p></div>`;
-    return;
-  }
-
-  section.innerHTML = `
-    <h2 class="results-title">${escapeHtml(label)}</h2>
-    <p class="results-sub">${results.length} titles found</p>
-    <div class="results-grid"></div>`;
-  section.querySelector(".results-grid").innerHTML = results.map(cardHTML).join("");
 }
 
 window.addEventListener("message", function (event) {
@@ -2402,12 +2209,8 @@ window.addEventListener("message", function (event) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if ($("#episodes-overlay")) {
-      closeEpisodesScreen();
-    } else {
-      closeModal();
-      exitSearch();
-    }
+    closeModal();
+    exitSearch();
   }
 });
 
