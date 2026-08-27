@@ -1804,8 +1804,6 @@ function enterApp(id) {
   applyProfileChrome();
   applyI18n();
   closeModal();
-  $("#search-results").classList.add("hidden");
-  $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
   if (appStarted) {
     currentFilter = "home";
@@ -1935,7 +1933,7 @@ function toggleList(item) {
   }
   localStorage.setItem(pKey(LS_LIST), JSON.stringify(list.slice(0, 50)));
   refreshBookmarkButtons();
-  if (currentFilter === "list" && $("#search-results").classList.contains("hidden")) {
+  if (currentFilter === "list") {
     renderRows("list");
   }
 }
@@ -1954,148 +1952,6 @@ function showToast(msg) {
   toast.textContent = msg;
   root.appendChild(toast);
   setTimeout(() => toast.remove(), 2600);
-}
-
-function setupSearch() {
-  const input = $("#search-input");
-  const suggestBox = $("#search-suggest");
-
-  input.addEventListener("input", () => {
-    clearTimeout(searchTimer);
-    const q = input.value.trim();
-    if (q.length < 2) {
-      hideSuggestions();
-      exitSearch();
-      return;
-    }
-    searchTimer = setTimeout(() => runSuggest(q), 250);
-  });
-
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const q = input.value.trim();
-      if (q.length >= 2) {
-        hideSuggestions();
-        runSearch(q);
-      }
-    }
-  });
-
-  input.addEventListener("focus", () => {
-    if (input.value.trim().length >= 2 && suggestBox.dataset.hasResults === "1") {
-      suggestBox.classList.remove("hidden");
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#nav-search-wrap")) hideSuggestions();
-  });
-}
-
-function hideSuggestions() {
-  const box = $("#search-suggest");
-  box.classList.add("hidden");
-  box.innerHTML = "";
-  box.dataset.hasResults = "0";
-}
-
-async function runSuggest(query) {
-  const box = $("#search-suggest");
-  let data;
-  try {
-    data = await tmdb("/search/multi", { query, include_adult: false });
-  } catch (err) {
-    console.error("MTFlix search failed:", err);
-    handleFetchError(err);
-    box.innerHTML = `<div class="search-suggest-empty">Search unavailable right now.</div>`;
-    box.classList.remove("hidden");
-    box.dataset.hasResults = "0";
-    return;
-  }
-
-  const results = (data.results || [])
-    .filter((r) => r.media_type === "movie" || r.media_type === "tv")
-    .map((r) => normalizeItem(r))
-    .filter((r) => r.poster_path)
-    .slice(0, 6);
-
-  if (!results.length) {
-    box.innerHTML = `<div class="search-suggest-empty">No matches for "${escapeHtml(query)}"</div>`;
-    box.classList.remove("hidden");
-    box.dataset.hasResults = "0";
-    return;
-  }
-
-  box.innerHTML =
-    results
-      .map(
-        (r) => `
-      <div class="search-suggest-item" data-id="${r.id}" data-type="${r.media_type}">
-        <img src="${IMG_BASE}w92${r.poster_path}" alt="" />
-        <div class="search-suggest-info">
-          <span class="search-suggest-title">${escapeHtml(r.title)}</span>
-          <span class="search-suggest-meta">${r.media_type === "tv" ? "TV" : "Movie"}${r.date ? " • " + year(r.date) : ""}</span>
-        </div>
-      </div>`
-      )
-      .join("") +
-    `<div class="search-suggest-more" id="search-see-all">See all results for "${escapeHtml(query)}"</div>`;
-
-  box.classList.remove("hidden");
-  box.dataset.hasResults = "1";
-
-  box.querySelectorAll(".search-suggest-item").forEach((el) => {
-    el.addEventListener("click", () => {
-      hideSuggestions();
-      openDetail(el.dataset.type, el.dataset.id, false);
-    });
-  });
-  $("#search-see-all").addEventListener("click", () => {
-    hideSuggestions();
-    runSearch(query);
-  });
-}
-
-async function runSearch(query) {
-  let data;
-  try {
-    data = await tmdb("/search/multi", { query, include_adult: false, language: "en-US" });
-  } catch (err) {
-    handleFetchError(err);
-    return;
-  }
-  const results = data.results
-    .map((r) => normalizeItem(r))
-    .filter((r) => r.poster_path);
-
-  const section = $("#search-results");
-  section.classList.remove("hidden");
-  $("#hero").classList.add("hidden");
-  $("#rows").classList.add("hidden");
-
-  if (!results.length) {
-    section.innerHTML = `
-      <h2 class="results-title">Results for “${escapeHtml(query)}”</h2>
-      <p class="results-sub">0 titles found</p>
-      <div class="empty-state"><h2>No matches found</h2><p>Try a different title, person, or keyword.</p></div>`;
-    return;
-  }
-
-  section.innerHTML = `
-    <h2 class="results-title">Results for “${escapeHtml(query)}”</h2>
-    <p class="results-sub">${results.length} titles found</p>
-    <div class="results-grid"></div>`;
-  section.querySelector(".results-grid").innerHTML = results.map(cardHTML).join("");
-}
-
-function exitSearch() {
-  $("#search-input").value = "";
-  hideSuggestions();
-  $("#search-results").classList.add("hidden");
-  $("#rows").classList.remove("hidden");
-  if (currentFilter !== "list") {
-    $("#hero").classList.remove("hidden");
-  }
 }
 
 function setupGlobalClickDelegation() {
@@ -2170,7 +2026,6 @@ function setupNav() {
   document.querySelectorAll(".nav-links a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      exitSearch();
       setFilter(a.dataset.filter || "home");
       window.scrollTo(0, 0);
     });
@@ -2210,14 +2065,12 @@ window.addEventListener("message", function (event) {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closeModal();
-    exitSearch();
   }
 });
 
 window.addEventListener("load", () => {
   applyI18n();
   setupNav();
-  setupSearch();
   setupGlobalClickDelegation();
   wireProfileGate();
   wireAuth();
