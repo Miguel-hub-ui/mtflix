@@ -117,17 +117,11 @@
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
     </nav>
-    <button id="mobile-menu-btn" class="mobile-menu-btn" type="button" aria-label="Menu" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="nav-search">
+    <div class="nav-search" id="nav-search-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
       <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
+      <div id="search-suggest" class="search-suggest hidden"></div>
     </div>
-    <button id="filter-btn" class="filter-btn" type="button" aria-label="Filters" aria-expanded="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
-      <span id="filter-dot" class="filter-dot hidden"></span>
-    </button>
     <div class="avatar-wrap">
       <div class="avatar" id="nav-avatar" title="Account">M</div>
       <div class="avatar-menu hidden" id="avatar-menu">
@@ -136,38 +130,6 @@
         <button id="menu-manage" type="button" data-i18n="menu_manage">Manage Profiles</button>
         <button id="menu-switch" type="button" data-i18n="menu_switch">Switch Profile</button>
         <button id="menu-signout" type="button" data-i18n="menu_signout">Sign Out</button>
-      </div>
-    </div>
-    <div id="mobile-nav-menu" class="mobile-nav-menu hidden">
-      <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
-      <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
-      <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
-      <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
-    </div>
-
-    <div id="filter-panel" class="filter-panel hidden">
-      <div class="filter-row">
-        <label for="filter-type">Type</label>
-        <select id="filter-type">
-          <option value="movie">Movies</option>
-          <option value="tv">TV Shows</option>
-        </select>
-      </div>
-      <div class="filter-row">
-        <label for="filter-genre">Genre</label>
-        <select id="filter-genre">
-          <option value="">All genres</option>
-        </select>
-      </div>
-      <div class="filter-row">
-        <label for="filter-year">Year</label>
-        <select id="filter-year">
-          <option value="">All years</option>
-        </select>
-      </div>
-      <div class="filter-actions">
-        <button id="filter-clear" class="btn btn-ghost" type="button">Clear</button>
-        <button id="filter-apply" class="btn btn-accent" type="button">Apply</button>
       </div>
     </div>
   </header>
