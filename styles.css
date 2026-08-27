@@ -362,6 +362,10 @@ button { font-family: inherit; cursor: pointer; }
 .btn-accent:hover { background: var(--accent-hover); }
 .btn-ghost { background: rgba(109, 109, 128, 0.45); color: #fff; backdrop-filter: blur(6px); }
 .btn-ghost:hover { background: rgba(109, 109, 128, 0.65); }
+.btn-danger { background: transparent; color: #ff4d4f; border: 1px solid #ff4d4f; }
+.btn-danger:hover { background: rgba(255, 77, 79, 0.12); }
+.danger-card { border-color: rgba(255, 77, 79, 0.35); }
+.danger-card .privacy-head { color: #ff4d4f; }
 
 .hero-dots {
   position: absolute;
