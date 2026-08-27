@@ -1773,11 +1773,13 @@ button { font-family: inherit; cursor: pointer; }
   .bottom-nav a svg { width: 25px; height: 25px; }
   .bottom-nav a.active { color: var(--text); }
   .bottom-nav a.active svg { color: var(--text); }
+  #messageArea { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .hero-content { bottom: 12%; right: 4%; }
   .rows { margin-top: 0; gap: 32px; padding-top: 30px; }
   .hero { height: min(66vh, 560px); min-height: 420px; }
   .hero-backdrop { background-position: center 22%; }
   .modal-body { padding: 20px 20px 28px; }
+  .modal-body { padding-bottom: 90px; }
   .modal-title { font-size: 1.4rem; }
   .hero-dots { display: none; }
   .cast-list { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
