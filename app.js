@@ -13,7 +13,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Add your own account email(s) here to unlock the Admin Dashboard for that account.
-const ADMIN_EMAILS = ["miguelturkk12@gmail.com"];
+const ADMIN_EMAILS = ["bigdoogg12@outlook.com"];
 
 function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
@@ -822,7 +822,7 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
     type === "tv"
       ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
       : PLAYER_SERVER.movie.replace("{id}", id);
-  const params = new URLSearchParams({ color: PLAYER_SERVER.color, autoPlay: "true" });
+  const params = new URLSearchParams({ color: PLAYER_SERVER.color });
   if (type === "tv" && activeProfile()?.autoplay !== false) {
     params.set("nextEpisode", "true");
     params.set("episodeSelector", "true");
