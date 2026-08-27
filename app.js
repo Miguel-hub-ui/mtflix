@@ -421,32 +421,6 @@ function cardHTML(item) {
     </article>`;
 }
 
-function qualityTag(dateStr) {
-  if (!dateStr) return "HD";
-  const released = new Date(dateStr);
-  if (isNaN(released)) return "HD";
-  const days = (Date.now() - released.getTime()) / 86400000;
-  // Titles released very recently (or not yet out) are shown as CAM,
-  // like a fresh-off-theaters rip; everything older is assumed HD.
-  return days < 45 ? "CAM" : "HD";
-}
-
-function browseCardHTML(item) {
-  const active = inList(item.id) ? " active" : "";
-  return `
-    <article class="card browse-card" data-type="${item.media_type}" data-id="${item.id}">
-      <div class="browse-poster-wrap">
-        <img class="card-poster" loading="lazy" src="${img(item.poster_path, "w500")}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null;this.src=placeholderImage()">
-        <div class="quality-badge">
-          <span class="q-tag">${qualityTag(item.date)}</span>
-          <span class="q-year">${year(item.date) || "—"}</span>
-        </div>
-        <button class="bookmark-btn${active}" title="Add to My List" aria-label="Toggle watchlist">${bookmarkSvg()}</button>
-      </div>
-      <div class="browse-card-title">${escapeHtml(item.title)}</div>
-    </article>`;
-}
-
 function escapeHtml(str) {
   const d = document.createElement("div");
   d.textContent = str == null ? "" : str;
@@ -497,42 +471,34 @@ function wireRowArrows(section) {
 }
 
 async function renderRows(filter) {
-  const rowsContainer = $("#rows");
-  const browseContainer = $("#browse-results");
-  if (browseObserver) {
-    browseObserver.disconnect();
-    browseObserver = null;
+  const container = $("#rows");
+  container.innerHTML = "";
+
+  if (filter === "home") {
+    const continueWatching = continueItems();
+    if (continueWatching.length) {
+      const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
+      container.appendChild(cwSection);
+      wireRowArrows(cwSection);
+      fillRow(cwSection, continueWatching);
+    }
   }
 
-  if (filter === "list" || filter === "movie" || filter === "tv") {
-    rowsContainer.classList.add("hidden");
-    rowsContainer.innerHTML = "";
-    browseContainer.classList.remove("hidden");
-    browseContainer.innerHTML = "";
-    if (filter === "list") {
-      renderMyListView(browseContainer);
-    } else {
-      renderBrowseGrid(filter, browseContainer);
-    }
+  const defs = ROWS.filter((r) => {
+    if (filter === "home") return true;
+    if (filter === "movie") return r.path.includes("/movie/") || r.path.includes("/discover/");
+    if (filter === "tv") return r.path.includes("/tv/");
+    return true;
+  });
+
+  if (filter === "list") {
+    renderMyListView(container);
     return;
   }
 
-  browseContainer.classList.add("hidden");
-  browseContainer.innerHTML = "";
-  rowsContainer.classList.remove("hidden");
-  rowsContainer.innerHTML = "";
-
-  const continueWatching = continueItems();
-  if (continueWatching.length) {
-    const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
-    rowsContainer.appendChild(cwSection);
-    wireRowArrows(cwSection);
-    fillRow(cwSection, continueWatching);
-  }
-
-  for (const def of ROWS) {
+  for (const def of defs) {
     const section = buildRowSection(def);
-    rowsContainer.appendChild(section);
+    container.appendChild(section);
     wireRowArrows(section);
     try {
       const data = await tmdb(def.path, { language: "en-US", ...def.params });
@@ -547,82 +513,25 @@ async function renderRows(filter) {
   }
 }
 
-let browseState = { filter: null, page: 0, totalPages: 1, loading: false };
-let browseObserver = null;
-
-async function renderBrowseGrid(filter, container) {
-  const path = filter === "movie" ? "/discover/movie" : "/discover/tv";
-  const heading = filter === "movie" ? t("nav_movies") : t("nav_tv");
-
-  container.innerHTML = `
-    <h2 class="results-title">${escapeHtml(heading)}</h2>
-    <div class="browse-grid"></div>
-    <div class="browse-sentinel"></div>`;
-  const grid = container.querySelector(".browse-grid");
-  const sentinel = container.querySelector(".browse-sentinel");
-
-  browseState = { filter, page: 0, totalPages: 1, loading: false };
-
-  async function loadMore() {
-    if (browseState.filter !== filter) return;
-    if (browseState.loading || browseState.page >= browseState.totalPages) return;
-    browseState.loading = true;
-    const nextPage = browseState.page + 1;
-    const skeletons = Array.from({ length: 12 }, () => {
-      const d = document.createElement("div");
-      d.className = "skeleton-card browse-skeleton";
-      return d;
-    });
-    skeletons.forEach((s) => grid.appendChild(s));
-    try {
-      const data = await tmdb(path, {
-        sort_by: "popularity.desc",
-        page: nextPage,
-        "vote_count.gte": 15,
-        include_adult: false,
-      });
-      if (browseState.filter !== filter) return; // filter changed mid-flight
-      browseState.page = data.page || nextPage;
-      browseState.totalPages = Math.min(data.total_pages || 1, 500);
-      const items = (data.results || [])
-        .map((r) => normalizeItem(r, filter))
-        .filter((i) => i.poster_path);
-      skeletons.forEach((s) => s.remove());
-      grid.insertAdjacentHTML("beforeend", items.map(browseCardHTML).join(""));
-    } catch (err) {
-      skeletons.forEach((s) => s.remove());
-      handleFetchError(err, container);
-    } finally {
-      browseState.loading = false;
-    }
-  }
-
-  browseObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting) loadMore();
-    },
-    { rootMargin: "800px" }
-  );
-  browseObserver.observe(sentinel);
-
-  await loadMore();
-}
-
 function renderMyListView(container) {
-  container.innerHTML = `
+  const section = document.createElement("section");
+  section.className = "search-results";
+  section.style.padding = "140px 4% 60px";
+  section.innerHTML = `
     <h2 class="results-title">${listTab === "list" ? t("list_watchlist") : t("list_tracking")}</h2>
     <div class="view-tabs">
       <button data-tab="list" class="${listTab === "list" ? "active" : ""}" type="button">${t("list_watchlist")}</button>
       <button data-tab="tracking" class="${listTab === "tracking" ? "active" : ""}" type="button">${t("list_tracking")}</button>
     </div>
     <div id="tab-content"></div>`;
-  container.querySelectorAll(".view-tabs button").forEach((b) =>
+  container.appendChild(section);
+  section.querySelectorAll(".view-tabs button").forEach((b) =>
     b.addEventListener("click", () => {
       listTab = b.dataset.tab;
       renderRows("list");
     })
   );
-  const content = container.querySelector("#tab-content");
+  const content = section.querySelector("#tab-content");
   if (listTab === "tracking") renderTrackingTab(content);
   else renderWatchlistTab(content);
 }
@@ -708,15 +617,8 @@ function setFilter(filter) {
   document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  setActiveTab(filter);
-  $("#hero").classList.toggle("hidden", filter === "list" || filter === "movie" || filter === "tv");
+  $("#hero").classList.toggle("hidden", filter === "list");
   renderRows(filter);
-}
-
-function setActiveTab(tab) {
-  document.querySelectorAll(".tab-item").forEach((b) =>
-    b.classList.toggle("active", b.dataset.tab === tab)
-  );
 }
 
 async function buildHero() {
@@ -794,12 +696,30 @@ function hasPlayer() {
   return Boolean(PLAYER_SERVER.movie && PLAYER_SERVER.tv);
 }
 
+function isTouchDevice() {
+  return (
+    (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0
+  );
+}
+
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   const base =
     type === "tv"
       ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
       : PLAYER_SERVER.movie.replace("{id}", id);
-  const params = new URLSearchParams({ color: PLAYER_SERVER.color, autoPlay: "true" });
+  const params = new URLSearchParams({ color: PLAYER_SERVER.color });
+  // The embed player's own pause control is inside its (cross-origin) iframe, so we
+  // can't touch its internal touch handling directly. On phones/tablets it appears to
+  // treat the "autoPlay" flag as a standing "keep this playing" directive and silently
+  // un-pauses itself a moment after you tap pause. Desktop (mouse) is unaffected, so we
+  // only skip forcing autoplay on touch devices, which stops that auto-resume behavior
+  // there. Trade-off: on touch devices the video no longer starts itself the instant the
+  // player opens — one tap on the player's own play button starts it, same as before that.
+  if (!isTouchDevice()) {
+    params.set("autoPlay", "true");
+  }
   if (type === "tv" && activeProfile()?.autoplay !== false) {
     params.set("nextEpisode", "true");
     params.set("episodeSelector", "true");
@@ -1418,7 +1338,6 @@ function openSettings(section) {
 
 function closeSettings() {
   $("#settings-screen").classList.add("hidden");
-  setActiveTab(currentFilter);
 }
 
 function renderSettings(section) {
@@ -1906,13 +1825,11 @@ function enterApp(id) {
   $("#search-results").classList.add("hidden");
   $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
-  $("#browse-results").classList.add("hidden");
   if (appStarted) {
     currentFilter = "home";
     document.querySelectorAll(".nav-links a").forEach((a) =>
       a.classList.toggle("active", a.dataset.filter === "home")
     );
-    setActiveTab("home");
   }
   if (!apiKey) showSetup(false);
   else startApp();
@@ -2086,7 +2003,6 @@ async function runSearch(query) {
   section.classList.remove("hidden");
   $("#hero").classList.add("hidden");
   $("#rows").classList.add("hidden");
-  $("#browse-results").classList.add("hidden");
 
   if (!results.length) {
     section.innerHTML = `
@@ -2106,10 +2022,8 @@ async function runSearch(query) {
 function exitSearch() {
   $("#search-input").value = "";
   $("#search-results").classList.add("hidden");
-  if (currentFilter === "list" || currentFilter === "movie" || currentFilter === "tv") {
-    $("#browse-results").classList.remove("hidden");
-  } else {
-    $("#rows").classList.remove("hidden");
+  $("#rows").classList.remove("hidden");
+  if (currentFilter !== "list") {
     $("#hero").classList.remove("hidden");
   }
 }
@@ -2188,21 +2102,6 @@ function setupNav() {
       e.preventDefault();
       exitSearch();
       setFilter(a.dataset.filter || "home");
-      window.scrollTo(0, 0);
-    });
-  });
-
-  document.querySelectorAll(".tab-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      if (tab === "settings") {
-        setActiveTab("settings");
-        openSettings("playback");
-        return;
-      }
-      closeSettings();
-      exitSearch();
-      setFilter(tab);
       window.scrollTo(0, 0);
     });
   });
