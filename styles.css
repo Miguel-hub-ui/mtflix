@@ -1081,7 +1081,32 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.78rem;
 }
 .admin-profile-chip.empty { color: var(--muted); font-style: italic; }
-.admin-card-stats { display: flex; gap: 18px; font-size: 0.82rem; color: var(--muted); }
+.admin-card-stats { display: flex; gap: 18px; font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+.admin-you-tag {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.admin-self-note { font-size: 0.8rem; color: var(--muted); font-style: italic; margin: 0; }
+.admin-card-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.admin-console-link { font-size: 0.78rem; color: var(--muted); text-decoration: underline; }
+.admin-console-link:hover { color: var(--text); }
+.admin-card-buttons { display: flex; gap: 8px; }
+.admin-card-buttons .btn { padding: 7px 14px; font-size: 0.8rem; }
 
 @media (max-width: 640px) {
   .admin-panel { padding: 20px 16px 32px; }
