@@ -724,6 +724,32 @@ function getWatch(id) {
   return getWatchStore()[String(id)] || { t: 0, d: 0 };
 }
 
+const LS_EPWATCHED = "cineverse_epwatched";
+function getEpWatchedStore() {
+  try {
+    return JSON.parse(localStorage.getItem(pKey(LS_EPWATCHED))) || {};
+  } catch {
+    return {};
+  }
+}
+function isEpWatched(showId, season, ep) {
+  const arr = getEpWatchedStore()[showId]?.[season];
+  return Array.isArray(arr) && arr.includes(ep);
+}
+function toggleEpWatched(showId, season, ep) {
+  const store = getEpWatchedStore();
+  store[showId] = store[showId] || {};
+  store[showId][season] = store[showId][season] || [];
+  const idx = store[showId][season].indexOf(ep);
+  if (idx >= 0) store[showId][season].splice(idx, 1);
+  else store[showId][season].push(ep);
+  localStorage.setItem(pKey(LS_EPWATCHED), JSON.stringify(store));
+}
+function countEpWatched(showId) {
+  const seasons = getEpWatchedStore()[showId] || {};
+  return Object.values(seasons).reduce((sum, arr) => sum + (arr?.length || 0), 0);
+}
+
 function fmtTime(total) {
   total = Math.max(0, Math.floor(total || 0));
   const h = Math.floor(total / 3600);
@@ -822,10 +848,8 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
-            canStream && seasonsForPicker.length
-              ? `<div class="ep-picker"><select id="season-select">${seasonsForPicker
-                  .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
-                  .join("")}</select><select id="episode-select"></select></div>`
+            type === "tv" && seasonsForPicker.length
+              ? `<button class="btn btn-ghost" id="episodes-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Episodes</button>`
               : ""
           }
           ${
@@ -885,38 +909,30 @@ async function openDetail(type, id, autoplayTrailer) {
   });
   $("#modal-close").addEventListener("click", closeModal);
 
-  const populateEpisodes = () => {
-    const seasonSel = $("#season-select");
-    const episodeSel = $("#episode-select");
-    if (!seasonSel || !episodeSel) return;
-    const seasonData = (data.seasons || []).find((s) => s.season_number === Number(seasonSel.value));
-    const count = seasonData?.episode_count || 1;
-    episodeSel.innerHTML = Array.from(
-      { length: count },
-      (_, i) => `<option value="${i + 1}">Episode ${i + 1}</option>`
-    ).join("");
-  };
-  populateEpisodes();
-  $("#season-select")?.addEventListener("change", populateEpisodes);
+  let playSeason = 1;
+  let playEpisode = 1;
 
-  const playNow = () => {
+  const playNow = (season, episode) => {
+    if (season) playSeason = Number(season);
+    if (episode) playEpisode = Number(episode);
     const heroArea = $("#modal-hero");
     if (!heroArea) return;
-    const url = buildPlayerUrl(
-      type,
-      data.id,
-      $("#season-select")?.value,
-      $("#episode-select")?.value,
-      watch.t
-    );
+    const url = buildPlayerUrl(type, data.id, playSeason, playEpisode, watch.t);
     heroArea.querySelector(".modal-trailer")?.remove();
     const wrap = document.createElement("div");
     wrap.className = "modal-trailer";
     wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
     heroArea.appendChild(wrap);
+    heroArea.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  $("#play-now")?.addEventListener("click", playNow);
+  $("#play-now")?.addEventListener("click", () => playNow());
+
+  $("#episodes-btn")?.addEventListener("click", () => {
+    openEpisodesScreen(data.id, data, (season, episode) => {
+      playNow(season, episode);
+    });
+  });
 
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
@@ -983,6 +999,126 @@ function syncModalListButton(id) {
 
 function closeModal() {
   $("#modal-overlay")?.remove();
+}
+
+function closeEpisodesScreen() {
+  $("#episodes-overlay")?.remove();
+}
+
+async function openEpisodesScreen(id, showData, onPlay) {
+  closeEpisodesScreen();
+  const seasonsForPicker = (showData.seasons || []).filter(
+    (s) => s.season_number > 0 && s.episode_count > 0
+  );
+  if (!seasonsForPicker.length) return;
+
+  const totalEpisodes = showData.number_of_episodes || 0;
+
+  const overlay = document.createElement("div");
+  overlay.className = "episodes-overlay";
+  overlay.id = "episodes-overlay";
+  overlay.innerHTML = `
+    <div class="episodes-screen">
+      <div class="episodes-top">
+        <button class="episodes-back" id="episodes-back" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1>Episodes</h1>
+        <span class="episodes-season-label" id="episodes-season-label"></span>
+      </div>
+      <div class="ep-progress-card">
+        <div class="ep-progress-head">
+          <span class="ep-progress-title">Your Series Progress</span>
+          <span class="ep-progress-pct" id="ep-progress-pct">0%</span>
+        </div>
+        <p class="ep-progress-count" id="ep-progress-count">0 of ${totalEpisodes} episodes watched</p>
+        <div class="ep-progress-track"><span id="ep-progress-fill" style="width:0%"></span></div>
+      </div>
+      <div class="ep-season-row">
+        <label for="ep-season-select">Season</label>
+        <select id="ep-season-select">
+          ${seasonsForPicker
+            .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
+            .join("")}
+        </select>
+      </div>
+      <div class="ep-list" id="ep-list"><div class="ep-list-loading">Loading episodes…</div></div>
+    </div>`;
+  $("#modal-root").appendChild(overlay);
+
+  const close = () => closeEpisodesScreen();
+  $("#episodes-back").addEventListener("click", close);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
+
+  const refreshProgress = () => {
+    const watched = countEpWatched(id);
+    const pct = totalEpisodes ? Math.round((watched / totalEpisodes) * 100) : 0;
+    $("#ep-progress-count").textContent = `${watched} of ${totalEpisodes} episodes watched`;
+    $("#ep-progress-pct").textContent = `${pct}%`;
+    $("#ep-progress-fill").style.width = `${pct}%`;
+  };
+
+  const loadSeason = async (seasonNumber) => {
+    const list = $("#ep-list");
+    const seasonMeta = seasonsForPicker.find((s) => s.season_number === seasonNumber);
+    $("#episodes-season-label").textContent = seasonMeta?.name || `Season ${seasonNumber}`;
+    list.innerHTML = `<div class="ep-list-loading">Loading episodes…</div>`;
+    let season;
+    try {
+      season = await tmdb(`/tv/${id}/season/${seasonNumber}`);
+    } catch (err) {
+      handleFetchError(err);
+      list.innerHTML = `<div class="ep-list-loading">Couldn't load episodes.</div>`;
+      return;
+    }
+    const episodes = season.episodes || [];
+    list.innerHTML = episodes
+      .map((ep) => {
+        const watched = isEpWatched(id, seasonNumber, ep.episode_number);
+        return `
+        <div class="ep-row" data-ep="${ep.episode_number}">
+          <img class="ep-thumb" loading="lazy" src="${img(ep.still_path, "w300")}" alt="" onerror="this.onerror=null;this.src=placeholderImage()">
+          <div class="ep-info">
+            <div class="ep-num">${String(ep.episode_number).padStart(2, "0")}</div>
+            <div class="ep-text">
+              <div class="ep-name">${escapeHtml(ep.name || `Episode ${ep.episode_number}`)}</div>
+              <div class="ep-overview">${escapeHtml(ep.overview || "")}</div>
+            </div>
+          </div>
+          <button class="ep-play" aria-label="Play episode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
+          </button>
+          <button class="ep-watched${watched ? " active" : ""}" aria-label="Mark watched">
+            <span></span>
+          </button>
+        </div>`;
+      })
+      .join("");
+
+    list.querySelectorAll(".ep-play").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const epNum = Number(btn.closest(".ep-row").dataset.ep);
+        close();
+        onPlay(seasonNumber, epNum);
+      });
+    });
+    list.querySelectorAll(".ep-watched").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const epNum = Number(btn.closest(".ep-row").dataset.ep);
+        toggleEpWatched(id, seasonNumber, epNum);
+        btn.classList.toggle("active");
+        refreshProgress();
+      });
+    });
+  };
+
+  $("#ep-season-select").addEventListener("change", (e) => loadSeason(Number(e.target.value)));
+
+  refreshProgress();
+  await loadSeason(seasonsForPicker[0].season_number);
 }
 
 function pKey(key) {
@@ -2266,8 +2402,12 @@ window.addEventListener("message", function (event) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    closeModal();
-    exitSearch();
+    if ($("#episodes-overlay")) {
+      closeEpisodesScreen();
+    } else {
+      closeModal();
+      exitSearch();
+    }
   }
 });
 
