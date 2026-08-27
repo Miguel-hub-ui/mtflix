@@ -1106,14 +1106,79 @@ function randomSalt() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-async function hashPassword(password, salt) {
-  if (window.crypto && crypto.subtle) {
-    const data = new TextEncoder().encode(salt + password);
-    const buf = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+// Real, dependency-free SHA-256 (byte-based). Produces the exact same digest
+// as crypto.subtle.digest("SHA-256", bytes) — used whenever Web Crypto isn't
+// available (e.g. a non-secure/HTTP context), so hashes are IDENTICAL no
+// matter which browser, device, or context created or checks them.
+function sha256Hex(bytes) {
+  function rrot(x, n) { return (x >>> n) | (x << (32 - n)); }
+  const k = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+  ];
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,
+      h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+
+  const msg = Array.from(bytes);
+  const bitLen = msg.length * 8;
+  msg.push(0x80);
+  while (msg.length % 64 !== 56) msg.push(0);
+  msg.push(0, 0, 0, 0); // high 32 bits of length (always 0 for realistic input sizes)
+  msg.push((bitLen >>> 24) & 0xff, (bitLen >>> 16) & 0xff, (bitLen >>> 8) & 0xff, bitLen & 0xff);
+
+  const w = new Array(64);
+  for (let offset = 0; offset < msg.length; offset += 64) {
+    for (let i = 0; i < 16; i++) {
+      const j = offset + i * 4;
+      w[i] = ((msg[j] << 24) | (msg[j + 1] << 16) | (msg[j + 2] << 8) | msg[j + 3]) | 0;
+    }
+    for (let i = 16; i < 64; i++) {
+      const w15 = w[i - 15], w2 = w[i - 2];
+      const s0 = rrot(w15, 7) ^ rrot(w15, 18) ^ (w15 >>> 3);
+      const s1 = rrot(w2, 17) ^ rrot(w2, 19) ^ (w2 >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+    }
+    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, hh = h7;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rrot(e, 6) ^ rrot(e, 11) ^ rrot(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (hh + S1 + ch + k[i] + w[i]) | 0;
+      const S0 = rrot(a, 2) ^ rrot(a, 13) ^ rrot(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) | 0;
+      hh = g; g = f; f = e; e = (d + temp1) | 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) | 0;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0;
+    h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + hh) | 0;
   }
+  return [h0, h1, h2, h3, h4, h5, h6, h7].map((n) => (n >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
+async function hashPassword(password, salt) {
+  const bytes = new TextEncoder().encode(salt + password);
+  if (window.crypto && crypto.subtle) {
+    try {
+      const buf = await crypto.subtle.digest("SHA-256", bytes);
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } catch {
+      // some browsers expose crypto.subtle but block it on non-secure origins; fall through
+    }
+  }
+  return sha256Hex(bytes);
+}
+
+// Old (broken) fallback hash, kept ONLY so we can detect and self-heal
+// accounts/PINs that were saved with it before this fix.
+function legacyHashPassword(password, salt) {
   let h = 5381;
   const str = salt + password;
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
@@ -1180,8 +1245,20 @@ async function handleSignIn() {
   }
   const hash = await hashPassword(pass, user.salt);
   if (hash !== user.passHash) {
-    authError("signin", "Incorrect password. Try again.");
-    return;
+    // Self-heal: this account may have been saved with the old, inconsistent
+    // fallback hash. If the password matches THAT, fix it silently and let them in.
+    if (legacyHashPassword(pass, user.salt) === user.passHash) {
+      user.passHash = hash;
+      const users = getUsers();
+      const idx = users.findIndex((u) => u.id === user.id);
+      if (idx >= 0) {
+        users[idx] = user;
+        saveUsers(users);
+      }
+    } else {
+      authError("signin", "Incorrect password. Try again.");
+      return;
+    }
   }
   if (localStorage.getItem(`cineverse_trusted_${user.id}`) === "1") {
     localStorage.setItem(LS_AUTH, user.id);
@@ -1405,8 +1482,12 @@ function renderSettings(section) {
 }
 
 function updateActiveProfile(patch) {
+  return updateActiveProfileById(localStorage.getItem(LS_SESSION), patch);
+}
+
+function updateActiveProfileById(id, patch) {
   const profiles = getProfiles();
-  const profile = profiles.find((p) => p.id === localStorage.getItem(LS_SESSION));
+  const profile = profiles.find((p) => p.id === id);
   if (!profile) return null;
   Object.assign(profile, patch);
   saveProfiles(profiles);
@@ -2005,12 +2086,18 @@ async function checkPin(pin) {
   if (!pinTarget) return;
   const hash = await hashPassword(pin, pinTarget.pinSalt || "");
   if (hash !== pinTarget.pinHash) {
-    authErrorPin("Incorrect PIN. Try again.");
-    $("#pin-row")
-      .querySelectorAll(".code-box")
-      .forEach((b) => (b.value = ""));
-    $("#pin-row").querySelector(".code-box")?.focus();
-    return;
+    // Self-heal: same legacy-hash fix as sign-in, applied to profile PINs.
+    if (legacyHashPassword(pin, pinTarget.pinSalt || "") === pinTarget.pinHash) {
+      const fixed = updateActiveProfileById(pinTarget.id, { pinHash: hash });
+      if (fixed) pinTarget = fixed;
+    } else {
+      authErrorPin("Incorrect PIN. Try again.");
+      $("#pin-row")
+        .querySelectorAll(".code-box")
+        .forEach((b) => (b.value = ""));
+      $("#pin-row").querySelector(".code-box")?.focus();
+      return;
+    }
   }
   const target = pinTarget;
   pinTarget = null;
