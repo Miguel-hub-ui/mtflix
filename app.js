@@ -733,7 +733,7 @@ let currentFilter = "home";
 
 function setFilter(filter) {
   currentFilter = filter;
-  document.querySelectorAll(".nav-links a").forEach((a) =>
+  document.querySelectorAll(".nav-links a, .bottom-nav a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
   const heroHidden = filter === "list" || filter === "movie" || filter === "tv";
@@ -2627,12 +2627,12 @@ function setupNav() {
   window.addEventListener("scroll", () => {
     $("#navbar").classList.toggle("scrolled", window.scrollY > 40);
   });
-  document.querySelectorAll(".nav-links a, #nav-home").forEach((a) => {
+  document.querySelectorAll(".nav-links a, .bottom-nav a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       exitSearch();
       setFilter(a.dataset.filter || "home");
-      $("#nav-links").classList.remove("open");
+      $("#nav-links")?.classList.remove("open");
       window.scrollTo(0, 0);
     });
   });
