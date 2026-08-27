@@ -1663,6 +1663,8 @@ button { font-family: inherit; cursor: pointer; }
   .discover-grid .card-info { padding: 18px 7px 7px; }
   .hero-content { bottom: 12%; right: 4%; }
   .rows { margin-top: -70px; gap: 32px; }
+  .hero { height: min(66vh, 560px); min-height: 420px; }
+  .hero-backdrop { background-position: center 22%; }
   .modal-body { padding: 20px 20px 28px; }
   .modal-title { font-size: 1.4rem; }
   .hero-dots { display: none; }
