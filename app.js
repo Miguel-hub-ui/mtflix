@@ -71,6 +71,9 @@ const I18N = {
     transfer_copy_btn: "Copy Code", transfer_copied: "Copied to clipboard ✓",
     transfer_import_ph: "Paste transfer code here…", transfer_import_btn: "Import",
     transfer_import_success: "Data imported ✓ Reloading…", transfer_import_error: "That code doesn't look right. Please check it and try again.",
+    danger_zone_title: "Danger Zone", delete_account_desc: "Permanently delete this account, its profiles, PINs, watchlists, and tracking data. This can't be undone.",
+    delete_account_btn: "Delete Account", delete_all_desc: "Wipe every account and profile stored in this browser. Use this to reset the site during testing.",
+    delete_all_btn: "Delete All Accounts",
     profile_add_title: "Add a profile", profile_edit_title: "Edit profile",
     profile_name_ph: "Name", profile_save: "Save", profile_cancel: "Cancel", profile_delete: "Delete",
     tab_colors: "Colors", tab_avatars: "Avatars", tab_custom: "Custom", btn_upload: "Choose Image", btn_random: "🎲 Random",
@@ -1027,7 +1030,49 @@ function getAuthUserId() {
   return localStorage.getItem(LS_AUTH) || "";
 }
 
-// ---- Cross-device data transfer (no backend; manual export/import code) ----
+// ---- Account deletion ----
+function deleteAccount(uid) {
+  const isGuest = !uid || uid === "guest";
+  const key = LS_PROFILES + (isGuest ? "" : "_" + uid);
+  let profiles = [];
+  try {
+    profiles = JSON.parse(localStorage.getItem(key)) || [];
+  } catch {
+    profiles = [];
+  }
+  profiles.forEach((p) => {
+    localStorage.removeItem(`${LS_LIST}_${p.id}`);
+    localStorage.removeItem(`${LS_PROGRESS}_${p.id}`);
+    localStorage.removeItem(`${LS_TRACK}_${p.id}`);
+  });
+  localStorage.removeItem(key);
+
+  if (!isGuest) {
+    saveUsers(getUsers().filter((u) => u.id !== uid));
+    localStorage.removeItem(`cineverse_trusted_${uid}`);
+  }
+  if (localStorage.getItem(LS_AUTH) === uid) localStorage.removeItem(LS_AUTH);
+  if (localStorage.getItem(LS_SESSION)) localStorage.removeItem(LS_SESSION);
+}
+
+function deleteAllAccounts() {
+  const prefixes = [LS_PROFILES, LS_LIST, LS_PROGRESS, LS_TRACK];
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (
+      prefixes.some((p) => k === p || k.startsWith(p + "_")) ||
+      k === LS_USERS ||
+      k === LS_AUTH ||
+      k === LS_SESSION ||
+      k.startsWith("cineverse_trusted_")
+    ) {
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach((k) => localStorage.removeItem(k));
+}
+
 function collectExportData() {
   const uid = getAuthUserId();
   const isGuest = !uid || uid === "guest";
@@ -1589,11 +1634,22 @@ function renderPrivacySettings(content) {
       <button type="button" class="btn btn-accent" id="transfer-import-btn">${t("transfer_import_btn")}</button>
     </div>`;
 
+  const dangerHtml = `
+    <div class="privacy-card danger-card">
+      <div class="privacy-head">⚠️ ${t("danger_zone_title")}</div>
+      <p class="setting-desc">${t("delete_account_desc")}</p>
+      <button type="button" class="btn btn-danger" id="delete-account-btn">${t("delete_account_btn")}</button>
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;" />
+      <p class="setting-desc">${t("delete_all_desc")}</p>
+      <button type="button" class="btn btn-danger" id="delete-all-btn">${t("delete_all_btn")}</button>
+    </div>`;
+
   content.innerHTML = `
     <h3 class="settings-h3">${t("sec_privacy")}</h3>
     ${pinHtml}
     ${pwHtml}
-    ${transferHtml}`;
+    ${transferHtml}
+    ${dangerHtml}`;
 
   const errPin = (msg) => {
     const el = $("#pin-error-s");
@@ -1704,6 +1760,26 @@ function renderPrivacySettings(content) {
         errEl.textContent = t("transfer_import_error");
         errEl.classList.remove("hidden");
       }
+    });
+  }
+
+  const deleteAccountBtn = $("#delete-account-btn");
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener("click", () => {
+      const label = user ? user.email : "this guest account";
+      if (!confirm(`Permanently delete ${label} and all of its profiles, PINs, and watchlists? This can't be undone.`)) return;
+      deleteAccount(getAuthUserId());
+      window.location.reload();
+    });
+  }
+
+  const deleteAllBtn = $("#delete-all-btn");
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener("click", () => {
+      if (!confirm("Delete EVERY account and profile stored in this browser? This can't be undone.")) return;
+      if (!confirm("Are you absolutely sure? This will sign everyone out and erase all local MTFlix data on this device.")) return;
+      deleteAllAccounts();
+      window.location.reload();
     });
   }
 }
