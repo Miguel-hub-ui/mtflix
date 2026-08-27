@@ -979,6 +979,47 @@ async function openAdminDashboard() {
 
   allAccounts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
+  const doReset = async (uid) => {
+    if (!confirm("Reset this account's data? This clears their profiles, watchlists, and tracking, but their login keeps working — they'll just start fresh.")) return;
+    const acc = allAccounts.find((a) => a.uid === uid);
+    try {
+      await db.collection("users").doc(uid).set({
+        profiles: [],
+        watchlist: {},
+        progress: {},
+        tracking: {},
+        epwatch: {},
+        email: acc?.email || "",
+        createdAt: acc?.createdAt || "",
+        lastSignIn: acc?.lastSignIn || "",
+        updatedAt: Date.now(),
+      });
+      if (acc) {
+        acc.profiles = [];
+        acc.watchlist = {};
+        acc.progress = {};
+        acc.tracking = {};
+        acc.epwatch = {};
+      }
+      showToast("Account data reset ✓");
+      renderList(allAccounts);
+    } catch (e) {
+      alert("Couldn't reset account: " + (e.message || e));
+    }
+  };
+
+  const doDelete = async (uid) => {
+    if (!confirm("Delete this account's data completely? This cannot be undone. Note: their login will still work unless you also remove them in the Firebase Console (link on their card).")) return;
+    try {
+      await db.collection("users").doc(uid).delete();
+      allAccounts = allAccounts.filter((a) => a.uid !== uid);
+      showToast("Account data deleted ✓");
+      renderList(allAccounts);
+    } catch (e) {
+      alert("Couldn't delete account: " + (e.message || e));
+    }
+  };
+
   const renderList = (accounts) => {
     const totalProfiles = accounts.reduce((s, a) => s + (a.profiles?.length || 0), 0);
     const totalWatchlist = accounts.reduce(
@@ -1005,11 +1046,12 @@ async function openAdminDashboard() {
         );
         const created = a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—";
         const lastSeen = a.lastSignIn ? new Date(a.lastSignIn).toLocaleString() : "—";
+        const selfAccount = isAdmin(a.email);
         return `
         <div class="admin-card">
           <div class="admin-card-top">
             <div>
-              <div class="admin-email">${escapeHtml(a.email || "(no email)")}</div>
+              <div class="admin-email">${escapeHtml(a.email || "(no email)")}${selfAccount ? ' <span class="admin-you-tag">you</span>' : ""}</div>
               <div class="admin-uid">UID: ${escapeHtml(a.uid)}</div>
             </div>
             <div class="admin-dates">
@@ -1027,9 +1069,27 @@ async function openAdminDashboard() {
             <span>📺 ${wlCount} in watchlist</span>
             <span>📊 ${trackCount} tracked</span>
           </div>
+          ${
+            selfAccount
+              ? `<p class="admin-self-note">This is your admin account.</p>`
+              : `<div class="admin-card-actions">
+                  <a class="admin-console-link" href="https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/users" target="_blank" rel="noopener">Manage login in Firebase Console ↗</a>
+                  <div class="admin-card-buttons">
+                    <button class="btn btn-ghost admin-reset-btn" data-uid="${a.uid}" type="button">Reset Data</button>
+                    <button class="btn btn-accent admin-delete-btn" data-uid="${a.uid}" type="button">Delete Account</button>
+                  </div>
+                </div>`
+          }
         </div>`;
       })
       .join("");
+
+    $("#admin-list").querySelectorAll(".admin-reset-btn").forEach((b) =>
+      b.addEventListener("click", () => doReset(b.dataset.uid))
+    );
+    $("#admin-list").querySelectorAll(".admin-delete-btn").forEach((b) =>
+      b.addEventListener("click", () => doDelete(b.dataset.uid))
+    );
   };
 
   renderList(allAccounts);
