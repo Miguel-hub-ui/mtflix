@@ -1785,6 +1785,7 @@ button { font-family: inherit; cursor: pointer; }
   .modal-body { padding-bottom: 90px; }
   .modal-title { font-size: 1.4rem; }
   .hero-dots { display: none; }
+  .modal-hero { aspect-ratio: 4 / 3; }
   .cast-list { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .profile-item, .profile-box { width: 84px; }
   .profile-box { height: 84px; border-radius: 10px; }
