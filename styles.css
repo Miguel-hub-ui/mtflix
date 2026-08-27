@@ -745,19 +745,167 @@ button { font-family: inherit; cursor: pointer; }
 }
 #messageArea:not(:empty) { display: block; }
 
-.ep-picker { display: flex; gap: 8px; align-items: center; }
-.ep-picker select {
+.episodes-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 270;
+  background: var(--bg);
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease;
+}
+.episodes-screen {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 24px 4% 60px;
+}
+.episodes-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.episodes-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
   background: var(--surface-2);
   color: var(--text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.episodes-back:hover { background: var(--surface); }
+.episodes-back svg { width: 20px; height: 20px; }
+.episodes-top h1 { font-size: 1.6rem; font-weight: 800; flex: 1; }
+.episodes-season-label { color: var(--muted); font-size: 0.9rem; }
+
+.ep-progress-card {
+  background: rgba(229, 9, 20, 0.06);
+  border: 1px solid rgba(229, 9, 20, 0.35);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 22px;
+}
+.ep-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.ep-progress-title {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.ep-progress-pct { color: var(--accent); font-weight: 800; font-size: 1.1rem; }
+.ep-progress-count { font-weight: 600; margin-bottom: 12px; }
+.ep-progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.ep-progress-track span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.ep-season-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.ep-season-row label { font-weight: 600; color: #d5d7de; }
+.ep-season-row select {
+  flex: 1;
+  max-width: 320px;
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--text);
+  padding: 11px 14px;
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   outline: none;
   cursor: pointer;
 }
-.ep-picker select:focus { border-color: var(--accent); }
+.ep-season-row select:focus { border-color: var(--accent); }
+
+.ep-list { display: flex; flex-direction: column; gap: 14px; }
+.ep-list-loading { color: var(--muted); padding: 30px 0; text-align: center; }
+
+.ep-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px;
+}
+.ep-thumb {
+  width: 120px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.ep-info { flex: 1; min-width: 0; display: flex; gap: 10px; }
+.ep-num { color: var(--accent); font-weight: 800; font-size: 0.95rem; flex-shrink: 0; }
+.ep-text { min-width: 0; }
+.ep-name { font-weight: 700; margin-bottom: 4px; }
+.ep-overview {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ep-play {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ep-play:hover { background: var(--accent); }
+.ep-play svg { width: 16px; height: 16px; }
+.ep-watched {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  background: none;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ep-watched span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ep-watched.active { border-color: var(--accent); }
+.ep-watched.active span { background: var(--accent); }
+
+@media (max-width: 560px) {
+  .ep-thumb { width: 96px; }
+  .ep-overview { -webkit-line-clamp: 2; }
+}
 
 .card-progress {
   position: absolute;
