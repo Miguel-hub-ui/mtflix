@@ -13,7 +13,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Add your own account email(s) here to unlock the Admin Dashboard for that account.
-const ADMIN_EMAILS = ["bigdoogg12@outlook.com"];
+const ADMIN_EMAILS = ["miguelturkk12@gmail.com"];
 
 function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
