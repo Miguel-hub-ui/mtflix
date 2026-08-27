@@ -13,7 +13,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Add your own account email(s) here to unlock the Admin Dashboard for that account.
-const ADMIN_EMAILS = ["bigdoogg12@outlook.com"];
+const ADMIN_EMAILS = ["miguelturkk12@gmail.com"]
 
 function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
@@ -2064,6 +2064,7 @@ function renderGate(openAddForm) {
   $("#profile-gate").classList.remove("hidden");
   $("#gate-manage").textContent = gateEditing ? t("cancel") : t("gate_manage");
   $("#add-profile-panel").classList.add("hidden");
+  $("#bottom-nav")?.classList.add("hidden");
 }
 
 function openProfileEditor(profileId) {
@@ -2258,6 +2259,7 @@ function enterApp(id) {
   localStorage.setItem(LS_SESSION, id);
   $("#profile-gate").classList.add("hidden");
   $("#pin-screen").classList.add("hidden");
+  $("#bottom-nav")?.classList.remove("hidden");
   applyProfileChrome();
   applyI18n();
   closeModal();
