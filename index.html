@@ -52,18 +52,23 @@
         <p id="signup-error" class="auth-error hidden"></p>
         <button type="submit" class="btn btn-accent" data-i18n="signup_btn">Create Account</button>
       </form>
-      <div id="form-verify" class="hidden">
-        <p class="verify-title">Verify your email</p>
+      <form id="form-verify" class="hidden" novalidate>
+        <p class="verify-title">Check your email</p>
         <p class="verify-sub" id="verify-sub"></p>
-        <p id="verify-error" class="auth-error hidden"></p>
-        <button id="verify-continue-btn" type="button" class="btn btn-accent">I've verified — Continue</button>
-        <div class="verify-links">
-          <button id="resend-btn" class="link-btn" type="button">Resend email</button>
-          <button id="verify-back" class="link-btn" type="button">Sign out</button>
+        <div class="demo-email">
+          <div class="demo-email-head">📧 New message — <strong>MTFlix</strong> &lt;no-reply@mtflix.com&gt;</div>
+          <div class="demo-email-body" id="demo-email-body"></div>
         </div>
-      </div>
+        <div class="code-row" id="code-row"></div>
+        <p id="verify-error" class="auth-error hidden"></p>
+        <button type="submit" class="btn btn-accent">Verify &amp; Continue</button>
+        <div class="verify-links">
+          <button id="resend-btn" class="link-btn" type="button">Resend code</button>
+          <button id="verify-back" class="link-btn" type="button">Back</button>
+        </div>
+      </form>
       <button id="guest-btn" class="guest-link" type="button" data-i18n="guest_link">Continue as guest</button>
-      <p class="auth-note">We'll send a verification link to your email — accounts sync automatically across all your devices.</p>
+      <p class="auth-note">Accounts are stored locally in this browser. Your password is hashed and never saved in plain text.</p>
     </div>
   </div>
 
@@ -106,20 +111,23 @@
       <img src="logo.svg" alt="MT" class="logo-mark" />
       <span class="logo-text">FLIX<small>.com</small></span>
     </a>
-    <nav class="nav-links" id="nav-links">
+    <nav class="nav-links">
       <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
       <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
     </nav>
-    <button class="nav-burger" id="nav-burger" aria-label="Menu" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    <button id="mobile-menu-btn" class="mobile-menu-btn" type="button" aria-label="Menu" aria-expanded="false">
+      <span></span><span></span><span></span>
     </button>
     <div class="nav-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
       <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
-      <div id="search-suggest" class="search-suggest hidden"></div>
     </div>
+    <button id="filter-btn" class="filter-btn" type="button" aria-label="Filters" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+      <span id="filter-dot" class="filter-dot hidden"></span>
+    </button>
     <div class="avatar-wrap">
       <div class="avatar" id="nav-avatar" title="Account">M</div>
       <div class="avatar-menu hidden" id="avatar-menu">
@@ -128,6 +136,38 @@
         <button id="menu-manage" type="button" data-i18n="menu_manage">Manage Profiles</button>
         <button id="menu-switch" type="button" data-i18n="menu_switch">Switch Profile</button>
         <button id="menu-signout" type="button" data-i18n="menu_signout">Sign Out</button>
+      </div>
+    </div>
+    <div id="mobile-nav-menu" class="mobile-nav-menu hidden">
+      <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
+      <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
+      <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
+      <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
+    </div>
+
+    <div id="filter-panel" class="filter-panel hidden">
+      <div class="filter-row">
+        <label for="filter-type">Type</label>
+        <select id="filter-type">
+          <option value="movie">Movies</option>
+          <option value="tv">TV Shows</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <label for="filter-genre">Genre</label>
+        <select id="filter-genre">
+          <option value="">All genres</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <label for="filter-year">Year</label>
+        <select id="filter-year">
+          <option value="">All years</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button id="filter-clear" class="btn btn-ghost" type="button">Clear</button>
+        <button id="filter-apply" class="btn btn-accent" type="button">Apply</button>
       </div>
     </div>
   </header>
@@ -147,9 +187,6 @@
   <div id="toast-root"></div>
   <div id="messageArea"></div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
