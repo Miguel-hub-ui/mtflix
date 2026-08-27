@@ -908,21 +908,21 @@ async function loadSeasonEpisodes(data, seasonNumber) {
     .map((ep) => {
       const watched = isEpWatched(data.id, seasonNumber, ep.episode_number);
       return `
-      <div class="episode-row">
+      <div class="episode-row" data-ep="${ep.episode_number}" role="button" tabindex="0">
         <img class="episode-thumb" loading="lazy" src="${img(ep.still_path, "w300")}" alt="" onerror="this.onerror=null;this.src=placeholderImage('No Image');" />
         <div class="episode-info">
           <div class="episode-num">${String(ep.episode_number).padStart(2, "0")}</div>
           <div class="episode-title">${escapeHtml(ep.name || `Episode ${ep.episode_number}`)}</div>
           <div class="episode-desc">${escapeHtml(ep.overview || "No description available.")}</div>
         </div>
-        <button class="episode-play" data-ep="${ep.episode_number}" aria-label="Play episode">›</button>
+        <span class="episode-play" aria-hidden="true">›</span>
         <button class="episode-watched-toggle${watched ? " watched" : ""}" data-ep="${ep.episode_number}" type="button" aria-label="Mark watched"></button>
       </div>`;
     })
     .join("");
 
-  list.querySelectorAll(".episode-play").forEach((btn) =>
-    btn.addEventListener("click", () => playEpisode(data, seasonNumber, Number(btn.dataset.ep)))
+  list.querySelectorAll(".episode-row").forEach((row) =>
+    row.addEventListener("click", () => playEpisode(data, seasonNumber, Number(row.dataset.ep)))
   );
   list.querySelectorAll(".episode-watched-toggle").forEach((btn) =>
     btn.addEventListener("click", (e) => {
