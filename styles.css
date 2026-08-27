@@ -98,6 +98,7 @@ button { font-family: inherit; cursor: pointer; }
 .nav-burger svg { width: 24px; height: 24px; }
 
 .nav-search {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -122,6 +123,58 @@ button { font-family: inherit; cursor: pointer; }
   font-family: inherit;
 }
 .nav-search input::placeholder { color: var(--muted); }
+
+.search-suggest {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  width: 340px;
+  max-height: 440px;
+  overflow-y: auto;
+  background: rgba(15, 15, 22, 0.98);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  z-index: 200;
+}
+.search-suggest-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.search-suggest-item:hover { background: rgba(255, 255, 255, 0.07); }
+.search-suggest-item img {
+  width: 42px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.search-suggest-item .ss-title { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+.search-suggest-item .ss-sub { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+.search-suggest-empty, .search-suggest-loading {
+  padding: 16px 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.search-suggest-more {
+  padding: 11px 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.search-suggest-more:hover { color: var(--accent-hover); }
 
 .avatar {
   width: 34px;
@@ -1457,6 +1510,7 @@ button { font-family: inherit; cursor: pointer; }
   .nav-links a:last-child { border-bottom: none; }
   .nav-search { order: 2; flex: 1 1 auto; min-width: 0; }
   .nav-search input { width: 100%; }
+  .search-suggest { left: -46px; right: -4vw; width: auto; }
   .avatar-wrap { order: 3; flex-shrink: 0; }
   .card, .skeleton-card { width: 138px; }
   .discover-grid {
