@@ -1,5 +1,17 @@
 "use strict";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDCBacYdDwQ8-9kNgmvMuQ0Q95CXLdBZHQ",
+  authDomain: "mtflix-79292.firebaseapp.com",
+  projectId: "mtflix-79292",
+  storageBucket: "mtflix-79292.firebasestorage.app",
+  messagingSenderId: "788293924878",
+  appId: "1:788293924878:web:eb367a8bd1814bd9ade45f",
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -1105,6 +1117,64 @@ function getProfiles() {
 
 function saveProfiles(list) {
   localStorage.setItem(profilesKey(), JSON.stringify(list));
+  scheduleCloudSync();
+}
+
+let cloudSyncTimer = null;
+
+function scheduleCloudSync() {
+  const uid = getAuthUserId();
+  if (!uid || uid === "guest") return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => pushCloudData(), 1200);
+}
+
+async function pushCloudData() {
+  const uid = getAuthUserId();
+  if (!uid || uid === "guest") return;
+  const profiles = getProfiles();
+  const watchlist = {};
+  const progress = {};
+  const tracking = {};
+  profiles.forEach((p) => {
+    try { watchlist[p.id] = JSON.parse(localStorage.getItem(`${LS_LIST}_${p.id}`)) || []; } catch { watchlist[p.id] = []; }
+    try { progress[p.id] = JSON.parse(localStorage.getItem(`${LS_PROGRESS}_${p.id}`)) || {}; } catch { progress[p.id] = {}; }
+    try { tracking[p.id] = JSON.parse(localStorage.getItem(`${LS_TRACK}_${p.id}`)) || {}; } catch { tracking[p.id] = {}; }
+  });
+  try {
+    await db.collection("users").doc(uid).set(
+      { profiles, watchlist, progress, tracking, updatedAt: Date.now() },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("Cloud sync (push) failed", e);
+  }
+}
+
+async function pullCloudData(uid) {
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    if (!snap.exists) return;
+    const data = snap.data();
+    if (data.profiles) localStorage.setItem(LS_PROFILES + "_" + uid, JSON.stringify(data.profiles));
+    if (data.watchlist) {
+      Object.entries(data.watchlist).forEach(([pid, val]) =>
+        localStorage.setItem(`${LS_LIST}_${pid}`, JSON.stringify(val))
+      );
+    }
+    if (data.progress) {
+      Object.entries(data.progress).forEach(([pid, val]) =>
+        localStorage.setItem(`${LS_PROGRESS}_${pid}`, JSON.stringify(val))
+      );
+    }
+    if (data.tracking) {
+      Object.entries(data.tracking).forEach(([pid, val]) =>
+        localStorage.setItem(`${LS_TRACK}_${pid}`, JSON.stringify(val))
+      );
+    }
+  } catch (e) {
+    console.error("Cloud sync (pull) failed", e);
+  }
 }
 
 function getUsers() {
@@ -1146,13 +1216,38 @@ async function hashPassword(password, salt) {
   return "f" + h.toString(16);
 }
 
+function friendlyAuthError(err) {
+  const map = {
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/user-not-found": "No account found with that email.",
+    "auth/wrong-password": "Incorrect password. Try again.",
+    "auth/invalid-credential": "Incorrect email or password.",
+    "auth/email-already-in-use": "An account with that email already exists.",
+    "auth/weak-password": "Password must be at least 6 characters.",
+    "auth/too-many-requests": "Too many attempts. Please wait a bit and try again.",
+    "auth/network-request-failed": "Network error. Check your connection and try again.",
+  };
+  return map[err.code] || "Something went wrong. Please try again.";
+}
+
 function initAuth() {
-  const uid = getAuthUserId();
-  if (uid && (uid === "guest" || getUsers().some((u) => u.id === uid))) {
-    initProfiles();
-  } else {
-    showAuthScreen("signin");
-  }
+  auth.onAuthStateChanged(async (fbUser) => {
+    if (fbUser) {
+      localStorage.setItem(LS_AUTH, fbUser.uid);
+      await pullCloudData(fbUser.uid);
+      const user = {
+        id: fbUser.uid,
+        name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
+        email: fbUser.email || "",
+      };
+      enterAfterAuth(user);
+    } else if (getAuthUserId() === "guest") {
+      initProfiles();
+    } else {
+      localStorage.removeItem(LS_AUTH);
+      showAuthScreen("signin");
+    }
+  });
 }
 
 function wireAuth() {
@@ -1199,28 +1294,16 @@ function authError(form, msg) {
 async function handleSignIn() {
   const email = $("#signin-email").value.trim().toLowerCase();
   const pass = $("#signin-pass").value;
-  const user = getUsers().find((u) => u.email === email);
-  if (!user) {
-    authError("signin", "No account found with that email.");
+  if (!email || !pass) {
+    authError("signin", "Please enter your email and password.");
     return;
   }
-  const hash = await hashPassword(pass, user.salt);
-  if (hash !== user.passHash) {
-    authError("signin", "Incorrect password. Try again.");
-    return;
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged takes over from here
+  } catch (err) {
+    authError("signin", friendlyAuthError(err));
   }
-  if (localStorage.getItem(`cineverse_trusted_${user.id}`) === "1") {
-    localStorage.setItem(LS_AUTH, user.id);
-    enterAfterAuth(user);
-    return;
-  }
-  pendingVerification = {
-    mode: "signin",
-    user,
-    code: generateCode(),
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  };
-  showVerifyScreen();
 }
 
 async function handleSignUp() {
@@ -1232,25 +1315,14 @@ async function handleSignUp() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authError("signup", "Please enter a valid email address.");
   if (pass.length < 6) return authError("signup", "Password must be at least 6 characters.");
   if (pass !== confirm) return authError("signup", "Passwords do not match.");
-  const users = getUsers();
-  if (users.some((u) => u.email === email)) return authError("signup", "An account with that email already exists.");
-
-  const salt = randomSalt();
-  const draftUser = {
-    id: "u_" + Date.now().toString(36),
-    name,
-    email,
-    salt,
-    passHash: await hashPassword(pass, salt),
-    createdAt: Date.now(),
-  };
-  pendingVerification = {
-    mode: "signup",
-    draft: draftUser,
-    code: generateCode(),
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  };
-  showVerifyScreen();
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await cred.user.updateProfile({ displayName: name });
+    cred.user.sendEmailVerification().catch(() => {});
+    // onAuthStateChanged takes over from here
+  } catch (err) {
+    authError("signup", friendlyAuthError(err));
+  }
 }
 
 function continueAsGuest() {
@@ -1363,8 +1435,13 @@ function verifyBack() {
 }
 
 function signOut() {
+  const uid = getAuthUserId();
   localStorage.removeItem(LS_AUTH);
-  location.reload();
+  if (uid && uid !== "guest") {
+    auth.signOut().finally(() => location.reload());
+  } else {
+    location.reload();
+  }
 }
 
 function enterAfterAuth(user) {
@@ -1482,7 +1559,8 @@ function renderLanguageSettings(content) {
 
 function renderPrivacySettings(content) {
   const profile = activeProfile();
-  const user = getUsers().find((u) => u.id === getAuthUserId());
+  const uidNow = getAuthUserId();
+  const user = uidNow && uidNow !== "guest" ? auth.currentUser : null;
   const pinHtml = `
     <div class="privacy-card">
       <div class="privacy-head">🔒 ${t("pin_enter_title")}</div>
@@ -1582,17 +1660,19 @@ function renderPrivacySettings(content) {
       const cur = $("#pw-cur").value;
       const nw = $("#pw-new").value;
       const cf = $("#pw-confirm").value;
-      const curHash = await hashPassword(cur, user.salt);
-      if (curHash !== user.passHash) return err(t("pw_current"));
+      const fbUser = auth.currentUser;
+      if (!fbUser) return err("You must be signed in to change your password.");
       if (nw.length < 6) return err(t("auth_pass_min"));
       if (nw !== cf) return err(t("pw_confirm"));
-      const users = getUsers();
-      const u = users.find((x) => x.id === user.id);
-      u.salt = randomSalt();
-      u.passHash = await hashPassword(nw, u.salt);
-      saveUsers(users);
-      showToast(t("pw_update") + " ✓");
-      renderSettings("privacy");
+      try {
+        const credential = firebase.auth.EmailAuthProvider.credential(fbUser.email, cur);
+        await fbUser.reauthenticateWithCredential(credential);
+        await fbUser.updatePassword(nw);
+        showToast(t("pw_update") + " ✓");
+        renderSettings("privacy");
+      } catch (e) {
+        err(friendlyAuthError(e));
+      }
     });
   }
 }
@@ -1626,6 +1706,7 @@ function setTrackEntry(id, patch, meta) {
   }
   if (!store[String(id)].status && !store[String(id)].rating) delete store[String(id)];
   localStorage.setItem(pKey(LS_TRACK), JSON.stringify(store));
+  scheduleCloudSync();
 }
 
 function initProfiles() {
@@ -2037,6 +2118,7 @@ function toggleList(item) {
     showToast(`Added “${item.title}” to your list`);
   }
   localStorage.setItem(pKey(LS_LIST), JSON.stringify(list.slice(0, 50)));
+  scheduleCloudSync();
   refreshBookmarkButtons();
   if (currentFilter === "list" && $("#search-results").classList.contains("hidden")) {
     renderRows("list");
@@ -2319,6 +2401,7 @@ window.addEventListener("message", function (event) {
       backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
     };
     localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+    scheduleCloudSync();
   }
   const chip = document.querySelector("#messageArea");
   if (chip) {
