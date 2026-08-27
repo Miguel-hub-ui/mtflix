@@ -117,6 +117,10 @@
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
     </nav>
+    <div class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
+    </div>
     <div class="avatar-wrap">
       <div class="avatar" id="nav-avatar" title="Account">M</div>
       <div class="avatar-menu hidden" id="avatar-menu">
@@ -129,9 +133,33 @@
     </div>
   </header>
 
+  <nav class="mobile-tabbar" id="mobile-tabbar">
+    <button type="button" class="tab-item active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1v-9"/></svg>
+      <span data-i18n="nav_home">Home</span>
+    </button>
+    <button type="button" class="tab-item" data-tab="movie">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5h19v11a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1z"/><path d="m3 8.5 2.2-5h3l-2.2 5zM9 8.5l2.2-5h3l-2.2 5zM15 8.5l2.2-5h3l-2.2 5z"/></svg>
+      <span data-i18n="nav_movies">Movies</span>
+    </button>
+    <button type="button" class="tab-item" data-tab="tv">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="1.5"/><path d="M8.5 21.5h7M12 18.5v3"/></svg>
+      <span data-i18n="nav_tv">TV Shows</span>
+    </button>
+    <button type="button" class="tab-item" data-tab="list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-8-4.9-8-11.2A4.8 4.8 0 0 1 12 6.3a4.8 4.8 0 0 1 8 3c0 6.3-8 11.2-8 11.2z"/></svg>
+      <span data-i18n="nav_list">My List</span>
+    </button>
+    <button type="button" class="tab-item" data-tab="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10.6a1.7 1.7 0 0 0 1.04-1.56V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10.6a1.7 1.7 0 0 0 1.56 1.04H19.5a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></svg>
+      <span data-i18n="settings_title">Settings</span>
+    </button>
+  </nav>
+
   <main id="main">
     <section id="hero" class="hero"></section>
     <section id="rows" class="rows"></section>
+    <section id="search-results" class="search-results hidden"></section>
   </main>
 
   <footer class="footer">
