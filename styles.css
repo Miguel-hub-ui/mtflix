@@ -689,7 +689,7 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 12px;
 }
-.browse-section { padding: 140px 4% 60px; }
+.browse-section { padding: 120px 4% 60px; min-height: 100vh; }
 .browse-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -1479,11 +1479,16 @@ button { font-family: inherit; cursor: pointer; }
   .nav-links { display: none; }
   .mobile-tabbar { display: flex; }
   body { padding-bottom: 68px; }
+  .navbar { gap: 10px; }
+  .logo { flex-shrink: 0; }
+  .nav-search { flex: 1 1 auto; min-width: 0; max-width: 240px; padding: 7px 10px; }
+  .nav-search input { flex: 1; min-width: 0; width: 100%; }
+  .avatar-wrap, .avatar { flex-shrink: 0; }
 }
 
 @media (max-width: 720px) {
-  .navbar { gap: 14px; padding: 12px 4%; }
-  .nav-search input { width: 110px; }
+  .navbar { gap: 8px; padding: 12px 3%; }
+  .nav-search { max-width: 140px; }
   .card, .skeleton-card { width: 138px; }
   .hero-content { bottom: 12%; right: 4%; }
   .rows { margin-top: -70px; gap: 32px; }
