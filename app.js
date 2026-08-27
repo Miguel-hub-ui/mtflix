@@ -421,6 +421,32 @@ function cardHTML(item) {
     </article>`;
 }
 
+function qualityTag(dateStr) {
+  if (!dateStr) return "HD";
+  const released = new Date(dateStr);
+  if (isNaN(released)) return "HD";
+  const days = (Date.now() - released.getTime()) / 86400000;
+  // Titles released very recently (or not yet out) are shown as CAM,
+  // like a fresh-off-theaters rip; everything older is assumed HD.
+  return days < 45 ? "CAM" : "HD";
+}
+
+function browseCardHTML(item) {
+  const active = inList(item.id) ? " active" : "";
+  return `
+    <article class="card browse-card" data-type="${item.media_type}" data-id="${item.id}">
+      <div class="browse-poster-wrap">
+        <img class="card-poster" loading="lazy" src="${img(item.poster_path, "w500")}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null;this.src=placeholderImage()">
+        <div class="quality-badge">
+          <span class="q-tag">${qualityTag(item.date)}</span>
+          <span class="q-year">${year(item.date) || "—"}</span>
+        </div>
+        <button class="bookmark-btn${active}" title="Add to My List" aria-label="Toggle watchlist">${bookmarkSvg()}</button>
+      </div>
+      <div class="browse-card-title">${escapeHtml(item.title)}</div>
+    </article>`;
+}
+
 function escapeHtml(str) {
   const d = document.createElement("div");
   d.textContent = str == null ? "" : str;
@@ -472,31 +498,31 @@ function wireRowArrows(section) {
 
 async function renderRows(filter) {
   const container = $("#rows");
-  container.innerHTML = "";
-
-  if (filter === "home") {
-    const continueWatching = continueItems();
-    if (continueWatching.length) {
-      const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
-      container.appendChild(cwSection);
-      wireRowArrows(cwSection);
-      fillRow(cwSection, continueWatching);
-    }
+  if (browseObserver) {
+    browseObserver.disconnect();
+    browseObserver = null;
   }
-
-  const defs = ROWS.filter((r) => {
-    if (filter === "home") return true;
-    if (filter === "movie") return r.path.includes("/movie/") || r.path.includes("/discover/");
-    if (filter === "tv") return r.path.includes("/tv/");
-    return true;
-  });
+  container.innerHTML = "";
 
   if (filter === "list") {
     renderMyListView(container);
     return;
   }
 
-  for (const def of defs) {
+  if (filter === "movie" || filter === "tv") {
+    renderBrowseGrid(filter, container);
+    return;
+  }
+
+  const continueWatching = continueItems();
+  if (continueWatching.length) {
+    const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
+    container.appendChild(cwSection);
+    wireRowArrows(cwSection);
+    fillRow(cwSection, continueWatching);
+  }
+
+  for (const def of ROWS) {
     const section = buildRowSection(def);
     container.appendChild(section);
     wireRowArrows(section);
@@ -511,6 +537,70 @@ async function renderRows(filter) {
       handleFetchError(err, section);
     }
   }
+}
+
+let browseState = { filter: null, page: 0, totalPages: 1, loading: false };
+let browseObserver = null;
+
+async function renderBrowseGrid(filter, container) {
+  const path = filter === "movie" ? "/discover/movie" : "/discover/tv";
+  const heading = filter === "movie" ? t("nav_movies") : t("nav_tv");
+
+  const section = document.createElement("section");
+  section.className = "browse-section";
+  section.innerHTML = `
+    <h2 class="results-title">${escapeHtml(heading)}</h2>
+    <div class="browse-grid"></div>
+    <div class="browse-sentinel"></div>`;
+  container.appendChild(section);
+  const grid = section.querySelector(".browse-grid");
+  const sentinel = section.querySelector(".browse-sentinel");
+
+  browseState = { filter, page: 0, totalPages: 1, loading: false };
+
+  async function loadMore() {
+    if (browseState.filter !== filter) return;
+    if (browseState.loading || browseState.page >= browseState.totalPages) return;
+    browseState.loading = true;
+    const nextPage = browseState.page + 1;
+    const skeletons = Array.from({ length: 12 }, () => {
+      const d = document.createElement("div");
+      d.className = "skeleton-card browse-skeleton";
+      return d;
+    });
+    skeletons.forEach((s) => grid.appendChild(s));
+    try {
+      const data = await tmdb(path, {
+        sort_by: "popularity.desc",
+        page: nextPage,
+        "vote_count.gte": 15,
+        include_adult: false,
+      });
+      if (browseState.filter !== filter) return; // filter changed mid-flight
+      browseState.page = data.page || nextPage;
+      browseState.totalPages = Math.min(data.total_pages || 1, 500);
+      const items = (data.results || [])
+        .map((r) => normalizeItem(r, filter))
+        .filter((i) => i.poster_path);
+      skeletons.forEach((s) => s.remove());
+      grid.insertAdjacentHTML("beforeend", items.map(browseCardHTML).join(""));
+    } catch (err) {
+      skeletons.forEach((s) => s.remove());
+      handleFetchError(err, section);
+    } finally {
+      browseState.loading = false;
+    }
+  }
+
+  browseObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    },
+    { rootMargin: "800px" }
+  );
+  browseObserver.observe(sentinel);
+
+  await loadMore();
 }
 
 function renderMyListView(container) {
@@ -617,8 +707,15 @@ function setFilter(filter) {
   document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  $("#hero").classList.toggle("hidden", filter === "list");
+  setActiveTab(filter);
+  $("#hero").classList.toggle("hidden", filter === "list" || filter === "movie" || filter === "tv");
   renderRows(filter);
+}
+
+function setActiveTab(tab) {
+  document.querySelectorAll(".tab-item").forEach((b) =>
+    b.classList.toggle("active", b.dataset.tab === tab)
+  );
 }
 
 async function buildHero() {
@@ -1320,6 +1417,7 @@ function openSettings(section) {
 
 function closeSettings() {
   $("#settings-screen").classList.add("hidden");
+  setActiveTab(currentFilter);
 }
 
 function renderSettings(section) {
@@ -1804,12 +1902,15 @@ function enterApp(id) {
   applyProfileChrome();
   applyI18n();
   closeModal();
+  $("#search-results").classList.add("hidden");
+  $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
   if (appStarted) {
     currentFilter = "home";
     document.querySelectorAll(".nav-links a").forEach((a) =>
       a.classList.toggle("active", a.dataset.filter === "home")
     );
+    setActiveTab("home");
   }
   if (!apiKey) showSetup(false);
   else startApp();
@@ -1933,7 +2034,7 @@ function toggleList(item) {
   }
   localStorage.setItem(pKey(LS_LIST), JSON.stringify(list.slice(0, 50)));
   refreshBookmarkButtons();
-  if (currentFilter === "list") {
+  if (currentFilter === "list" && $("#search-results").classList.contains("hidden")) {
     renderRows("list");
   }
 }
@@ -1952,6 +2053,60 @@ function showToast(msg) {
   toast.textContent = msg;
   root.appendChild(toast);
   setTimeout(() => toast.remove(), 2600);
+}
+
+function setupSearch() {
+  const input = $("#search-input");
+  input.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    const q = input.value.trim();
+    if (q.length < 2) {
+      exitSearch();
+      return;
+    }
+    searchTimer = setTimeout(() => runSearch(q), 400);
+  });
+}
+
+async function runSearch(query) {
+  let data;
+  try {
+    data = await tmdb("/search/multi", { query, include_adult: false, language: "en-US" });
+  } catch (err) {
+    handleFetchError(err);
+    return;
+  }
+  const results = data.results
+    .map((r) => normalizeItem(r))
+    .filter((r) => r.poster_path);
+
+  const section = $("#search-results");
+  section.classList.remove("hidden");
+  $("#hero").classList.add("hidden");
+  $("#rows").classList.add("hidden");
+
+  if (!results.length) {
+    section.innerHTML = `
+      <h2 class="results-title">Results for “${escapeHtml(query)}”</h2>
+      <p class="results-sub">0 titles found</p>
+      <div class="empty-state"><h2>No matches found</h2><p>Try a different title, person, or keyword.</p></div>`;
+    return;
+  }
+
+  section.innerHTML = `
+    <h2 class="results-title">Results for “${escapeHtml(query)}”</h2>
+    <p class="results-sub">${results.length} titles found</p>
+    <div class="results-grid"></div>`;
+  section.querySelector(".results-grid").innerHTML = results.map(cardHTML).join("");
+}
+
+function exitSearch() {
+  $("#search-input").value = "";
+  $("#search-results").classList.add("hidden");
+  $("#rows").classList.remove("hidden");
+  if (currentFilter !== "list") {
+    $("#hero").classList.remove("hidden");
+  }
 }
 
 function setupGlobalClickDelegation() {
@@ -2026,7 +2181,23 @@ function setupNav() {
   document.querySelectorAll(".nav-links a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
+      exitSearch();
       setFilter(a.dataset.filter || "home");
+      window.scrollTo(0, 0);
+    });
+  });
+
+  document.querySelectorAll(".tab-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      if (tab === "settings") {
+        setActiveTab("settings");
+        openSettings("playback");
+        return;
+      }
+      closeSettings();
+      exitSearch();
+      setFilter(tab);
       window.scrollTo(0, 0);
     });
   });
@@ -2065,12 +2236,14 @@ window.addEventListener("message", function (event) {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closeModal();
+    exitSearch();
   }
 });
 
 window.addEventListener("load", () => {
   applyI18n();
   setupNav();
+  setupSearch();
   setupGlobalClickDelegation();
   wireProfileGate();
   wireAuth();
