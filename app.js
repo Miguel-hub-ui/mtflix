@@ -1748,11 +1748,15 @@ function authError(form, msg) {
 async function handleSignIn() {
   const email = $("#signin-email").value.trim().toLowerCase();
   const pass = $("#signin-pass").value;
+  const remember = $("#signin-remember")?.checked !== false;
   if (!email || !pass) {
     authError("signin", "Please enter your email and password.");
     return;
   }
   try {
+    await auth.setPersistence(
+      remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
+    );
     await auth.signInWithEmailAndPassword(email, pass);
     // onAuthStateChanged takes over from here
   } catch (err) {
