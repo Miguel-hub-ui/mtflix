@@ -113,7 +113,7 @@ const PLAYER_SERVER = {
 ```
 
 - `{id}` is filled with the TMDB ID automatically; `{season}` / `{episode}` from the picker
-- Auto-enabled params: `primaryColor`, `secondaryColor`, `iconColor`, `autoplay`, and `nextbutton` (TV)
+- Auto-enabled params: `primaryColor`, `secondaryColor`, `iconColor`, and `nextbutton` (TV, tied to the "auto-play next episode" setting)
 - **Resume playback:** the site listens for VidLink `PLAYER_EVENT` postMessages and saves your position — reopening a title shows *Resume* and passes `startAt=` so the player picks up where you left off
 - **Continue Watching** row appears on the home screen once you've watched something
 - A small status chip (bottom-left) shows live player state (`#messageArea`)

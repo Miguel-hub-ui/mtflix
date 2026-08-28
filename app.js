@@ -34,9 +34,11 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SERVER = {
-  movie: "https://www.vidking.net/embed/movie/{id}",
-  tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
-  color: "e50914",
+  movie: "https://vidlink.pro/movie/{id}",
+  tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+  primaryColor: "e50914",
+  secondaryColor: "221f1f",
+  iconColor: "ffffff",
 };
 
 let currentPlayer = null;
@@ -904,13 +906,16 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
     type === "tv"
       ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
       : PLAYER_SERVER.movie.replace("{id}", id);
-  const params = new URLSearchParams({ color: PLAYER_SERVER.color });
+  const params = new URLSearchParams({
+    primaryColor: PLAYER_SERVER.primaryColor,
+    secondaryColor: PLAYER_SERVER.secondaryColor,
+    iconColor: PLAYER_SERVER.iconColor,
+  });
   if (type === "tv" && activeProfile()?.autoplay !== false) {
-    params.set("nextEpisode", "true");
-    params.set("episodeSelector", "true");
+    params.set("nextbutton", "true");
   }
   if (resumeSeconds > 30) {
-    params.set("progress", String(Math.floor(resumeSeconds)));
+    params.set("startAt", String(Math.floor(resumeSeconds)));
   }
   return `${base}?${params.toString()}`;
 }
