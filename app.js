@@ -731,6 +731,63 @@ async function startApp() {
 
 let currentFilter = "home";
 
+// --- Back-button navigation ---
+// Every time a "layer" opens (a movie's detail popup, search results, the
+// Episodes list, Settings, the Admin dashboard, or switching to a non-Home
+// tab), we push one browser history entry for it. Pressing the phone/browser
+// back button then closes just that one layer instead of leaving the site.
+let navDepth = 0;
+let suppressPopstate = false;
+
+function pushNav() {
+  navDepth++;
+  history.pushState({ mtflixNav: navDepth }, "", location.href);
+}
+
+function popNavIfNeeded() {
+  if (navDepth > 0) {
+    navDepth--;
+    suppressPopstate = true;
+    history.back();
+  }
+}
+
+function closeTopLayer() {
+  if ($("#admin-overlay")) {
+    $("#admin-overlay").remove();
+    return;
+  }
+  if ($("#episodes-overlay")) {
+    $("#episodes-overlay").remove();
+    return;
+  }
+  if ($("#modal-overlay")) {
+    closeModal();
+    return;
+  }
+  if (!$("#settings-screen").classList.contains("hidden")) {
+    closeSettings();
+    return;
+  }
+  if (!$("#search-results").classList.contains("hidden")) {
+    exitSearch();
+    return;
+  }
+  if (currentFilter !== "home") {
+    setFilter("home");
+    return;
+  }
+}
+
+window.addEventListener("popstate", () => {
+  if (suppressPopstate) {
+    suppressPopstate = false;
+    return;
+  }
+  navDepth = Math.max(0, navDepth - 1);
+  closeTopLayer();
+});
+
 function setFilter(filter) {
   currentFilter = filter;
   document.querySelectorAll(".nav-links a, .bottom-nav a").forEach((a) =>
@@ -868,10 +925,17 @@ async function openEpisodesView(data) {
       <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>
     </div>`;
   $("#modal-root").appendChild(overlay);
+  pushNav();
 
-  $("#episodes-back").addEventListener("click", () => overlay.remove());
+  $("#episodes-back").addEventListener("click", () => {
+    overlay.remove();
+    popNavIfNeeded();
+  });
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+      overlay.remove();
+      popNavIfNeeded();
+    }
   });
   $("#episodes-season-select").addEventListener("change", (e) => {
     currentSeason = Number(e.target.value);
@@ -941,7 +1005,10 @@ async function loadSeasonEpisodes(data, seasonNumber) {
 }
 
 function playEpisode(data, season, episode) {
-  $("#episodes-overlay")?.remove();
+  if ($("#episodes-overlay")) {
+    $("#episodes-overlay").remove();
+    popNavIfNeeded();
+  }
   const watch = getWatch(data.id);
   injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
 }
@@ -961,10 +1028,17 @@ async function openAdminDashboard() {
       <div class="admin-list" id="admin-list">${skeletonRow(4)}</div>
     </div>`;
   $("#modal-root").appendChild(overlay);
+  pushNav();
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+      overlay.remove();
+      popNavIfNeeded();
+    }
   });
-  $("#admin-close").addEventListener("click", () => overlay.remove());
+  $("#admin-close").addEventListener("click", () => {
+    overlay.remove();
+    popNavIfNeeded();
+  });
 
   let allAccounts = [];
   try {
@@ -1305,7 +1379,9 @@ function continueItems() {
 }
 
 async function openDetail(type, id, autoplayTrailer) {
+  const hadModal = !!$("#modal-overlay");
   closeModal();
+  if (hadModal) popNavIfNeeded();
   let data;
   try {
     data = await tmdb(`/${type}/${id}`, {
@@ -1433,10 +1509,17 @@ async function openDetail(type, id, autoplayTrailer) {
     </div>`;
 
   $("#modal-root").appendChild(overlay);
+  pushNav();
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) closeModal();
+    if (e.target === overlay) {
+      closeModal();
+      popNavIfNeeded();
+    }
   });
-  $("#modal-close").addEventListener("click", closeModal);
+  $("#modal-close").addEventListener("click", () => {
+    closeModal();
+    popNavIfNeeded();
+  });
 
   const playNow = () => {
     injectPlayer(buildPlayerUrl(type, data.id, 1, 1, watch.t));
@@ -1907,7 +1990,10 @@ function wireAvatarMenu() {
     $("#avatar-menu").classList.add("hidden");
     openAdminDashboard();
   });
-  $("#settings-close").addEventListener("click", closeSettings);
+  $("#settings-close").addEventListener("click", () => {
+    closeSettings();
+    popNavIfNeeded();
+  });
   document.querySelectorAll(".side-link").forEach((b) =>
     b.addEventListener("click", () => {
       document.querySelectorAll(".side-link").forEach((x) =>
@@ -1920,6 +2006,7 @@ function wireAvatarMenu() {
 
 function openSettings(section) {
   $("#settings-screen").classList.remove("hidden");
+  pushNav();
   document.querySelectorAll(".side-link").forEach((b) =>
     b.classList.toggle("active", b.dataset.sec === section)
   );
@@ -2424,6 +2511,7 @@ function enterApp(id) {
   applyProfileChrome();
   applyI18n();
   closeModal();
+  navDepth = 0;
   $("#search-results").classList.add("hidden");
   $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
@@ -2698,7 +2786,9 @@ async function runSearch(query) {
     .filter((r) => r.poster_path);
 
   const section = $("#search-results");
+  const searchWasClosed = section.classList.contains("hidden");
   section.classList.remove("hidden");
+  if (searchWasClosed) pushNav();
   $("#hero").classList.add("hidden");
   $("#rows").classList.add("hidden");
 
@@ -2799,8 +2889,13 @@ function setupNav() {
   document.querySelectorAll(".nav-links a, .bottom-nav a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
+      const dest = a.dataset.filter || "home";
+      const searchWasOpen = !$("#search-results").classList.contains("hidden");
       exitSearch();
-      setFilter(a.dataset.filter || "home");
+      if (searchWasOpen) popNavIfNeeded();
+      if (currentFilter !== "home" && currentFilter !== dest) popNavIfNeeded();
+      if (dest !== "home" && dest !== currentFilter) pushNav();
+      setFilter(dest);
       $("#nav-links")?.classList.remove("open");
       window.scrollTo(0, 0);
     });
@@ -2850,8 +2945,14 @@ window.addEventListener("message", function (event) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    closeModal();
-    exitSearch();
+    if ($("#modal-overlay")) {
+      closeModal();
+      popNavIfNeeded();
+    }
+    if (!$("#search-results").classList.contains("hidden")) {
+      exitSearch();
+      popNavIfNeeded();
+    }
   }
 });
 
