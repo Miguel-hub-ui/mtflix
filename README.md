@@ -78,21 +78,23 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 - Switch profiles anytime via the avatar in the top-right corner
 - All data is stored locally in your browser (localStorage) — no backend needed
 
-## Playback Server (VidKing)
+## Playback Server (VidLink)
 
 Movies and TV shows stream through an embed player inside the detail modal, configured at the top of `app.js`:
 
 ```js
 const PLAYER_SERVER = {
-  movie: "https://www.vidking.net/embed/movie/{id}",
-  tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
-  color: "e50914",
+  movie: "https://vidlink.pro/movie/{id}",
+  tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+  primaryColor: "e50914",
+  secondaryColor: "221f1f",
+  iconColor: "ffffff",
 };
 ```
 
 - `{id}` is filled with the TMDB ID automatically; `{season}` / `{episode}` from the picker
-- Auto-enabled params: `color`, `autoPlay`, `nextEpisode`, `episodeSelector` (TV)
-- **Resume playback:** the site listens for `PLAYER_EVENT` postMessages and saves your position — reopening a title shows *Resume* and passes `progress=` so the player picks up where you left off
+- Auto-enabled params: `primaryColor`, `secondaryColor`, `iconColor`, `autoplay`, and `nextbutton` (TV)
+- **Resume playback:** the site listens for VidLink `PLAYER_EVENT` postMessages and saves your position — reopening a title shows *Resume* and passes `startAt=` so the player picks up where you left off
 - **Continue Watching** row appears on the home screen once you've watched something
 - A small status chip (bottom-left) shows live player state (`#messageArea`)
 
