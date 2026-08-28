@@ -1,4 +1,4 @@
-=<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -47,6 +47,10 @@
       <form id="form-signin" novalidate>
         <input id="signin-email" type="email" placeholder="Email" autocomplete="email" data-i18n-placeholder="auth_email" />
         <input id="signin-pass" type="password" placeholder="Password" autocomplete="current-password" data-i18n-placeholder="auth_pass" />
+        <label class="remember-me-row">
+          <input id="signin-remember" type="checkbox" checked />
+          <span>Remember me on this device</span>
+        </label>
         <p id="signin-error" class="auth-error hidden"></p>
         <button type="submit" class="btn btn-accent" data-i18n="signin_btn">Sign In</button>
         <button id="forgot-pass-btn" class="link-btn forgot-pass-link" type="button">Forgot password?</button>
