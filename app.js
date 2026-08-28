@@ -27,6 +27,14 @@ const LS_KEY = "cineverse_api_key";
 const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
+const PLAYER_SERVER = {
+  movie: "https://www.vidking.net/embed/movie/{id}",
+  tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
+  color: "e50914",
+};
+
+let currentPlayer = null;
+
 const LS_PROFILES = "cineverse_profiles";
 const LS_SESSION = "cineverse_session";
 const AVATAR_GRADIENTS = [
@@ -805,6 +813,36 @@ function setHeroSlide(i) {
   );
 }
 
+function hasPlayer() {
+  return Boolean(PLAYER_SERVER.movie && PLAYER_SERVER.tv);
+}
+
+function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
+  const base =
+    type === "tv"
+      ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
+      : PLAYER_SERVER.movie.replace("{id}", id);
+  const params = new URLSearchParams({ color: PLAYER_SERVER.color });
+  if (type === "tv" && activeProfile()?.autoplay !== false) {
+    params.set("nextEpisode", "true");
+    params.set("episodeSelector", "true");
+  }
+  if (resumeSeconds > 30) {
+    params.set("progress", String(Math.floor(resumeSeconds)));
+  }
+  return `${base}?${params.toString()}`;
+}
+
+function injectPlayer(url) {
+  const heroArea = $("#modal-hero");
+  if (!heroArea) return;
+  heroArea.querySelector(".modal-trailer")?.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "modal-trailer";
+  wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+  heroArea.appendChild(wrap);
+}
+
 async function openEpisodesView(data) {
   const seasons = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
   if (!seasons.length) return;
@@ -902,8 +940,10 @@ async function loadSeasonEpisodes(data, seasonNumber) {
   );
 }
 
-function playEpisode() {
-  showToast("Episode playback is not available in this version.");
+function playEpisode(data, season, episode) {
+  $("#episodes-overlay")?.remove();
+  const watch = getWatch(data.id);
+  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
 }
 
 async function openAdminDashboard() {
@@ -1143,6 +1183,7 @@ async function openDetail(type, id, autoplayTrailer) {
   }
 
   const title = data.title || data.name || "Untitled";
+  currentPlayer = { type, id, title, poster_path: data.poster_path, backdrop_path: data.backdrop_path };
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
   const runtime = data.runtime
@@ -1166,7 +1207,11 @@ async function openDetail(type, id, autoplayTrailer) {
     (data.videos?.results || []).find((v) => v.site === "YouTube");
 
   const inMyList = inList(data.id);
+  const watch = getWatch(data.id);
   const trackNow = getTrack(data.id);
+  const canStream = hasPlayer();
+  const seasonsForPicker =
+    type === "tv" ? (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0) : [];
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "modal-overlay";
@@ -1192,8 +1237,18 @@ async function openDetail(type, id, autoplayTrailer) {
         </div>
         <div class="modal-actions">
           ${
+            canStream
+              ? `<button class="btn btn-accent" id="play-now"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${watch.t > 30 ? t("hdr_resume") : t("hdr_play")}</button>`
+              : ""
+          }
+          ${
+            canStream && type === "tv" && seasonsForPicker.length
+              ? `<button class="btn btn-ghost" id="open-episodes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>Episodes</button>`
+              : ""
+          }
+          ${
             trailer
-              ? `<button class="btn btn-accent" id="play-trailer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${t("hdr_trailer")}</button>`
+              ? `<button class="btn btn-${canStream ? "ghost" : "accent"}" id="play-trailer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${t("hdr_trailer")}</button>`
               : ""
           }
           <button class="btn btn-ghost ${inMyList ? "in-list" : ""}" id="modal-list-btn" data-id="${data.id}">
@@ -1248,13 +1303,21 @@ async function openDetail(type, id, autoplayTrailer) {
   });
   $("#modal-close").addEventListener("click", closeModal);
 
+  const playNow = () => {
+    injectPlayer(buildPlayerUrl(type, data.id, 1, 1, watch.t));
+  };
+
+  $("#play-now")?.addEventListener("click", playNow);
+  $("#open-episodes")?.addEventListener("click", () => openEpisodesView(data));
+
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
     trailerBtn.addEventListener("click", () => playTrailer(trailer.key));
   }
 
   if (autoplayTrailer) {
-    if (trailer) playTrailer(trailer.key);
+    if (canStream) playNow();
+    else if (trailer) playTrailer(trailer.key);
   }
 
   $("#modal-list-btn").addEventListener("click", (e) => {
@@ -2592,6 +2655,37 @@ function setupNav() {
     }
   });
 }
+
+window.addEventListener("message", function (event) {
+  if (typeof event.data !== "string") return;
+  let msg = null;
+  try {
+    msg = JSON.parse(event.data);
+  } catch {
+    return;
+  }
+  if (!msg || msg.type !== "PLAYER_EVENT") return;
+  const d = msg.data || {};
+  if (currentPlayer && d.id && typeof d.currentTime === "number") {
+    const store = getWatchStore();
+    const prev = store[d.id] || {};
+    store[d.id] = {
+      t: d.currentTime,
+      d: d.duration || prev.d || 0,
+      media_type: d.mediaType || currentPlayer.type,
+      title: currentPlayer.title || prev.title,
+      poster_path: prev.poster_path || currentPlayer.poster_path,
+      backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+    };
+    localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+    scheduleCloudSync();
+  }
+  const chip = document.querySelector("#messageArea");
+  if (chip) {
+    const icons = { play: "▶ ", pause: "⏸ ", ended: "✓ ", seeked: "⏩ ", timeupdate: "" };
+    chip.innerText = (icons[d.event] ?? "• ") + fmtTime(d.currentTime) + (d.duration ? " / " + fmtTime(d.duration) : "");
+  }
+});
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
