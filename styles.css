@@ -1380,6 +1380,44 @@ button { font-family: inherit; cursor: pointer; }
 }
 .link-btn:hover { color: #fff; }
 .forgot-pass-link { display: block; margin: 12px auto 0; text-align: center; }
+.remember-me-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin: -6px 0 4px;
+  user-select: none;
+}
+.remember-me-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0;
+}
+.remember-me-row input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.remember-me-row input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
 
 .track-row {
   display: flex;
