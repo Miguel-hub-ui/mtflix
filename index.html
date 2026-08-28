@@ -1,10 +1,16 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MTFlix.com — Watch Movies &amp; TV</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="theme-color" content="#0a0a10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MTFlix" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -43,6 +49,7 @@
         <input id="signin-pass" type="password" placeholder="Password" autocomplete="current-password" data-i18n-placeholder="auth_pass" />
         <p id="signin-error" class="auth-error hidden"></p>
         <button type="submit" class="btn btn-accent" data-i18n="signin_btn">Sign In</button>
+        <button id="forgot-pass-btn" class="link-btn forgot-pass-link" type="button">Forgot password?</button>
       </form>
       <form id="form-signup" class="hidden" novalidate>
         <input id="signup-name" type="text" maxlength="30" placeholder="Display name" autocomplete="name" data-i18n-placeholder="auth_name" />
