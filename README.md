@@ -49,12 +49,32 @@ Then visit `http://localhost:8000` (or `:3000` for serve).
 
 ## Accounts & Tracking
 
-- **Sign up / Sign in** with email + password (hashed locally, never stored in plain text), or **continue as guest**
-- **Email verification:** sign-up (and first sign-in on a new browser) requires a 6-digit code, shown in a simulated demo inbox — codes expire after 10 minutes and can be resent; verified browsers are remembered
+- **Sign up / Sign in** with email + password via **Firebase Authentication** — real accounts that sync across devices — or **continue as guest**
+- **Email verification:** sign-up (and any sign-in until verified) requires a 6-digit code emailed to you — codes expire after 10 minutes and can be resent
 - Each account owns its own **profiles** — the "Who's watching?" picker is per-account
 - **Tracking:** open any title and set a status (Plan to Watch / Watching / Completed / On Hold / Dropped) and a 5-star rating
 - The **My List** page has tabs: *Watchlist* (saved titles) and *Tracking* (grouped by status, with ratings and progress bars)
-- All data stays in your browser's localStorage under your account
+- Account/profile data is synced to Firestore and cached in your browser's localStorage
+
+### Sending verification codes (EmailJS)
+
+By default, no email keys are configured, so the code is shown on-screen in a simulated demo inbox (handy for local testing — no setup needed). To actually email the code:
+
+1. Create a free account at [emailjs.com](https://www.emailjs.com/) (free tier: 200 emails/month)
+2. Add an **Email Service** (e.g. connect your Gmail) — copy its **Service ID**
+3. Create an **Email Template** with variables `{{to_email}}`, `{{code}}`, `{{minutes}}` in the body — copy its **Template ID**
+4. Copy your **Public Key** from Account → General
+5. Paste all three into `app.js` near the top:
+
+```js
+const EMAILJS_PUBLIC_KEY = "your_public_key";
+const EMAILJS_SERVICE_ID = "your_service_id";
+const EMAILJS_TEMPLATE_ID = "your_template_id";
+```
+
+No backend or Node.js required — EmailJS sends directly from the browser. If sending ever fails (offline, quota hit), the site falls back to showing the code on-screen so you're never locked out.
+
+**Security note:** the code is generated and checked entirely in the browser, and "verified" is a flag on your Firestore user document. This is fine for a personal/demo project, but it is not tamper-proof — someone with dev tools access to their own account could flip their own flag without ever seeing the email. A fully tamper-proof version would check the code server-side in a Firebase Cloud Function, which requires Node.js, the Firebase CLI, and upgrading the Firebase project to the Blaze (pay-as-you-go) plan.
 
 ## Profiles
 

@@ -12,6 +12,12 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Real email delivery for verification codes via EmailJS (emailjs.com — free, no backend).
+// Leave these blank to keep the on-screen demo inbox fallback used for local testing.
+const EMAILJS_PUBLIC_KEY = "";
+const EMAILJS_SERVICE_ID = "";
+const EMAILJS_TEMPLATE_ID = "";
+
 // Add your own account email(s) here to unlock the Admin Dashboard for that account.
 const ADMIN_EMAILS = ["miguelturkk12@gmail.com"];
 
@@ -1781,10 +1787,8 @@ function friendlyAuthError(err) {
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
     if (fbUser) {
-      try {
-        await fbUser.reload();
-      } catch {}
-      if (!fbUser.emailVerified) {
+      const verified = await isCodeVerified(fbUser.uid);
+      if (!verified) {
         showEmailVerifyGate(fbUser);
         return;
       }
@@ -1888,7 +1892,6 @@ async function handleSignUp() {
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await cred.user.updateProfile({ displayName: name });
-    cred.user.sendEmailVerification().catch(() => {});
     // onAuthStateChanged takes over from here
   } catch (err) {
     authError("signup", friendlyAuthError(err));
@@ -1912,44 +1915,122 @@ function authErrorVerify(msg) {
   el.classList.toggle("hidden", !msg);
 }
 
-function showEmailVerifyGate(fbUser) {
+async function isCodeVerified(uid) {
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    return !!(snap.exists && snap.data().codeVerified);
+  } catch {
+    return false;
+  }
+}
+
+async function markCodeVerified(uid) {
+  await db.collection("users").doc(uid).set({ codeVerified: true }, { merge: true });
+}
+
+function generateVerificationCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function emailDeliveryEnabled() {
+  return !!(EMAILJS_PUBLIC_KEY && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID);
+}
+
+function initEmailDelivery() {
+  if (emailDeliveryEnabled() && window.emailjs) {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  }
+}
+
+async function sendVerificationEmail(email, code, minutes) {
+  if (!emailDeliveryEnabled() || !window.emailjs) return { sent: false };
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: email, code, minutes });
+    return { sent: true };
+  } catch (err) {
+    console.error("EmailJS send failed:", err);
+    return { sent: false, error: true };
+  }
+}
+
+function renderDemoEmail(code, minutes) {
+  $("#demo-email-body").innerHTML = `
+    <p><strong>Hi!</strong></p>
+    <p>Your MTFlix verification code is:</p>
+    <div class="code-big">${code}</div>
+    <p>This code expires in ${minutes} minutes. If you didn't request it, you can ignore this email.</p>
+    <p class="muted">— The MTFlix Team</p>`;
+}
+
+let pendingVerifyCode = null;
+
+async function deliverVerificationCode(fbUser) {
+  const code = generateVerificationCode();
+  pendingVerifyCode = { uid: fbUser.uid, code, expiresAt: Date.now() + 10 * 60 * 1000 };
+  const note = $("#verify-sent-note");
+  const demoWrap = $("#demo-email-wrap");
+  note.classList.add("hidden");
+  demoWrap.classList.add("hidden");
+  const result = await sendVerificationEmail(fbUser.email, code, 10);
+  if (result.sent) {
+    note.textContent = `We just emailed a code to ${maskEmail(fbUser.email || "")}. Check your inbox (and spam folder).`;
+    note.classList.remove("hidden");
+    return;
+  }
+  if (result.error) {
+    note.textContent = "Couldn't send the email — showing your code below instead.";
+    note.classList.remove("hidden");
+  }
+  renderDemoEmail(code, 10);
+  demoWrap.classList.remove("hidden");
+}
+
+function clearVerifyCodeBoxes() {
+  $("#verify-code-row").querySelectorAll(".code-box").forEach((b) => (b.value = ""));
+  $("#verify-code-row").querySelector(".code-box")?.focus();
+}
+
+async function showEmailVerifyGate(fbUser) {
   $("#auth-screen").classList.remove("hidden");
   $("#form-signin").classList.add("hidden");
   $("#form-signup").classList.add("hidden");
   $("#tab-signin").classList.remove("active");
   $("#tab-signup").classList.remove("active");
   $("#form-verify").classList.remove("hidden");
-  $("#verify-sub").textContent =
-    "We sent a verification link to " + maskEmail(fbUser.email || "") +
-    ". Open it, then come back here and tap Continue.";
+  $("#verify-sub").textContent = "We sent a 6-digit code to " + maskEmail(fbUser.email || "") + ".";
   authErrorVerify("");
 
-  $("#verify-continue-btn").onclick = async () => {
+  const submitCode = async (code) => {
     authErrorVerify("");
-    try {
-      await fbUser.reload();
-    } catch {}
-    if (fbUser.emailVerified) {
-      $("#form-verify").classList.add("hidden");
-      localStorage.setItem(LS_AUTH, fbUser.uid);
-      await pullCloudData(fbUser.uid);
-      enterAfterAuth({
-        id: fbUser.uid,
-        name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
-        email: fbUser.email || "",
-      });
-    } else {
-      authErrorVerify("Still not verified. Check your inbox (and spam folder), open the link, then try again.");
+    if (!pendingVerifyCode || pendingVerifyCode.uid !== fbUser.uid || Date.now() > pendingVerifyCode.expiresAt) {
+      authErrorVerify("This code has expired. Tap “Resend code” to get a new one.");
+      clearVerifyCodeBoxes();
+      return;
     }
+    if (code !== pendingVerifyCode.code) {
+      authErrorVerify("Incorrect code. Please check and try again.");
+      clearVerifyCodeBoxes();
+      return;
+    }
+    pendingVerifyCode = null;
+    await markCodeVerified(fbUser.uid);
+    $("#form-verify").classList.add("hidden");
+    localStorage.setItem(LS_AUTH, fbUser.uid);
+    await pullCloudData(fbUser.uid);
+    enterAfterAuth({
+      id: fbUser.uid,
+      name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
+      email: fbUser.email || "",
+    });
   };
 
+  buildCodeRow($("#verify-code-row"), 6, submitCode, false);
+  $("#verify-continue-btn").onclick = () => submitCode(collectDigits($("#verify-code-row")));
+
   $("#resend-btn").onclick = async () => {
-    try {
-      await fbUser.sendEmailVerification();
-      authErrorVerify("Verification email sent — check your inbox.");
-    } catch (e) {
-      authErrorVerify(friendlyAuthError(e));
-    }
+    authErrorVerify("");
+    clearVerifyCodeBoxes();
+    await deliverVerificationCode(fbUser);
   };
 
   $("#verify-back").onclick = () => {
@@ -1958,6 +2039,8 @@ function showEmailVerifyGate(fbUser) {
     $("#form-verify").classList.add("hidden");
     switchAuthTab("signin");
   };
+
+  await deliverVerificationCode(fbUser);
 }
 
 function signOut() {
@@ -2995,6 +3078,7 @@ window.addEventListener("load", () => {
   wireAuth();
   wireAvatarMenu();
   initAuth();
+  initEmailDelivery();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   }

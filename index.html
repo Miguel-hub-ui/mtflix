@@ -66,15 +66,21 @@
       <div id="form-verify" class="hidden">
         <p class="verify-title">Verify your email</p>
         <p class="verify-sub" id="verify-sub"></p>
+        <p class="verify-sent-note hidden" id="verify-sent-note"></p>
+        <div class="demo-email hidden" id="demo-email-wrap">
+          <div class="demo-email-head">📧 New message — <strong>MTFlix</strong> &lt;no-reply@mtflix.com&gt;</div>
+          <div class="demo-email-body" id="demo-email-body"></div>
+        </div>
+        <div class="code-row" id="verify-code-row"></div>
         <p id="verify-error" class="auth-error hidden"></p>
-        <button id="verify-continue-btn" type="button" class="btn btn-accent">I've verified — Continue</button>
+        <button id="verify-continue-btn" type="button" class="btn btn-accent">Verify &amp; Continue</button>
         <div class="verify-links">
-          <button id="resend-btn" class="link-btn" type="button">Resend email</button>
+          <button id="resend-btn" class="link-btn" type="button">Resend code</button>
           <button id="verify-back" class="link-btn" type="button">Sign out</button>
         </div>
       </div>
       <button id="guest-btn" class="guest-link" type="button" data-i18n="guest_link">Continue as guest</button>
-      <p class="auth-note">We'll send a verification link to your email — accounts sync automatically across all your devices.</p>
+      <p class="auth-note">We'll send a 6-digit verification code to your email — accounts sync automatically across all your devices.</p>
     </div>
   </div>
 
@@ -181,6 +187,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

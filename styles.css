@@ -1319,6 +1319,16 @@ button { font-family: inherit; cursor: pointer; }
   line-height: 1.5;
   margin-bottom: 16px;
 }
+.verify-sent-note {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  color: #6fe3a0;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
 .demo-email {
   background: var(--surface-2);
   border: 1px solid var(--border);
