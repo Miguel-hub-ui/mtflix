@@ -1379,6 +1379,7 @@ button { font-family: inherit; cursor: pointer; }
   text-underline-offset: 3px;
 }
 .link-btn:hover { color: #fff; }
+.forgot-pass-link { display: block; margin: 12px auto 0; text-align: center; }
 
 .track-row {
   display: flex;
