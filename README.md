@@ -49,9 +49,9 @@ Then visit `http://localhost:8000` (or `:3000` for serve).
 
 ## Accounts & Tracking
 
-- **Sign up / Sign in** with email + password via **Firebase Authentication** — real accounts that sync across devices — or **continue as guest**
+- **Sign up / Sign in** with email + password via **Firebase Authentication** — real accounts that sync across devices — or **continue as guest** for instant access with no sign-up
 - **Email verification:** sign-up (and any sign-in until verified) requires a 6-digit code emailed to you — codes expire after 10 minutes and can be resent
-- Each account owns its own **profiles** — the "Who's watching?" picker is per-account
+- **Profiles** ("Who's watching?") are an account-only feature — creating one requires signing up. Guests skip the picker entirely and land straight in the app on a single implicit profile, with no "Manage Profiles" / "Switch Profile" options
 - **Tracking:** open any title and set a status (Plan to Watch / Watching / Completed / On Hold / Dropped) and a 5-star rating
 - The **My List** page has tabs: *Watchlist* (saved titles) and *Tracking* (grouped by status, with ratings and progress bars)
 - Account/profile data is synced to Firestore and cached in your browser's localStorage

@@ -1875,7 +1875,8 @@ function initAuth() {
       };
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
-      initProfiles();
+      applyUserChrome({ id: "guest", name: "Guest", email: "" });
+      enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
       showAuthScreen("signin");
@@ -1973,7 +1974,18 @@ async function handleSignUp() {
 
 function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
-  enterAfterAuth({ id: "guest", name: "Guest", email: "" });
+  $("#auth-screen").classList.add("hidden");
+  applyUserChrome({ id: "guest", name: "Guest", email: "" });
+  enterGuestSession();
+}
+
+function enterGuestSession() {
+  let profiles = getProfiles();
+  if (!profiles.length) {
+    profiles = [{ id: "p_main", name: "Guest", g: 0 }];
+    saveProfiles(profiles);
+  }
+  enterApp(profiles[0].id);
 }
 
 function maskEmail(email) {
@@ -2147,6 +2159,9 @@ function applyUserChrome(user) {
   const head = $("#menu-user-head");
   if (!head) return;
   head.innerHTML = `<strong>${escapeHtml(user.name)}</strong>${user.email ? `<span>${escapeHtml(user.email)}</span>` : "<span>Browsing as guest</span>"}`;
+  const isGuest = user.id === "guest";
+  $("#menu-manage")?.classList.toggle("hidden", isGuest);
+  $("#menu-switch")?.classList.toggle("hidden", isGuest);
   $("#menu-admin")?.classList.toggle("hidden", !isAdmin(user.email));
 }
 
