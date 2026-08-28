@@ -890,7 +890,7 @@ async function buildHero() {
 
     hero.innerHTML = `
       <div class="hero-backdrop" id="hero-backdrop"></div>
-      <div class="hero-content">
+      <div class="hero-content" id="hero-content">
         <div class="hero-meta">
           <span class="hero-type-badge" id="hero-type">MOVIE</span>
           <span class="hero-rating" id="hero-rating"></span>
@@ -934,16 +934,19 @@ function setHeroSlide(i) {
   heroIndex = i;
   const item = heroItems[i];
   const backdrop = $("#hero-backdrop");
+  const content = $("#hero-content");
   backdrop.classList.remove("visible");
+  content.classList.add("fading");
   setTimeout(() => {
     backdrop.style.backgroundImage = `url(${IMG_BASE}original${item.backdrop_path})`;
     backdrop.classList.add("visible");
+    $("#hero-type").textContent = item.media_type === "tv" ? "SERIES" : "FILM";
+    $("#hero-rating").textContent = `★ ${rating(item.vote_average)}`;
+    $("#hero-year").textContent = year(item.date);
+    $("#hero-title").textContent = item.title;
+    $("#hero-overview").textContent = item.overview;
+    content.classList.remove("fading");
   }, 120);
-  $("#hero-type").textContent = item.media_type === "tv" ? "SERIES" : "FILM";
-  $("#hero-rating").textContent = `★ ${rating(item.vote_average)}`;
-  $("#hero-year").textContent = year(item.date);
-  $("#hero-title").textContent = item.title;
-  $("#hero-overview").textContent = item.overview;
   document.querySelectorAll(".hero-dot").forEach((d, di) =>
     d.classList.toggle("active", di === i)
   );
