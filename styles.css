@@ -1085,6 +1085,64 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.78rem;
 }
 .admin-profile-chip.empty { color: var(--muted); font-style: italic; }
+
+.admin-field-row { margin-bottom: 14px; }
+.admin-field-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.admin-field-inline { display: flex; gap: 8px; }
+.admin-name-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.86rem;
+  outline: none;
+  min-width: 0;
+}
+.admin-name-input:focus { border-color: var(--accent); }
+.admin-profile-list { display: flex; flex-direction: column; gap: 8px; }
+.admin-profile-row { display: flex; gap: 8px; align-items: center; }
+.admin-profile-name-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.84rem;
+  outline: none;
+  min-width: 0;
+}
+.admin-profile-name-input:focus { border-color: var(--accent); }
+.admin-profile-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.admin-mini-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  width: 34px;
+  height: 34px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.admin-mini-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.admin-profile-delete-btn:hover { background: rgba(229, 9, 20, 0.25); border-color: var(--accent); }
+
 .admin-card-stats { display: flex; gap: 18px; font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
 .admin-you-tag {
   display: inline-block;
@@ -1109,7 +1167,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .admin-console-link { font-size: 0.78rem; color: var(--muted); text-decoration: underline; }
 .admin-console-link:hover { color: var(--text); }
-.admin-card-buttons { display: flex; gap: 8px; }
+.admin-card-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .admin-card-buttons .btn { padding: 7px 14px; font-size: 0.8rem; }
 
 @media (max-width: 640px) {
@@ -1785,6 +1843,7 @@ button { font-family: inherit; cursor: pointer; }
   .modal-title { font-size: 1.4rem; }
   .hero-dots { display: none; }
   .modal-hero { aspect-ratio: 4 / 3; }
+  .modal-overlay { backdrop-filter: none; background: rgba(4, 4, 8, 0.94); }
   .cast-list { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .profile-item, .profile-box { width: 84px; }
   .profile-box { height: 84px; border-radius: 10px; }
