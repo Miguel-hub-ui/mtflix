@@ -14,9 +14,9 @@ const db = firebase.firestore();
 
 // Real email delivery for verification codes via EmailJS (emailjs.com — free, no backend).
 // Leave these blank to keep the on-screen demo inbox fallback used for local testing.
-const EMAILJS_PUBLIC_KEY = "";
-const EMAILJS_SERVICE_ID = "";
-const EMAILJS_TEMPLATE_ID = "";
+const EMAILJS_PUBLIC_KEY = "vbh9XopeuuHGcqM_W";
+const EMAILJS_SERVICE_ID = "service_hdvg4lk";
+const EMAILJS_TEMPLATE_ID = "template_hzsk6sq";
 
 // Add your own account email(s) here to unlock the Admin Dashboard for that account.
 const ADMIN_EMAILS = ["miguelturkk12@gmail.com"];
@@ -2163,6 +2163,11 @@ function applyUserChrome(user) {
   $("#menu-manage")?.classList.toggle("hidden", isGuest);
   $("#menu-switch")?.classList.toggle("hidden", isGuest);
   $("#menu-admin")?.classList.toggle("hidden", !isAdmin(user.email));
+  const signoutBtn = $("#menu-signout");
+  if (signoutBtn) {
+    signoutBtn.dataset.i18n = isGuest ? "auth_in" : "menu_signout";
+    signoutBtn.textContent = t(signoutBtn.dataset.i18n);
+  }
 }
 
 function wireAvatarMenu() {
