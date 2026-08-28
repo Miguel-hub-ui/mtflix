@@ -1,24 +1,5 @@
 "use strict";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDCBacYdDwQ8-9kNgmvMuQ0Q95CXLdBZHQ",
-  authDomain: "mtflix-79292.firebaseapp.com",
-  projectId: "mtflix-79292",
-  storageBucket: "mtflix-79292.firebasestorage.app",
-  messagingSenderId: "788293924878",
-  appId: "1:788293924878:web:eb367a8bd1814bd9ade45f",
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// Add your own account email(s) here to unlock the Admin Dashboard for that account.
-const ADMIN_EMAILS = ["bigdoogg12@outlook.com"];
-
-function isAdmin(email) {
-  return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
-}
-
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -28,9 +9,11 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SERVER = {
-  movie: "https://www.vidking.net/embed/movie/{id}",
-  tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
-  color: "e50914",
+  movie: "https://vidlink.pro/movie/{id}",
+  tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+  primaryColor: "e50914",
+  secondaryColor: "221f1f",
+  iconColor: "ffffff",
 };
 
 let currentPlayer = null;
@@ -56,7 +39,6 @@ let listTab = "list";
 const LS_USERS = "cineverse_users";
 const LS_AUTH = "cineverse_auth";
 const LS_TRACK = "cineverse_track";
-const LS_EPWATCH = "cineverse_epwatch";
 const TRACK_STATUSES = [
   { id: "plan", label: "Plan to Watch" },
   { id: "watching", label: "Watching" },
@@ -97,8 +79,6 @@ const I18N = {
     row_poptv: "Binge-Worthy TV Shows", row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
     row_romance: "Romance Night In", row_airing: "Airing This Week", row_continue: "Continue Watching",
-    filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
-    filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
   es: {
     nav_home: "Inicio", nav_movies: "Películas", nav_tv: "Series", nav_list: "Mi Lista",
@@ -506,17 +486,19 @@ async function renderRows(filter) {
     }
   }
 
+  const defs = ROWS.filter((r) => {
+    if (filter === "home") return true;
+    if (filter === "movie") return r.path.includes("/movie/") || r.path.includes("/discover/");
+    if (filter === "tv") return r.path.includes("/tv/");
+    return true;
+  });
+
   if (filter === "list") {
     renderMyListView(container);
     return;
   }
 
-  if (filter === "movie" || filter === "tv") {
-    renderDiscoverGrid(filter, container);
-    return;
-  }
-
-  for (const def of ROWS) {
+  for (const def of defs) {
     const section = buildRowSection(def);
     container.appendChild(section);
     wireRowArrows(section);
@@ -530,105 +512,6 @@ async function renderRows(filter) {
     } catch (err) {
       handleFetchError(err, section);
     }
-  }
-}
-
-let discoverState = { type: "movie", genre: "", year: "", page: 1, totalPages: 1, loading: false };
-
-function yearOptions() {
-  const current = new Date().getFullYear() + 1;
-  const opts = [];
-  for (let y = current; y >= 1950; y--) opts.push(y);
-  return opts;
-}
-
-function renderDiscoverGrid(type, container) {
-  discoverState = { type, genre: "", year: "", page: 1, totalPages: 1, loading: false };
-
-  const genreMap = genreMaps[type] || {};
-  const genreOptionsHTML = Object.entries(genreMap)
-    .sort((a, b) => a[1].localeCompare(b[1]))
-    .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
-    .join("");
-  const yearOptionsHTML = yearOptions()
-    .map((y) => `<option value="${y}">${y}</option>`)
-    .join("");
-
-  const section = document.createElement("section");
-  section.className = "discover-view";
-  section.innerHTML = `
-    <div class="discover-filterbar">
-      <select id="discover-genre">
-        <option value="">${t("filter_all_genres")}</option>
-        ${genreOptionsHTML}
-      </select>
-      <select id="discover-year">
-        <option value="">${t("filter_all_years")}</option>
-        ${yearOptionsHTML}
-      </select>
-    </div>
-    <div class="discover-grid" id="discover-grid">${skeletonRow(12)}</div>
-    <div class="discover-load-wrap">
-      <button class="btn btn-ghost hidden" id="discover-load-more">${t("filter_load_more")}</button>
-    </div>`;
-  container.appendChild(section);
-
-  $("#discover-genre").addEventListener("change", (e) => {
-    discoverState.genre = e.target.value;
-    discoverState.page = 1;
-    loadDiscoverPage(true);
-  });
-  $("#discover-year").addEventListener("change", (e) => {
-    discoverState.year = e.target.value;
-    discoverState.page = 1;
-    loadDiscoverPage(true);
-  });
-  $("#discover-load-more").addEventListener("click", () => {
-    discoverState.page += 1;
-    loadDiscoverPage(false);
-  });
-
-  loadDiscoverPage(true);
-}
-
-async function loadDiscoverPage(reset) {
-  if (discoverState.loading) return;
-  discoverState.loading = true;
-  const { type, genre, year, page } = discoverState;
-  const grid = $("#discover-grid");
-  const loadBtn = $("#discover-load-more");
-  if (!grid) {
-    discoverState.loading = false;
-    return;
-  }
-  if (reset) grid.innerHTML = skeletonRow(12);
-  loadBtn?.classList.add("hidden");
-
-  const params = { sort_by: "popularity.desc", page };
-  if (genre) params.with_genres = genre;
-  if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = year;
-
-  try {
-    const data = await tmdb(`/discover/${type}`, params);
-    discoverState.totalPages = data.total_pages || 1;
-    const items = data.results.map((r) => normalizeItem(r, type)).filter((i) => i.poster_path);
-
-    if (reset) {
-      if (!items.length) {
-        grid.innerHTML = `<div class="empty-state"><h2>${t("filter_no_results")}</h2><p>${t("filter_no_results_sub")}</p></div>`;
-      } else {
-        grid.innerHTML = items.map(cardHTML).join("");
-      }
-    } else {
-      grid.querySelectorAll(".skeleton-card").forEach((s) => s.remove());
-      grid.insertAdjacentHTML("beforeend", items.map(cardHTML).join(""));
-    }
-
-    if (loadBtn) loadBtn.classList.toggle("hidden", discoverState.page >= discoverState.totalPages);
-  } catch (err) {
-    handleFetchError(err, grid);
-  } finally {
-    discoverState.loading = false;
   }
 }
 
@@ -733,12 +616,10 @@ let currentFilter = "home";
 
 function setFilter(filter) {
   currentFilter = filter;
-  document.querySelectorAll(".nav-links a, .bottom-nav a").forEach((a) =>
+  document.querySelectorAll(".nav-links a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  const heroHidden = filter === "list" || filter === "movie" || filter === "tv";
-  $("#hero").classList.toggle("hidden", heroHidden);
-  $("#rows").classList.toggle("no-hero", heroHidden);
+  $("#hero").classList.toggle("hidden", filter === "list");
   renderRows(filter);
 }
 
@@ -822,418 +703,19 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
     type === "tv"
       ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
       : PLAYER_SERVER.movie.replace("{id}", id);
-  const params = new URLSearchParams({ color: PLAYER_SERVER.color });
+  const params = new URLSearchParams({
+    primaryColor: PLAYER_SERVER.primaryColor,
+    secondaryColor: PLAYER_SERVER.secondaryColor,
+    iconColor: PLAYER_SERVER.iconColor,
+    autoplay: "false",
+  });
   if (type === "tv" && activeProfile()?.autoplay !== false) {
-    params.set("nextEpisode", "true");
-    params.set("episodeSelector", "true");
+    params.set("nextbutton", "true");
   }
   if (resumeSeconds > 30) {
-    params.set("progress", String(Math.floor(resumeSeconds)));
+    params.set("startAt", String(Math.floor(resumeSeconds)));
   }
   return `${base}?${params.toString()}`;
-}
-
-function injectPlayer(url) {
-  const heroArea = $("#modal-hero");
-  if (!heroArea) return;
-  heroArea.querySelector(".modal-trailer")?.remove();
-  const wrap = document.createElement("div");
-  wrap.className = "modal-trailer";
-  wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
-  heroArea.appendChild(wrap);
-}
-
-async function openEpisodesView(data) {
-  const seasons = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
-  if (!seasons.length) return;
-  let currentSeason = seasons[0].season_number;
-
-  const overlay = document.createElement("div");
-  overlay.className = "episodes-overlay";
-  overlay.id = "episodes-overlay";
-  overlay.innerHTML = `
-    <div class="episodes-panel">
-      <div class="episodes-head">
-        <button class="episodes-back" id="episodes-back" aria-label="Back">←</button>
-        <h2>Episodes</h2>
-        <span class="episodes-showname">${escapeHtml(data.name || data.title || "")}</span>
-      </div>
-      <div class="episodes-progress" id="episodes-progress"></div>
-      <div class="episodes-season-row">
-        <span>Season</span>
-        <select id="episodes-season-select">
-          ${seasons.map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`).join("")}
-        </select>
-      </div>
-      <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>
-    </div>`;
-  $("#modal-root").appendChild(overlay);
-
-  $("#episodes-back").addEventListener("click", () => overlay.remove());
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-  $("#episodes-season-select").addEventListener("change", (e) => {
-    currentSeason = Number(e.target.value);
-    loadSeasonEpisodes(data, currentSeason);
-  });
-
-  await loadSeasonEpisodes(data, currentSeason);
-}
-
-async function loadSeasonEpisodes(data, seasonNumber) {
-  const list = $("#episodes-list");
-  const progressBox = $("#episodes-progress");
-  if (!list) return;
-  list.innerHTML = skeletonRow(4);
-
-  let seasonData;
-  try {
-    seasonData = await tmdb(`/tv/${data.id}/season/${seasonNumber}`, {});
-  } catch {
-    list.innerHTML = `<div class="empty-state"><h2>Couldn't load episodes</h2><p>Check your connection and try again.</p></div>`;
-    return;
-  }
-
-  const episodes = seasonData.episodes || [];
-  const watchedCount = countWatchedInSeason(data.id, seasonNumber, episodes.length);
-  const pct = episodes.length ? Math.round((watchedCount / episodes.length) * 100) : 0;
-
-  if (progressBox) {
-    progressBox.innerHTML = `
-      <div class="ep-progress-card">
-        <div class="ep-progress-top">
-          <span class="ep-progress-label">YOUR SEASON PROGRESS</span>
-          <span class="ep-progress-pct">${pct}%</span>
-        </div>
-        <p class="ep-progress-sub">${watchedCount} of ${episodes.length} episodes watched</p>
-        <div class="ep-progress-track"><div class="ep-progress-fill" style="width:${pct}%"></div></div>
-      </div>`;
-  }
-
-  list.innerHTML = episodes
-    .map((ep) => {
-      const watched = isEpWatched(data.id, seasonNumber, ep.episode_number);
-      return `
-      <div class="episode-row" data-ep="${ep.episode_number}" role="button" tabindex="0">
-        <img class="episode-thumb" loading="lazy" src="${img(ep.still_path, "w300")}" alt="" onerror="this.onerror=null;this.src=placeholderImage('No Image');" />
-        <div class="episode-info">
-          <div class="episode-num">${String(ep.episode_number).padStart(2, "0")}</div>
-          <div class="episode-title">${escapeHtml(ep.name || `Episode ${ep.episode_number}`)}</div>
-          <div class="episode-desc">${escapeHtml(ep.overview || "No description available.")}</div>
-        </div>
-        <span class="episode-play" aria-hidden="true">›</span>
-        <button class="episode-watched-toggle${watched ? " watched" : ""}" data-ep="${ep.episode_number}" type="button" aria-label="Mark watched"></button>
-      </div>`;
-    })
-    .join("");
-
-  list.querySelectorAll(".episode-row").forEach((row) =>
-    row.addEventListener("click", () => playEpisode(data, seasonNumber, Number(row.dataset.ep)))
-  );
-  list.querySelectorAll(".episode-watched-toggle").forEach((btn) =>
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleEpWatched(data.id, seasonNumber, Number(btn.dataset.ep));
-      loadSeasonEpisodes(data, seasonNumber);
-    })
-  );
-}
-
-function playEpisode(data, season, episode) {
-  $("#episodes-overlay")?.remove();
-  const watch = getWatch(data.id);
-  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
-}
-
-async function openAdminDashboard() {
-  const overlay = document.createElement("div");
-  overlay.className = "admin-overlay";
-  overlay.id = "admin-overlay";
-  overlay.innerHTML = `
-    <div class="admin-panel">
-      <div class="admin-head">
-        <button class="episodes-back" id="admin-close" aria-label="Close">←</button>
-        <h2>Admin Dashboard</h2>
-      </div>
-      <input id="admin-search" class="admin-search" type="text" placeholder="Search by email…" autocomplete="off" />
-      <div class="admin-stats" id="admin-stats"></div>
-      <div class="admin-list" id="admin-list">${skeletonRow(4)}</div>
-    </div>`;
-  $("#modal-root").appendChild(overlay);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-  $("#admin-close").addEventListener("click", () => overlay.remove());
-
-  let allAccounts = [];
-  try {
-    const snap = await db.collection("users").get();
-    allAccounts = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-  } catch (e) {
-    $("#admin-list").innerHTML = `<div class="empty-state"><h2>Couldn't load accounts</h2><p>${escapeHtml(
-      e.message || "Check your Firestore rules allow admin read access."
-    )}</p></div>`;
-    return;
-  }
-
-  allAccounts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-
-  const doReset = async (uid) => {
-    if (!confirm("Reset this account's data? This clears their profiles, watchlists, and tracking, but their login keeps working — they'll just start fresh.")) return;
-    const acc = allAccounts.find((a) => a.uid === uid);
-    try {
-      await db.collection("users").doc(uid).set({
-        profiles: [],
-        watchlist: {},
-        progress: {},
-        tracking: {},
-        epwatch: {},
-        email: acc?.email || "",
-        createdAt: acc?.createdAt || "",
-        lastSignIn: acc?.lastSignIn || "",
-        updatedAt: Date.now(),
-      });
-      if (acc) {
-        acc.profiles = [];
-        acc.watchlist = {};
-        acc.progress = {};
-        acc.tracking = {};
-        acc.epwatch = {};
-      }
-      showToast("Account data reset ✓");
-      renderList(allAccounts);
-    } catch (e) {
-      alert("Couldn't reset account: " + (e.message || e));
-    }
-  };
-
-  const doDelete = async (uid) => {
-    if (!confirm("Delete this account's data completely? This cannot be undone. Note: their login will still work unless you also remove them in the Firebase Console (link on their card).")) return;
-    try {
-      await db.collection("users").doc(uid).delete();
-      allAccounts = allAccounts.filter((a) => a.uid !== uid);
-      showToast("Account data deleted ✓");
-      renderList(allAccounts);
-    } catch (e) {
-      alert("Couldn't delete account: " + (e.message || e));
-    }
-  };
-
-  const doRenameAccount = async (uid) => {
-    const input = document.querySelector(`.admin-name-input[data-uid="${uid}"]`);
-    if (!input) return;
-    const val = input.value.trim();
-    try {
-      await db.collection("users").doc(uid).set({ displayNameOverride: val, updatedAt: Date.now() }, { merge: true });
-      const acc = allAccounts.find((a) => a.uid === uid);
-      if (acc) acc.displayNameOverride = val;
-      showToast("Display name updated ✓");
-    } catch (e) {
-      alert("Couldn't update name: " + (e.message || e));
-    }
-  };
-
-  const doPasswordReset = async (email) => {
-    if (!email) return alert("This account has no email on file.");
-    if (!confirm(`Send a password reset email to ${email}?`)) return;
-    try {
-      await auth.sendPasswordResetEmail(email);
-      showToast("Password reset email sent ✓");
-    } catch (e) {
-      alert("Couldn't send reset email: " + (e.message || e));
-    }
-  };
-
-  const saveProfilesForAccount = async (uid, profiles) => {
-    await db.collection("users").doc(uid).set({ profiles, updatedAt: Date.now() }, { merge: true });
-    const acc = allAccounts.find((a) => a.uid === uid);
-    if (acc) acc.profiles = profiles;
-  };
-
-  const doRenameProfile = async (uid, pid) => {
-    const input = document.querySelector(`.admin-profile-name-input[data-pid="${pid}"]`);
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) return alert("Name can't be empty.");
-    const acc = allAccounts.find((a) => a.uid === uid);
-    if (!acc) return;
-    const profiles = (acc.profiles || []).map((p) => (p.id === pid ? { ...p, name: val.slice(0, 20) } : p));
-    try {
-      await saveProfilesForAccount(uid, profiles);
-      showToast("Profile renamed ✓");
-      renderList(allAccounts);
-    } catch (e) {
-      alert("Couldn't rename profile: " + (e.message || e));
-    }
-  };
-
-  const doRemoveProfilePin = async (uid, pid) => {
-    if (!confirm("Remove the PIN from this profile?")) return;
-    const acc = allAccounts.find((a) => a.uid === uid);
-    if (!acc) return;
-    const profiles = (acc.profiles || []).map((p) => {
-      if (p.id !== pid) return p;
-      const { pinHash, pinSalt, ...rest } = p;
-      return rest;
-    });
-    try {
-      await saveProfilesForAccount(uid, profiles);
-      showToast("PIN removed ✓");
-      renderList(allAccounts);
-    } catch (e) {
-      alert("Couldn't remove PIN: " + (e.message || e));
-    }
-  };
-
-  const doDeleteProfile = async (uid, pid) => {
-    const acc = allAccounts.find((a) => a.uid === uid);
-    if (!acc) return;
-    const profile = (acc.profiles || []).find((p) => p.id === pid);
-    if (!confirm(`Delete profile "${profile?.name || pid}"? This also removes its watchlist and tracking.`)) return;
-    const profiles = (acc.profiles || []).filter((p) => p.id !== pid);
-    const watchlist = { ...(acc.watchlist || {}) };
-    delete watchlist[pid];
-    const progress = { ...(acc.progress || {}) };
-    delete progress[pid];
-    const tracking = { ...(acc.tracking || {}) };
-    delete tracking[pid];
-    const epwatch = { ...(acc.epwatch || {}) };
-    delete epwatch[pid];
-    try {
-      await db.collection("users").doc(uid).set(
-        { profiles, watchlist, progress, tracking, epwatch, updatedAt: Date.now() },
-        { merge: true }
-      );
-      Object.assign(acc, { profiles, watchlist, progress, tracking, epwatch });
-      showToast("Profile deleted ✓");
-      renderList(allAccounts);
-    } catch (e) {
-      alert("Couldn't delete profile: " + (e.message || e));
-    }
-  };
-
-  const renderList = (accounts) => {
-    const totalProfiles = accounts.reduce((s, a) => s + (a.profiles?.length || 0), 0);
-    const totalWatchlist = accounts.reduce(
-      (s, a) => s + Object.values(a.watchlist || {}).reduce((n, arr) => n + (arr?.length || 0), 0),
-      0
-    );
-    $("#admin-stats").innerHTML = `
-      <div class="admin-stat"><span class="admin-stat-num">${accounts.length}</span><span class="admin-stat-label">Accounts</span></div>
-      <div class="admin-stat"><span class="admin-stat-num">${totalProfiles}</span><span class="admin-stat-label">Profiles</span></div>
-      <div class="admin-stat"><span class="admin-stat-num">${totalWatchlist}</span><span class="admin-stat-label">Watchlist items</span></div>`;
-
-    if (!accounts.length) {
-      $("#admin-list").innerHTML = `<div class="empty-state"><h2>No accounts found</h2></div>`;
-      return;
-    }
-
-    $("#admin-list").innerHTML = accounts
-      .map((a) => {
-        const profiles = a.profiles || [];
-        const wlCount = Object.values(a.watchlist || {}).reduce((n, arr) => n + (arr?.length || 0), 0);
-        const trackCount = Object.values(a.tracking || {}).reduce(
-          (n, obj) => n + Object.keys(obj || {}).length,
-          0
-        );
-        const created = a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—";
-        const lastSeen = a.lastSignIn ? new Date(a.lastSignIn).toLocaleString() : "—";
-        const selfAccount = isAdmin(a.email);
-        return `
-        <div class="admin-card">
-          <div class="admin-card-top">
-            <div>
-              <div class="admin-email">${escapeHtml(a.email || "(no email)")}${selfAccount ? ' <span class="admin-you-tag">you</span>' : ""}</div>
-              <div class="admin-uid">UID: ${escapeHtml(a.uid)}</div>
-            </div>
-            <div class="admin-dates">
-              <div>Joined: ${created}</div>
-              <div>Last sign-in: ${lastSeen}</div>
-            </div>
-          </div>
-
-          <div class="admin-field-row">
-            <label class="admin-field-label">Display name</label>
-            <div class="admin-field-inline">
-              <input class="admin-name-input" data-uid="${a.uid}" maxlength="30" placeholder="(uses account default)" value="${escapeHtml(a.displayNameOverride || "")}" />
-              <button class="btn btn-ghost admin-mini-btn admin-name-save-btn" data-uid="${a.uid}" type="button">Save</button>
-            </div>
-          </div>
-
-          <div class="admin-field-row">
-            <label class="admin-field-label">Profiles</label>
-            <div class="admin-profile-list">
-              ${
-                profiles.length
-                  ? profiles
-                      .map(
-                        (p) => `
-                <div class="admin-profile-row">
-                  <input class="admin-profile-name-input" data-pid="${p.id}" maxlength="20" value="${escapeHtml(p.name || "")}" />
-                  <div class="admin-profile-row-actions">
-                    ${p.pinHash ? `<button class="admin-mini-btn admin-pin-remove-btn" data-uid="${a.uid}" data-pid="${p.id}" type="button" title="Remove PIN">🔓</button>` : ""}
-                    <button class="admin-mini-btn admin-profile-save-btn" data-uid="${a.uid}" data-pid="${p.id}" type="button" title="Save name">💾</button>
-                    <button class="admin-mini-btn admin-profile-delete-btn" data-uid="${a.uid}" data-pid="${p.id}" type="button" title="Delete profile">✕</button>
-                  </div>
-                </div>`
-                      )
-                      .join("")
-                  : `<span class="admin-profile-chip empty">No profiles yet</span>`
-              }
-            </div>
-          </div>
-
-          <div class="admin-card-stats">
-            <span>📺 ${wlCount} in watchlist</span>
-            <span>📊 ${trackCount} tracked</span>
-          </div>
-          ${
-            selfAccount
-              ? `<p class="admin-self-note">This is your admin account.</p>`
-              : `<div class="admin-card-actions">
-                  <a class="admin-console-link" href="https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/users" target="_blank" rel="noopener">Manage login in Firebase Console ↗</a>
-                  <div class="admin-card-buttons">
-                    <button class="btn btn-ghost admin-pwreset-btn" data-email="${escapeHtml(a.email || "")}" type="button">Reset Password</button>
-                    <button class="btn btn-ghost admin-reset-btn" data-uid="${a.uid}" type="button">Reset Data</button>
-                    <button class="btn btn-accent admin-delete-btn" data-uid="${a.uid}" type="button">Delete Account</button>
-                  </div>
-                </div>`
-          }
-        </div>`;
-      })
-      .join("");
-
-    $("#admin-list").querySelectorAll(".admin-reset-btn").forEach((b) =>
-      b.addEventListener("click", () => doReset(b.dataset.uid))
-    );
-    $("#admin-list").querySelectorAll(".admin-delete-btn").forEach((b) =>
-      b.addEventListener("click", () => doDelete(b.dataset.uid))
-    );
-    $("#admin-list").querySelectorAll(".admin-name-save-btn").forEach((b) =>
-      b.addEventListener("click", () => doRenameAccount(b.dataset.uid))
-    );
-    $("#admin-list").querySelectorAll(".admin-pwreset-btn").forEach((b) =>
-      b.addEventListener("click", () => doPasswordReset(b.dataset.email))
-    );
-    $("#admin-list").querySelectorAll(".admin-profile-save-btn").forEach((b) =>
-      b.addEventListener("click", () => doRenameProfile(b.dataset.uid, b.dataset.pid))
-    );
-    $("#admin-list").querySelectorAll(".admin-pin-remove-btn").forEach((b) =>
-      b.addEventListener("click", () => doRemoveProfilePin(b.dataset.uid, b.dataset.pid))
-    );
-    $("#admin-list").querySelectorAll(".admin-profile-delete-btn").forEach((b) =>
-      b.addEventListener("click", () => doDeleteProfile(b.dataset.uid, b.dataset.pid))
-    );
-  };
-
-  renderList(allAccounts);
-
-  $("#admin-search").addEventListener("input", (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    if (!q) return renderList(allAccounts);
-    renderList(allAccounts.filter((a) => (a.email || "").toLowerCase().includes(q)));
-  });
 }
 
 function getWatchStore() {
@@ -1242,37 +724,6 @@ function getWatchStore() {
   } catch {
     return {};
   }
-}
-
-function getEpWatchStore() {
-  try {
-    return JSON.parse(localStorage.getItem(pKey(LS_EPWATCH))) || {};
-  } catch {
-    return {};
-  }
-}
-
-function isEpWatched(showId, season, ep) {
-  return !!getEpWatchStore()[`${showId}_s${season}e${ep}`];
-}
-
-function toggleEpWatched(showId, season, ep) {
-  const store = getEpWatchStore();
-  const key = `${showId}_s${season}e${ep}`;
-  if (store[key]) delete store[key];
-  else store[key] = true;
-  localStorage.setItem(pKey(LS_EPWATCH), JSON.stringify(store));
-  scheduleCloudSync();
-  return !!store[key];
-}
-
-function countWatchedInSeason(showId, season, totalEpisodes) {
-  const store = getEpWatchStore();
-  let n = 0;
-  for (let i = 1; i <= totalEpisodes; i++) {
-    if (store[`${showId}_s${season}e${i}`]) n++;
-  }
-  return n;
 }
 
 function getWatch(id) {
@@ -1377,8 +828,10 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
-            canStream && type === "tv" && seasonsForPicker.length
-              ? `<button class="btn btn-ghost" id="open-episodes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>Episodes</button>`
+            canStream && seasonsForPicker.length
+              ? `<div class="ep-picker"><select id="season-select">${seasonsForPicker
+                  .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
+                  .join("")}</select><select id="episode-select"></select></div>`
               : ""
           }
           ${
@@ -1438,12 +891,38 @@ async function openDetail(type, id, autoplayTrailer) {
   });
   $("#modal-close").addEventListener("click", closeModal);
 
+  const populateEpisodes = () => {
+    const seasonSel = $("#season-select");
+    const episodeSel = $("#episode-select");
+    if (!seasonSel || !episodeSel) return;
+    const seasonData = (data.seasons || []).find((s) => s.season_number === Number(seasonSel.value));
+    const count = seasonData?.episode_count || 1;
+    episodeSel.innerHTML = Array.from(
+      { length: count },
+      (_, i) => `<option value="${i + 1}">Episode ${i + 1}</option>`
+    ).join("");
+  };
+  populateEpisodes();
+  $("#season-select")?.addEventListener("change", populateEpisodes);
+
   const playNow = () => {
-    injectPlayer(buildPlayerUrl(type, data.id, 1, 1, watch.t));
+    const heroArea = $("#modal-hero");
+    if (!heroArea) return;
+    const url = buildPlayerUrl(
+      type,
+      data.id,
+      $("#season-select")?.value,
+      $("#episode-select")?.value,
+      watch.t
+    );
+    heroArea.querySelector(".modal-trailer")?.remove();
+    const wrap = document.createElement("div");
+    wrap.className = "modal-trailer";
+    wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+    heroArea.appendChild(wrap);
   };
 
   $("#play-now")?.addEventListener("click", playNow);
-  $("#open-episodes")?.addEventListener("click", () => openEpisodesView(data));
 
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
@@ -1531,86 +1010,6 @@ function getProfiles() {
 
 function saveProfiles(list) {
   localStorage.setItem(profilesKey(), JSON.stringify(list));
-  scheduleCloudSync();
-}
-
-let cloudSyncTimer = null;
-
-function scheduleCloudSync() {
-  const uid = getAuthUserId();
-  if (!uid || uid === "guest") return;
-  clearTimeout(cloudSyncTimer);
-  cloudSyncTimer = setTimeout(() => pushCloudData(), 1200);
-}
-
-async function pushCloudData() {
-  const uid = getAuthUserId();
-  if (!uid || uid === "guest") return;
-  const profiles = getProfiles();
-  const watchlist = {};
-  const progress = {};
-  const tracking = {};
-  const epwatch = {};
-  profiles.forEach((p) => {
-    try { watchlist[p.id] = JSON.parse(localStorage.getItem(`${LS_LIST}_${p.id}`)) || []; } catch { watchlist[p.id] = []; }
-    try { progress[p.id] = JSON.parse(localStorage.getItem(`${LS_PROGRESS}_${p.id}`)) || {}; } catch { progress[p.id] = {}; }
-    try { tracking[p.id] = JSON.parse(localStorage.getItem(`${LS_TRACK}_${p.id}`)) || {}; } catch { tracking[p.id] = {}; }
-    try { epwatch[p.id] = JSON.parse(localStorage.getItem(`${LS_EPWATCH}_${p.id}`)) || {}; } catch { epwatch[p.id] = {}; }
-  });
-  try {
-    await db.collection("users").doc(uid).set(
-      {
-        profiles,
-        watchlist,
-        progress,
-        tracking,
-        epwatch,
-        email: auth.currentUser?.email || "",
-        createdAt: auth.currentUser?.metadata?.creationTime || "",
-        lastSignIn: auth.currentUser?.metadata?.lastSignInTime || "",
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-  } catch (e) {
-    console.error("Cloud sync (push) failed", e);
-  }
-}
-
-async function pullCloudData(uid) {
-  try {
-    const snap = await db.collection("users").doc(uid).get();
-    if (!snap.exists) return;
-    const data = snap.data();
-    if (data.profiles) localStorage.setItem(LS_PROFILES + "_" + uid, JSON.stringify(data.profiles));
-    if (data.watchlist) {
-      Object.entries(data.watchlist).forEach(([pid, val]) =>
-        localStorage.setItem(`${LS_LIST}_${pid}`, JSON.stringify(val))
-      );
-    }
-    if (data.progress) {
-      Object.entries(data.progress).forEach(([pid, val]) =>
-        localStorage.setItem(`${LS_PROGRESS}_${pid}`, JSON.stringify(val))
-      );
-    }
-    if (data.tracking) {
-      Object.entries(data.tracking).forEach(([pid, val]) =>
-        localStorage.setItem(`${LS_TRACK}_${pid}`, JSON.stringify(val))
-      );
-    }
-    if (data.epwatch) {
-      Object.entries(data.epwatch).forEach(([pid, val]) =>
-        localStorage.setItem(`${LS_EPWATCH}_${pid}`, JSON.stringify(val))
-      );
-    }
-    if (data.displayNameOverride) {
-      localStorage.setItem(`cineverse_dispname_${uid}`, data.displayNameOverride);
-    } else {
-      localStorage.removeItem(`cineverse_dispname_${uid}`);
-    }
-  } catch (e) {
-    console.error("Cloud sync (pull) failed", e);
-  }
 }
 
 function getUsers() {
@@ -1652,46 +1051,13 @@ async function hashPassword(password, salt) {
   return "f" + h.toString(16);
 }
 
-function friendlyAuthError(err) {
-  const map = {
-    "auth/invalid-email": "Please enter a valid email address.",
-    "auth/user-not-found": "No account found with that email.",
-    "auth/wrong-password": "Incorrect password. Try again.",
-    "auth/invalid-credential": "Incorrect email or password.",
-    "auth/email-already-in-use": "An account with that email already exists.",
-    "auth/weak-password": "Password must be at least 6 characters.",
-    "auth/too-many-requests": "Too many attempts. Please wait a bit and try again.",
-    "auth/network-request-failed": "Network error. Check your connection and try again.",
-  };
-  return map[err.code] || "Something went wrong. Please try again.";
-}
-
 function initAuth() {
-  auth.onAuthStateChanged(async (fbUser) => {
-    if (fbUser) {
-      try {
-        await fbUser.reload();
-      } catch {}
-      if (!fbUser.emailVerified) {
-        showEmailVerifyGate(fbUser);
-        return;
-      }
-      localStorage.setItem(LS_AUTH, fbUser.uid);
-      await pullCloudData(fbUser.uid);
-      const nameOverride = localStorage.getItem(`cineverse_dispname_${fbUser.uid}`);
-      const user = {
-        id: fbUser.uid,
-        name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
-        email: fbUser.email || "",
-      };
-      enterAfterAuth(user);
-    } else if (getAuthUserId() === "guest") {
-      initProfiles();
-    } else {
-      localStorage.removeItem(LS_AUTH);
-      showAuthScreen("signin");
-    }
-  });
+  const uid = getAuthUserId();
+  if (uid && (uid === "guest" || getUsers().some((u) => u.id === uid))) {
+    initProfiles();
+  } else {
+    showAuthScreen("signin");
+  }
 }
 
 function wireAuth() {
@@ -1706,6 +1072,12 @@ function wireAuth() {
     handleSignUp();
   });
   $("#guest-btn").addEventListener("click", continueAsGuest);
+  $("#form-verify").addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleVerify();
+  });
+  $("#resend-btn").addEventListener("click", resendCode);
+  $("#verify-back").addEventListener("click", verifyBack);
 }
 
 function switchAuthTab(tab) {
@@ -1732,16 +1104,28 @@ function authError(form, msg) {
 async function handleSignIn() {
   const email = $("#signin-email").value.trim().toLowerCase();
   const pass = $("#signin-pass").value;
-  if (!email || !pass) {
-    authError("signin", "Please enter your email and password.");
+  const user = getUsers().find((u) => u.email === email);
+  if (!user) {
+    authError("signin", "No account found with that email.");
     return;
   }
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-    // onAuthStateChanged takes over from here
-  } catch (err) {
-    authError("signin", friendlyAuthError(err));
+  const hash = await hashPassword(pass, user.salt);
+  if (hash !== user.passHash) {
+    authError("signin", "Incorrect password. Try again.");
+    return;
   }
+  if (localStorage.getItem(`cineverse_trusted_${user.id}`) === "1") {
+    localStorage.setItem(LS_AUTH, user.id);
+    enterAfterAuth(user);
+    return;
+  }
+  pendingVerification = {
+    mode: "signin",
+    user,
+    code: generateCode(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  };
+  showVerifyScreen();
 }
 
 async function handleSignUp() {
@@ -1753,19 +1137,36 @@ async function handleSignUp() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authError("signup", "Please enter a valid email address.");
   if (pass.length < 6) return authError("signup", "Password must be at least 6 characters.");
   if (pass !== confirm) return authError("signup", "Passwords do not match.");
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pass);
-    await cred.user.updateProfile({ displayName: name });
-    cred.user.sendEmailVerification().catch(() => {});
-    // onAuthStateChanged takes over from here
-  } catch (err) {
-    authError("signup", friendlyAuthError(err));
-  }
+  const users = getUsers();
+  if (users.some((u) => u.email === email)) return authError("signup", "An account with that email already exists.");
+
+  const salt = randomSalt();
+  const draftUser = {
+    id: "u_" + Date.now().toString(36),
+    name,
+    email,
+    salt,
+    passHash: await hashPassword(pass, salt),
+    createdAt: Date.now(),
+  };
+  pendingVerification = {
+    mode: "signup",
+    draft: draftUser,
+    code: generateCode(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  };
+  showVerifyScreen();
 }
 
 function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
   enterAfterAuth({ id: "guest", name: "Guest", email: "" });
+}
+
+let pendingVerification = null;
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 function maskEmail(email) {
@@ -1774,79 +1175,101 @@ function maskEmail(email) {
   return `${name[0]}${"*".repeat(Math.max(3, name.length - 1))}@${domain}`;
 }
 
+function showVerifyScreen() {
+  const pv = pendingVerification;
+  if (!pv) return;
+  $("#form-signin").classList.add("hidden");
+  $("#form-signup").classList.add("hidden");
+  $("#tab-signin").classList.remove("active");
+  $("#tab-signup").classList.remove("active");
+  $("#form-verify").classList.remove("hidden");
+
+  const email = pv.mode === "signup" ? pv.draft.email : pv.user.email;
+  $("#verify-sub").textContent =
+    (pv.mode === "signup"
+      ? "We sent a 6-digit code to activate your account. "
+      : "New browser detected — we sent a security code to ")
+    + maskEmail(email) + ".";
+  renderDemoEmail(pv.code);
+  buildCodeRow($("#code-row"), 6, () => $("#form-verify").requestSubmit(), false);
+  $("#verify-back").textContent = pv.mode === "signup" ? "← " + t("auth_in") : t("cancel");
+  authErrorVerify("");
+}
+
+function renderDemoEmail(code) {
+  const minutes = Math.max(1, Math.round((pendingVerification.expiresAt - Date.now()) / 60000));
+  $("#demo-email-body").innerHTML = `
+    <p><strong>Hi${pendingVerification.mode === "signup" ? " and welcome" : ""}!</strong></p>
+    <p>Your MTFlix verification code is:</p>
+    <div class="code-big">${code}</div>
+    <p>This code expires in ${minutes} minute${minutes > 1 ? "s" : ""}. If you didn't request it, you can ignore this email.</p>
+    <p class="muted">— The MTFlix Team</p>`;
+}
+
+function collectCode() {
+  return Array.from($("#code-row").children)
+    .map((b) => b.value || "")
+    .join("");
+}
+
+function clearCodeBoxes() {
+  $("#code-row")
+    .querySelectorAll(".code-box")
+    .forEach((b) => (b.value = ""));
+  $("#code-row").querySelector(".code-box")?.focus();
+}
+
 function authErrorVerify(msg) {
   const el = $("#verify-error");
   el.textContent = msg;
   el.classList.toggle("hidden", !msg);
 }
 
-function showEmailVerifyGate(fbUser) {
-  $("#auth-screen").classList.remove("hidden");
-  $("#form-signin").classList.add("hidden");
-  $("#form-signup").classList.add("hidden");
-  $("#tab-signin").classList.remove("active");
-  $("#tab-signup").classList.remove("active");
-  $("#form-verify").classList.remove("hidden");
-  $("#verify-sub").textContent =
-    "We sent a verification link to " + maskEmail(fbUser.email || "") +
-    ". Open it, then come back here and tap Continue.";
+async function handleVerify() {
+  const pv = pendingVerification;
+  if (!pv) return;
+  if (Date.now() > pv.expiresAt) {
+    authErrorVerify("This code has expired. Tap “Resend code” to get a new one.");
+    clearCodeBoxes();
+    return;
+  }
+  if (collectCode() !== pv.code) {
+    authErrorVerify("Incorrect code. Please check and try again.");
+    clearCodeBoxes();
+    return;
+  }
+  pendingVerification = null;
+  if (pv.mode === "signup") {
+    const users = getUsers();
+    users.push(pv.draft);
+    saveUsers(users);
+    localStorage.setItem(LS_AUTH, pv.draft.id);
+    localStorage.setItem(`cineverse_trusted_${pv.draft.id}`, "1");
+    enterAfterAuth(pv.draft);
+  } else {
+    localStorage.setItem(`cineverse_trusted_${pv.user.id}`, "1");
+    localStorage.setItem(LS_AUTH, pv.user.id);
+    enterAfterAuth(pv.user);
+  }
+}
+
+function resendCode() {
+  if (!pendingVerification) return;
+  pendingVerification.code = generateCode();
+  pendingVerification.expiresAt = Date.now() + 10 * 60 * 1000;
+  renderDemoEmail(pendingVerification.code);
+  clearCodeBoxes();
   authErrorVerify("");
+}
 
-  $("#verify-continue-btn").onclick = async () => {
-    authErrorVerify("");
-    try {
-      await fbUser.reload();
-    } catch {}
-    if (fbUser.emailVerified) {
-      $("#form-verify").classList.add("hidden");
-      localStorage.setItem(LS_AUTH, fbUser.uid);
-      await pullCloudData(fbUser.uid);
-      enterAfterAuth({
-        id: fbUser.uid,
-        name: fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
-        email: fbUser.email || "",
-      });
-    } else {
-      authErrorVerify("Still not verified. Check your inbox (and spam folder), open the link, then try again.");
-    }
-  };
-
-  $("#resend-btn").onclick = async () => {
-    try {
-      await fbUser.sendEmailVerification();
-      authErrorVerify("Verification email sent — check your inbox.");
-    } catch (e) {
-      authErrorVerify(friendlyAuthError(e));
-    }
-  };
-
-  $("#verify-back").onclick = () => {
-    auth.signOut();
-    localStorage.removeItem(LS_AUTH);
-    $("#form-verify").classList.add("hidden");
-    switchAuthTab("signin");
-  };
+function verifyBack() {
+  pendingVerification = null;
+  switchAuthTab("signin");
 }
 
 function signOut() {
-  const uid = getAuthUserId();
   localStorage.removeItem(LS_AUTH);
-  if (uid && uid !== "guest") {
-    auth.signOut().finally(() => location.reload());
-  } else {
-    location.reload();
-  }
-}
-
-
-function signOut() {
-  const uid = getAuthUserId();
-  localStorage.removeItem(LS_AUTH);
-  if (uid && uid !== "guest") {
-    auth.signOut().finally(() => location.reload());
-  } else {
-    location.reload();
-  }
+  location.reload();
 }
 
 function enterAfterAuth(user) {
@@ -1859,7 +1282,6 @@ function applyUserChrome(user) {
   const head = $("#menu-user-head");
   if (!head) return;
   head.innerHTML = `<strong>${escapeHtml(user.name)}</strong>${user.email ? `<span>${escapeHtml(user.email)}</span>` : "<span>Browsing as guest</span>"}`;
-  $("#menu-admin")?.classList.toggle("hidden", !isAdmin(user.email));
 }
 
 function wireAvatarMenu() {
@@ -1882,10 +1304,6 @@ function wireAvatarMenu() {
     $("#avatar-menu").classList.add("hidden");
     gateEditing = true;
     renderGate(false);
-  });
-  $("#menu-admin")?.addEventListener("click", () => {
-    $("#avatar-menu").classList.add("hidden");
-    openAdminDashboard();
   });
   $("#settings-close").addEventListener("click", closeSettings);
   document.querySelectorAll(".side-link").forEach((b) =>
@@ -1969,8 +1387,7 @@ function renderLanguageSettings(content) {
 
 function renderPrivacySettings(content) {
   const profile = activeProfile();
-  const uidNow = getAuthUserId();
-  const user = uidNow && uidNow !== "guest" ? auth.currentUser : null;
+  const user = getUsers().find((u) => u.id === getAuthUserId());
   const pinHtml = `
     <div class="privacy-card">
       <div class="privacy-head">🔒 ${t("pin_enter_title")}</div>
@@ -2070,19 +1487,17 @@ function renderPrivacySettings(content) {
       const cur = $("#pw-cur").value;
       const nw = $("#pw-new").value;
       const cf = $("#pw-confirm").value;
-      const fbUser = auth.currentUser;
-      if (!fbUser) return err("You must be signed in to change your password.");
+      const curHash = await hashPassword(cur, user.salt);
+      if (curHash !== user.passHash) return err(t("pw_current"));
       if (nw.length < 6) return err(t("auth_pass_min"));
       if (nw !== cf) return err(t("pw_confirm"));
-      try {
-        const credential = firebase.auth.EmailAuthProvider.credential(fbUser.email, cur);
-        await fbUser.reauthenticateWithCredential(credential);
-        await fbUser.updatePassword(nw);
-        showToast(t("pw_update") + " ✓");
-        renderSettings("privacy");
-      } catch (e) {
-        err(friendlyAuthError(e));
-      }
+      const users = getUsers();
+      const u = users.find((x) => x.id === user.id);
+      u.salt = randomSalt();
+      u.passHash = await hashPassword(nw, u.salt);
+      saveUsers(users);
+      showToast(t("pw_update") + " ✓");
+      renderSettings("privacy");
     });
   }
 }
@@ -2116,18 +1531,11 @@ function setTrackEntry(id, patch, meta) {
   }
   if (!store[String(id)].status && !store[String(id)].rating) delete store[String(id)];
   localStorage.setItem(pKey(LS_TRACK), JSON.stringify(store));
-  scheduleCloudSync();
 }
 
 function initProfiles() {
   const profiles = getProfiles();
-  const uid = getAuthUserId();
-  // Only run the old legacy-data migration for guest/local-only sessions.
-  // Running it for a signed-in cloud account risks overwriting profiles
-  // (and anything on them, like a PIN) that were just pulled down from Firestore
-  // with a blank default profile — which then gets pushed back up, corrupting
-  // the synced data for every device on that account.
-  if (!profiles.length && (!uid || uid === "guest")) {
+  if (!profiles.length) {
     const legacyList =
       localStorage.getItem(`${LS_LIST}_p_main`) || localStorage.getItem(LS_LIST);
     const legacyProgress =
@@ -2205,7 +1613,6 @@ function renderGate(openAddForm) {
   $("#profile-gate").classList.remove("hidden");
   $("#gate-manage").textContent = gateEditing ? t("cancel") : t("gate_manage");
   $("#add-profile-panel").classList.add("hidden");
-  $("#bottom-nav")?.classList.add("hidden");
 }
 
 function openProfileEditor(profileId) {
@@ -2400,7 +1807,6 @@ function enterApp(id) {
   localStorage.setItem(LS_SESSION, id);
   $("#profile-gate").classList.add("hidden");
   $("#pin-screen").classList.add("hidden");
-  $("#bottom-nav")?.classList.remove("hidden");
   applyProfileChrome();
   applyI18n();
   closeModal();
@@ -2412,8 +1818,6 @@ function enterApp(id) {
     document.querySelectorAll(".nav-links a").forEach((a) =>
       a.classList.toggle("active", a.dataset.filter === "home")
     );
-    $("#hero").classList.remove("hidden");
-    $("#rows").classList.remove("no-hero");
   }
   if (!apiKey) showSetup(false);
   else startApp();
@@ -2536,7 +1940,6 @@ function toggleList(item) {
     showToast(`Added “${item.title}” to your list`);
   }
   localStorage.setItem(pKey(LS_LIST), JSON.stringify(list.slice(0, 50)));
-  scheduleCloudSync();
   refreshBookmarkButtons();
   if (currentFilter === "list" && $("#search-results").classList.contains("hidden")) {
     renderRows("list");
@@ -2559,109 +1962,16 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 2600);
 }
 
-let suggestToken = 0;
-
 function setupSearch() {
   const input = $("#search-input");
-  const box = $("#search-suggest");
-
   input.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = input.value.trim();
-    if (!q) {
-      hideSuggest();
-      if (!$("#search-results").classList.contains("hidden")) exitSearch();
+    if (q.length < 2) {
+      exitSearch();
       return;
     }
-    showSuggestLoading();
-    searchTimer = setTimeout(() => runSuggest(q), 300);
-  });
-
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      clearTimeout(searchTimer);
-      const q = input.value.trim();
-      if (q) {
-        hideSuggest();
-        runSearch(q);
-      }
-    } else if (e.key === "Escape") {
-      hideSuggest();
-      input.blur();
-    }
-  });
-
-  input.addEventListener("focus", () => {
-    if (input.value.trim() && box.innerHTML) box.classList.remove("hidden");
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".nav-search")) hideSuggest();
-  });
-}
-
-function showSuggestLoading() {
-  const box = $("#search-suggest");
-  box.innerHTML = `<div class="search-suggest-loading">Searching…</div>`;
-  box.classList.remove("hidden");
-}
-
-function hideSuggest() {
-  $("#search-suggest").classList.add("hidden");
-}
-
-async function runSuggest(query) {
-  const box = $("#search-suggest");
-  const myToken = ++suggestToken;
-  let data;
-  try {
-    data = await tmdb("/search/multi", { query, include_adult: false });
-  } catch {
-    if (myToken !== suggestToken) return;
-    box.innerHTML = `<div class="search-suggest-empty">Couldn't load results. Check your connection.</div>`;
-    box.classList.remove("hidden");
-    return;
-  }
-  if (myToken !== suggestToken) return;
-  if ($("#search-input").value.trim() !== query) return;
-
-  const results = data.results
-    .map((r) => normalizeItem(r))
-    .filter((r) => r.poster_path && (r.media_type === "movie" || r.media_type === "tv"))
-    .slice(0, 6);
-
-  if (!results.length) {
-    box.innerHTML = `<div class="search-suggest-empty">No matches for “${escapeHtml(query)}”</div>`;
-    box.classList.remove("hidden");
-    return;
-  }
-
-  box.innerHTML =
-    results
-      .map(
-        (r) => `
-      <div class="search-suggest-item" data-id="${r.id}" data-type="${r.media_type}">
-        <img src="${img(r.poster_path, "w92")}" alt="" loading="lazy" />
-        <div>
-          <div class="ss-title">${escapeHtml(r.title)}</div>
-          <div class="ss-sub">${r.media_type === "tv" ? "TV Show" : "Movie"}${r.date ? " • " + r.date.slice(0, 4) : ""}</div>
-        </div>
-      </div>`
-      )
-      .join("") +
-    `<div class="search-suggest-more" id="suggest-see-all">See all results for “${escapeHtml(query)}”</div>`;
-  box.classList.remove("hidden");
-
-  box.querySelectorAll(".search-suggest-item").forEach((el) =>
-    el.addEventListener("click", () => {
-      hideSuggest();
-      openDetail(el.dataset.type, el.dataset.id, false);
-    })
-  );
-  $("#suggest-see-all")?.addEventListener("click", () => {
-    hideSuggest();
-    runSearch(query);
+    searchTimer = setTimeout(() => runSearch(q), 400);
   });
 }
 
@@ -2699,10 +2009,9 @@ async function runSearch(query) {
 
 function exitSearch() {
   $("#search-input").value = "";
-  hideSuggest();
   $("#search-results").classList.add("hidden");
   $("#rows").classList.remove("hidden");
-  if (currentFilter !== "list" && currentFilter !== "movie" && currentFilter !== "tv") {
+  if (currentFilter !== "list") {
     $("#hero").classList.remove("hidden");
   }
 }
@@ -2776,41 +2085,33 @@ function setupNav() {
   window.addEventListener("scroll", () => {
     $("#navbar").classList.toggle("scrolled", window.scrollY > 40);
   });
-  document.querySelectorAll(".nav-links a, .bottom-nav a, #nav-home").forEach((a) => {
+  document.querySelectorAll(".nav-links a, #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       exitSearch();
       setFilter(a.dataset.filter || "home");
-      $("#nav-links")?.classList.remove("open");
       window.scrollTo(0, 0);
     });
-  });
-  $("#nav-burger")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    $("#nav-links").classList.toggle("open");
-  });
-  document.addEventListener("click", (e) => {
-    const links = $("#nav-links");
-    if (links && links.classList.contains("open") && !links.contains(e.target) && e.target !== $("#nav-burger")) {
-      links.classList.remove("open");
-    }
   });
 }
 
 window.addEventListener("message", function (event) {
-  if (typeof event.data !== "string") return;
-  let msg = null;
-  try {
-    msg = JSON.parse(event.data);
-  } catch {
-    return;
+  if (event.origin !== "https://vidlink.pro") return;
+  let msg = event.data;
+  if (typeof msg === "string") {
+    try {
+      msg = JSON.parse(msg);
+    } catch {
+      return;
+    }
   }
   if (!msg || msg.type !== "PLAYER_EVENT") return;
   const d = msg.data || {};
-  if (currentPlayer && d.id && typeof d.currentTime === "number") {
+  const mediaId = d.tmdbId || d.mtmdbId || d.id || currentPlayer?.id;
+  if (currentPlayer && mediaId && typeof d.currentTime === "number") {
     const store = getWatchStore();
-    const prev = store[d.id] || {};
-    store[d.id] = {
+    const prev = store[mediaId] || {};
+    store[mediaId] = {
       t: d.currentTime,
       d: d.duration || prev.d || 0,
       media_type: d.mediaType || currentPlayer.type,
@@ -2819,7 +2120,6 @@ window.addEventListener("message", function (event) {
       backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
     };
     localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-    scheduleCloudSync();
   }
   const chip = document.querySelector("#messageArea");
   if (chip) {
@@ -2844,7 +2144,4 @@ window.addEventListener("load", () => {
   wireAuth();
   wireAvatarMenu();
   initAuth();
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
 });
