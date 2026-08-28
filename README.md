@@ -98,25 +98,21 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 - Switch profiles anytime via the avatar in the top-right corner
 - All data is stored locally in your browser (localStorage) — no backend needed
 
-## Playback Server (VidLink)
+## Playback Servers
 
-Movies and TV shows stream through an embed player inside the detail modal, configured at the top of `app.js`:
+Movies and TV shows stream through an embed player inside the detail modal. Four sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
-```js
-const PLAYER_SERVER = {
-  movie: "https://vidlink.pro/movie/{id}",
-  tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
-  primaryColor: "e50914",
-  secondaryColor: "221f1f",
-  iconColor: "ffffff",
-};
-```
+| Source | Default | Resume tracking |
+|--------|---------|------------------|
+| **VidLink** | ✓ main | Yes — listens for `PLAYER_EVENT` postMessages and passes `startAt=` to resume where you left off |
+| VidKing | | Yes — same postMessage-based resume, via `progress=` |
+| VidSrc | | No — doesn't emit playback events, so Continue Watching won't update while using it |
+| 2Embed | | No |
 
-- `{id}` is filled with the TMDB ID automatically; `{season}` / `{episode}` from the picker
-- Auto-enabled params: `primaryColor`, `secondaryColor`, `iconColor`, and `nextbutton` (TV, tied to the "auto-play next episode" setting)
-- **Resume playback:** the site listens for VidLink `PLAYER_EVENT` postMessages and saves your position — reopening a title shows *Resume* and passes `startAt=` so the player picks up where you left off
-- **Continue Watching** row appears on the home screen once you've watched something
-- A small status chip (bottom-left) shows live player state (`#messageArea`)
+Your chosen source is remembered per-browser (`localStorage`) and reused next time you open a player. To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
+
+- **Continue Watching** row appears on the home screen once you've watched something (only updates while on a source with resume tracking)
+- A small status chip (bottom-left) shows live player state (`#messageArea`) when the active source supports it
 
 ## Project Structure
 

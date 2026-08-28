@@ -702,6 +702,34 @@ button { font-family: inherit; cursor: pointer; }
   border: none;
   touch-action: manipulation;
 }
+.player-switcher {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 6;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 70px);
+}
+.player-source-btn {
+  background: rgba(10, 10, 16, 0.75);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.player-source-btn:hover { color: var(--text); }
+.player-source-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
 
 .modal-body { padding: 26px 34px 36px; }
 .modal-title-row {

@@ -33,13 +33,65 @@ const LS_KEY = "cineverse_api_key";
 const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
-const PLAYER_SERVER = {
-  movie: "https://vidlink.pro/movie/{id}",
-  tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
-  primaryColor: "e50914",
-  secondaryColor: "221f1f",
-  iconColor: "ffffff",
+const PLAYER_SOURCES = {
+  vidlink: {
+    label: "VidLink",
+    movie: "https://vidlink.pro/movie/{id}",
+    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+    supportsEvents: true,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams({ primaryColor: "e50914", secondaryColor: "221f1f", iconColor: "ffffff" });
+      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextbutton", "true");
+      if (resumeSeconds > 30) params.set("startAt", String(Math.floor(resumeSeconds)));
+      return params;
+    },
+  },
+  vidking: {
+    label: "VidKing",
+    movie: "https://www.vidking.net/embed/movie/{id}",
+    tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: true,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams({ color: "e50914" });
+      if (type === "tv" && activeProfile()?.autoplay !== false) {
+        params.set("nextEpisode", "true");
+        params.set("episodeSelector", "true");
+      }
+      if (resumeSeconds > 30) params.set("progress", String(Math.floor(resumeSeconds)));
+      return params;
+    },
+  },
+  vidsrc: {
+    label: "VidSrc",
+    movie: "https://vidsrc.to/embed/movie/{id}",
+    tv: "https://vidsrc.to/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
+  "2embed": {
+    label: "2Embed",
+    movie: "https://2embed.cc/embed/movie/{id}",
+    tv: "https://2embed.cc/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
 };
+
+const LS_PLAYER_SOURCE = "cineverse_player_source";
+const DEFAULT_PLAYER_SOURCE = "vidlink";
+
+function getPlayerSourceId() {
+  const id = localStorage.getItem(LS_PLAYER_SOURCE);
+  return id && PLAYER_SOURCES[id] ? id : DEFAULT_PLAYER_SOURCE;
+}
+
+function setPlayerSourceId(id) {
+  if (PLAYER_SOURCES[id]) localStorage.setItem(LS_PLAYER_SOURCE, id);
+}
 
 let currentPlayer = null;
 
@@ -898,36 +950,48 @@ function setHeroSlide(i) {
 }
 
 function hasPlayer() {
-  return Boolean(PLAYER_SERVER.movie && PLAYER_SERVER.tv);
+  return true;
 }
 
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
+  const source = PLAYER_SOURCES[getPlayerSourceId()];
   const base =
     type === "tv"
-      ? PLAYER_SERVER.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
-      : PLAYER_SERVER.movie.replace("{id}", id);
-  const params = new URLSearchParams({
-    primaryColor: PLAYER_SERVER.primaryColor,
-    secondaryColor: PLAYER_SERVER.secondaryColor,
-    iconColor: PLAYER_SERVER.iconColor,
-  });
-  if (type === "tv" && activeProfile()?.autoplay !== false) {
-    params.set("nextbutton", "true");
-  }
-  if (resumeSeconds > 30) {
-    params.set("startAt", String(Math.floor(resumeSeconds)));
-  }
-  return `${base}?${params.toString()}`;
+      ? source.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
+      : source.movie.replace("{id}", id);
+  const params = source.buildParams(type, resumeSeconds || 0);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   heroArea.querySelector(".modal-trailer")?.remove();
+  const activeId = getPlayerSourceId();
   const wrap = document.createElement("div");
   wrap.className = "modal-trailer";
-  wrap.innerHTML = `<iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+  wrap.innerHTML = `
+    <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+    <div class="player-switcher">
+      ${Object.entries(PLAYER_SOURCES)
+        .map(
+          ([id, src]) =>
+            `<button type="button" class="player-source-btn${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
+        )
+        .join("")}
+    </div>`;
   heroArea.appendChild(wrap);
+  wrap.querySelectorAll(".player-source-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.source === getPlayerSourceId() || !currentPlayer) return;
+      setPlayerSourceId(btn.dataset.source);
+      const watch = getWatch(currentPlayer.id);
+      injectPlayer(
+        buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
+      );
+    });
+  });
 }
 
 async function openEpisodesView(data) {
@@ -1044,6 +1108,10 @@ function playEpisode(data, season, episode) {
     updateBodyScrollLock();
   }
   const watch = getWatch(data.id);
+  if (currentPlayer) {
+    currentPlayer.season = season;
+    currentPlayer.episode = episode;
+  }
   injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
 }
 
@@ -1431,7 +1499,7 @@ async function openDetail(type, id, autoplayTrailer) {
   }
 
   const title = data.title || data.name || "Untitled";
-  currentPlayer = { type, id, title, poster_path: data.poster_path, backdrop_path: data.backdrop_path };
+  currentPlayer = { type, id, title, poster_path: data.poster_path, backdrop_path: data.backdrop_path, season: 1, episode: 1 };
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
   const runtime = data.runtime
@@ -3039,6 +3107,7 @@ window.addEventListener("message", function (event) {
     return;
   }
   if (!msg || msg.type !== "PLAYER_EVENT") return;
+  if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
   const d = msg.data || {};
   if (currentPlayer && d.id && typeof d.currentTime === "number") {
     const store = getWatchStore();
