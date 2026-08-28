@@ -755,14 +755,17 @@ function popNavIfNeeded() {
 function closeTopLayer() {
   if ($("#admin-overlay")) {
     $("#admin-overlay").remove();
+    updateBodyScrollLock();
     return;
   }
   if ($("#episodes-overlay")) {
     $("#episodes-overlay").remove();
+    updateBodyScrollLock();
     return;
   }
   if ($("#modal-overlay")) {
     closeModal();
+    updateBodyScrollLock();
     return;
   }
   if (!$("#settings-screen").classList.contains("hidden")) {
@@ -787,6 +790,22 @@ window.addEventListener("popstate", () => {
   navDepth = Math.max(0, navDepth - 1);
   closeTopLayer();
 });
+
+let bodyLockScrollY = 0;
+
+function updateBodyScrollLock() {
+  const shouldLock = !!($("#modal-overlay") || $("#episodes-overlay") || $("#admin-overlay"));
+  const isLocked = document.body.classList.contains("body-locked");
+  if (shouldLock && !isLocked) {
+    bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.top = `-${bodyLockScrollY}px`;
+    document.body.classList.add("body-locked");
+  } else if (!shouldLock && isLocked) {
+    document.body.classList.remove("body-locked");
+    document.body.style.top = "";
+    window.scrollTo(0, bodyLockScrollY);
+  }
+}
 
 function setFilter(filter) {
   currentFilter = filter;
@@ -926,15 +945,18 @@ async function openEpisodesView(data) {
     </div>`;
   $("#modal-root").appendChild(overlay);
   pushNav();
+  updateBodyScrollLock();
 
   $("#episodes-back").addEventListener("click", () => {
     overlay.remove();
     popNavIfNeeded();
+    updateBodyScrollLock();
   });
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       overlay.remove();
       popNavIfNeeded();
+      updateBodyScrollLock();
     }
   });
   $("#episodes-season-select").addEventListener("change", (e) => {
@@ -1008,6 +1030,7 @@ function playEpisode(data, season, episode) {
   if ($("#episodes-overlay")) {
     $("#episodes-overlay").remove();
     popNavIfNeeded();
+    updateBodyScrollLock();
   }
   const watch = getWatch(data.id);
   injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
@@ -1029,15 +1052,18 @@ async function openAdminDashboard() {
     </div>`;
   $("#modal-root").appendChild(overlay);
   pushNav();
+  updateBodyScrollLock();
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       overlay.remove();
       popNavIfNeeded();
+      updateBodyScrollLock();
     }
   });
   $("#admin-close").addEventListener("click", () => {
     overlay.remove();
     popNavIfNeeded();
+    updateBodyScrollLock();
   });
 
   let allAccounts = [];
@@ -1510,15 +1536,18 @@ async function openDetail(type, id, autoplayTrailer) {
 
   $("#modal-root").appendChild(overlay);
   pushNav();
+  updateBodyScrollLock();
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       closeModal();
       popNavIfNeeded();
+      updateBodyScrollLock();
     }
   });
   $("#modal-close").addEventListener("click", () => {
     closeModal();
     popNavIfNeeded();
+    updateBodyScrollLock();
   });
 
   const playNow = () => {
@@ -2512,6 +2541,7 @@ function enterApp(id) {
   applyI18n();
   closeModal();
   navDepth = 0;
+  updateBodyScrollLock();
   $("#search-results").classList.add("hidden");
   $("#search-input").value = "";
   $("#rows").classList.remove("hidden");
