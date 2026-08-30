@@ -1084,6 +1084,7 @@ function playNextEpisode(season, episode) {
   if (!currentPlayer) return;
   currentPlayer.season = season;
   currentPlayer.episode = episode;
+  markEpWatched(currentPlayer.id, season, episode);
   injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
@@ -1205,6 +1206,7 @@ function playEpisode(data, season, episode) {
     currentPlayer.season = season;
     currentPlayer.episode = episode;
   }
+  markEpWatched(data.id, season, episode);
   injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
 }
 
@@ -1765,6 +1767,7 @@ async function openDetail(type, id, autoplayTrailer) {
   });
 
   const playNow = () => {
+    if (type === "tv") markEpWatched(data.id, currentPlayer.season, currentPlayer.episode);
     injectPlayer(buildPlayerUrl(type, data.id, currentPlayer.season, currentPlayer.episode, watch.t));
   };
 
