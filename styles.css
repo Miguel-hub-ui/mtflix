@@ -553,6 +553,21 @@ button { font-family: inherit; cursor: pointer; }
 }
 .card-rating { color: #ffd166; font-weight: 600; }
 
+.card-ep-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(10, 10, 16, 0.75);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 6;
+}
+
 .bookmark-btn {
   position: absolute;
   top: 8px;

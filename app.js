@@ -488,10 +488,12 @@ function bookmarkSvg() {
 
 function cardHTML(item) {
   const active = inList(item.id) ? " active" : "";
+  const epBadge = item.episode ? `<div class="card-ep-badge">S${item.season || 1} · E${item.episode}</div>` : "";
   return `
     <article class="card" data-type="${item.media_type}" data-id="${item.id}">
       <img class="card-poster" loading="lazy" src="${img(item.poster_path, "w500")}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null;this.src=placeholderImage()">
       ${item.progressPct ? `<div class="card-progress"><span style="width:${item.progressPct}%"></span></div>` : ""}
+      ${epBadge}
       <button class="bookmark-btn${active}" title="Add to My List" aria-label="Toggle watchlist">${bookmarkSvg()}</button>
       <div class="card-info">
         <div class="card-title">${escapeHtml(item.title)}</div>
@@ -1448,6 +1450,13 @@ function toggleEpWatched(showId, season, ep) {
   return !!store[key];
 }
 
+function markEpWatched(showId, season, ep) {
+  const store = getEpWatchStore();
+  store[`${showId}_s${season}e${ep}`] = true;
+  localStorage.setItem(pKey(LS_EPWATCH), JSON.stringify(store));
+  scheduleCloudSync();
+}
+
 function countWatchedInSeason(showId, season, totalEpisodes) {
   const store = getEpWatchStore();
   let n = 0;
@@ -1472,7 +1481,7 @@ function fmtTime(total) {
 
 function continueItems() {
   return Object.entries(getWatchStore())
-    .filter(([, w]) => w.t > 30 && w.title && w.poster_path)
+    .filter(([, w]) => (w.t > 30 || w.upNext) && w.title && w.poster_path)
     .map(([id, w]) => ({
       id: Number(id),
       media_type: w.media_type || "movie",
@@ -1482,6 +1491,8 @@ function continueItems() {
       vote_average: 0,
       date: "",
       overview: "",
+      season: w.season,
+      episode: w.episode,
       progressPct: w.d ? Math.min(100, Math.round((w.t / w.d) * 100)) : 0,
     }));
 }
@@ -1502,7 +1513,16 @@ async function openDetail(type, id, autoplayTrailer) {
   }
 
   const title = data.title || data.name || "Untitled";
-  currentPlayer = { type, id, title, poster_path: data.poster_path, backdrop_path: data.backdrop_path, season: 1, episode: 1 };
+  const resumeWatch = getWatch(data.id);
+  currentPlayer = {
+    type,
+    id,
+    title,
+    poster_path: data.poster_path,
+    backdrop_path: data.backdrop_path,
+    season: type === "tv" ? resumeWatch.season || 1 : 1,
+    episode: type === "tv" ? resumeWatch.episode || 1 : 1,
+  };
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
   const runtime = data.runtime
@@ -1526,7 +1546,7 @@ async function openDetail(type, id, autoplayTrailer) {
     (data.videos?.results || []).find((v) => v.site === "YouTube");
 
   const inMyList = inList(data.id);
-  const watch = getWatch(data.id);
+  const watch = resumeWatch;
   const trackNow = getTrack(data.id);
   const canStream = hasPlayer();
   const seasonsForPicker =
@@ -1633,7 +1653,7 @@ async function openDetail(type, id, autoplayTrailer) {
   });
 
   const playNow = () => {
-    injectPlayer(buildPlayerUrl(type, data.id, 1, 1, watch.t));
+    injectPlayer(buildPlayerUrl(type, data.id, currentPlayer.season, currentPlayer.episode, watch.t));
   };
 
   $("#play-now")?.addEventListener("click", playNow);
@@ -3135,16 +3155,43 @@ window.addEventListener("message", function (event) {
   if (currentPlayer && d.id && typeof d.currentTime === "number") {
     const store = getWatchStore();
     const prev = store[d.id] || {};
-    store[d.id] = {
-      t: d.currentTime,
-      d: d.duration || prev.d || 0,
-      media_type: d.mediaType || currentPlayer.type,
-      title: currentPlayer.title || prev.title,
-      poster_path: prev.poster_path || currentPlayer.poster_path,
-      backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
-    };
-    localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-    scheduleCloudSync();
+    const isTv = (d.mediaType || currentPlayer.type) === "tv";
+    if (d.event === "ended") {
+      if (isTv) {
+        markEpWatched(d.id, currentPlayer.season || 1, currentPlayer.episode || 1);
+        store[d.id] = {
+          t: 0,
+          d: 0,
+          media_type: "tv",
+          season: currentPlayer.season || 1,
+          episode: (currentPlayer.episode || 1) + 1,
+          upNext: true,
+          title: currentPlayer.title || prev.title,
+          poster_path: prev.poster_path || currentPlayer.poster_path,
+          backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+        };
+      } else {
+        delete store[d.id];
+      }
+      localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+      scheduleCloudSync();
+    } else if (d.currentTime >= 10) {
+      // Ignore near-zero readings: some players briefly report currentTime=0
+      // right after seeking to a resume point, which would otherwise wipe
+      // out an already-saved Continue Watching entry.
+      store[d.id] = {
+        t: d.currentTime,
+        d: d.duration || prev.d || 0,
+        media_type: d.mediaType || currentPlayer.type,
+        season: isTv ? currentPlayer.season || 1 : undefined,
+        episode: isTv ? currentPlayer.episode || 1 : undefined,
+        title: currentPlayer.title || prev.title,
+        poster_path: prev.poster_path || currentPlayer.poster_path,
+        backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+      };
+      localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+      scheduleCloudSync();
+    }
   }
   const chip = document.querySelector("#messageArea");
   if (chip) {
