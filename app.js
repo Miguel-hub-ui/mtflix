@@ -1457,6 +1457,18 @@ function markEpWatched(showId, season, ep) {
   scheduleCloudSync();
 }
 
+function nextEpisodeOf(player, season, episode) {
+  const counts = player.seasonEpisodeCounts || {};
+  const epCount = counts[season];
+  if (!epCount) {
+    // Episode counts unavailable — fall back to a naive same-season increment.
+    return { season, episode: episode + 1 };
+  }
+  if (episode < epCount) return { season, episode: episode + 1 };
+  if (counts[season + 1] != null) return { season: season + 1, episode: 1 };
+  return null;
+}
+
 function countWatchedInSeason(showId, season, totalEpisodes) {
   const store = getEpWatchStore();
   let n = 0;
@@ -1514,6 +1526,12 @@ async function openDetail(type, id, autoplayTrailer) {
 
   const title = data.title || data.name || "Untitled";
   const resumeWatch = getWatch(data.id);
+  const seasonEpisodeCounts = {};
+  if (type === "tv") {
+    (data.seasons || []).forEach((s) => {
+      if (s.season_number > 0) seasonEpisodeCounts[s.season_number] = s.episode_count;
+    });
+  }
   currentPlayer = {
     type,
     id,
@@ -1522,6 +1540,7 @@ async function openDetail(type, id, autoplayTrailer) {
     backdrop_path: data.backdrop_path,
     season: type === "tv" ? resumeWatch.season || 1 : 1,
     episode: type === "tv" ? resumeWatch.episode || 1 : 1,
+    seasonEpisodeCounts,
   };
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
@@ -3158,18 +3177,26 @@ window.addEventListener("message", function (event) {
     const isTv = (d.mediaType || currentPlayer.type) === "tv";
     if (d.event === "ended") {
       if (isTv) {
-        markEpWatched(d.id, currentPlayer.season || 1, currentPlayer.episode || 1);
-        store[d.id] = {
-          t: 0,
-          d: 0,
-          media_type: "tv",
-          season: currentPlayer.season || 1,
-          episode: (currentPlayer.episode || 1) + 1,
-          upNext: true,
-          title: currentPlayer.title || prev.title,
-          poster_path: prev.poster_path || currentPlayer.poster_path,
-          backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
-        };
+        const finishedSeason = currentPlayer.season || 1;
+        const finishedEpisode = currentPlayer.episode || 1;
+        markEpWatched(d.id, finishedSeason, finishedEpisode);
+        const next = nextEpisodeOf(currentPlayer, finishedSeason, finishedEpisode);
+        if (next) {
+          store[d.id] = {
+            t: 0,
+            d: 0,
+            media_type: "tv",
+            season: next.season,
+            episode: next.episode,
+            upNext: true,
+            title: currentPlayer.title || prev.title,
+            poster_path: prev.poster_path || currentPlayer.poster_path,
+            backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+          };
+        } else {
+          // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
+          delete store[d.id];
+        }
       } else {
         delete store[d.id];
       }
