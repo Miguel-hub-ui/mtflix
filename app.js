@@ -1007,8 +1007,7 @@ function maybeShowNextEpisodePrompt(id, season, episode) {
   if (!currentPlayer || String(currentPlayer.id) !== String(id) || currentPlayer.type !== "tv") return;
   if (activeProfile()?.autoplay === false) return;
   if (nextEpisodePromptActive) return;
-  const heroArea = $("#modal-hero");
-  if (!heroArea || !heroArea.querySelector(".modal-trailer iframe")) return;
+  if (!$("#modal-overlay") || !$("#modal-hero")) return;
   nextEpisodePromptActive = true;
   showNextEpisodeCountdown(season, episode);
 }
@@ -3345,7 +3344,7 @@ window.addEventListener("message", function (event) {
       episode,
       currentTime: watched,
       duration,
-      finished: duration > 0 && watched >= duration - 10,
+      finished: duration > 0 && (watched >= duration - 20 || watched / duration >= 0.95),
     });
     const chip = document.querySelector("#messageArea");
     if (chip) chip.innerText = fmtTime(watched) + (duration ? " / " + fmtTime(duration) : "");
