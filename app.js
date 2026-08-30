@@ -1095,7 +1095,9 @@ function playNextEpisode(season, episode) {
 async function openEpisodesView(data) {
   const seasons = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
   if (!seasons.length) return;
-  let currentSeason = seasons[0].season_number;
+  const lastWatchedSeason = getWatch(data.id).season;
+  const hasLastWatchedSeason = seasons.some((s) => s.season_number === lastWatchedSeason);
+  let currentSeason = hasLastWatchedSeason ? lastWatchedSeason : seasons[0].season_number;
 
   const overlay = document.createElement("div");
   overlay.className = "episodes-overlay";
@@ -1111,7 +1113,7 @@ async function openEpisodesView(data) {
       <div class="episodes-season-row">
         <span>Season</span>
         <select id="episodes-season-select">
-          ${seasons.map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`).join("")}
+          ${seasons.map((s) => `<option value="${s.season_number}"${s.season_number === currentSeason ? " selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
         </select>
       </div>
       <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>
