@@ -3219,14 +3219,18 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
 }
 
 window.addEventListener("message", function (event) {
-  if (typeof event.data !== "string") return;
-  let msg = null;
-  try {
-    msg = JSON.parse(event.data);
-  } catch {
-    return;
+  // Different embed providers post messages differently: some send a JSON
+  // string, others (VidLink, confirmed live) send a real structured-clone
+  // object directly. Handle both instead of assuming one shape.
+  let msg = event.data;
+  if (typeof msg === "string") {
+    try {
+      msg = JSON.parse(msg);
+    } catch {
+      return;
+    }
   }
-  if (!msg || !currentPlayer) return;
+  if (!msg || typeof msg !== "object" || !currentPlayer) return;
   if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
 
   // VidKing's format: one event per message, with season/episode included directly.
