@@ -820,7 +820,7 @@ button { font-family: inherit; cursor: pointer; }
   inset: 0;
   width: 0%;
   background: #ffffff;
-  animation: nextEpFill 3s linear forwards;
+  animation: nextEpFill 4s linear forwards;
 }
 @keyframes nextEpFill {
   from { width: 0%; }

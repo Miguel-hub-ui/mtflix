@@ -1078,7 +1078,7 @@ function showNextEpisodeCountdown(season, episode) {
     playNextEpisode(season, episode);
   };
 
-  const timer = setTimeout(advance, 3000);
+  const timer = setTimeout(advance, 4000);
 
   wrap.querySelector("#next-ep-cancel").addEventListener("click", stop);
   wrap.querySelector("#next-ep-play").addEventListener("click", advance);
@@ -1633,10 +1633,14 @@ async function openDetail(type, id, autoplayTrailer) {
       if (s.season_number > 0) seasonEpisodeCounts[s.season_number] = s.episode_count;
     });
   }
+  // TMDB often leaves episode_run_time empty for TV shows -- fall back to a
+  // typical episode/movie length so the heartbeat can still detect "finished"
+  // and trigger the next-episode prompt on sources that never send real
+  // progress events (VidSrc, 2Embed), instead of never firing at all.
   const estimatedDurationSec =
     type === "tv"
-      ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 0) * 60
-      : (data.runtime || 0) * 60;
+      ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60
+      : (data.runtime || 100) * 60;
   currentPlayer = {
     type,
     id,
@@ -1898,23 +1902,33 @@ async function pushCloudData() {
     try { tracking[p.id] = JSON.parse(localStorage.getItem(`${LS_TRACK}_${p.id}`)) || {}; } catch { tracking[p.id] = {}; }
     try { epwatch[p.id] = JSON.parse(localStorage.getItem(`${LS_EPWATCH}_${p.id}`)) || {}; } catch { epwatch[p.id] = {}; }
   });
+  const payload = {
+    profiles,
+    watchlist,
+    progress,
+    tracking,
+    epwatch,
+    email: auth.currentUser?.email || "",
+    createdAt: auth.currentUser?.metadata?.creationTime || "",
+    lastSignIn: auth.currentUser?.metadata?.lastSignInTime || "",
+    updatedAt: Date.now(),
+  };
+  const docRef = db.collection("users").doc(uid);
   try {
-    await db.collection("users").doc(uid).set(
-      {
-        profiles,
-        watchlist,
-        progress,
-        tracking,
-        epwatch,
-        email: auth.currentUser?.email || "",
-        createdAt: auth.currentUser?.metadata?.creationTime || "",
-        lastSignIn: auth.currentUser?.metadata?.lastSignInTime || "",
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
+    // update() replaces each of these top-level fields wholesale, matching
+    // local state exactly (so removed items actually stay removed) while
+    // leaving unrelated fields like codeVerified untouched. set({merge:true})
+    // would instead deep-merge the nested progress/watchlist/etc. maps,
+    // which only adds/updates keys and can never delete one that's now
+    // missing locally -- a removed Continue Watching entry would keep
+    // getting merged back in from the stale cloud copy.
+    await docRef.update(payload);
   } catch (e) {
-    console.error("Cloud sync (push) failed", e);
+    try {
+      await docRef.set(payload, { merge: true });
+    } catch (e2) {
+      console.error("Cloud sync (push) failed", e2);
+    }
   }
 }
 
