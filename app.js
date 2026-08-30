@@ -1519,7 +1519,12 @@ function removeContinueWatchingCard(id) {
   const store = getWatchStore();
   delete store[String(id)];
   localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-  scheduleCloudSync();
+  // Push immediately instead of the usual debounce: a deliberate removal is
+  // rare enough that there's no batching benefit, and if the user refreshes
+  // right after clicking, the debounce window was letting pullCloudData on
+  // the next load restore the old cloud copy and bring the entry back.
+  clearTimeout(cloudSyncTimer);
+  pushCloudData();
 
   const card = document.querySelector(`.row-section[data-row-id="continue"] .card[data-id="${id}"]`);
   const section = card?.closest(".row-section");
