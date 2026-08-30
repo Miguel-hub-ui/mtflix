@@ -3160,6 +3160,64 @@ function setupNav() {
   });
 }
 
+// Applies a normalized playback update to the progress store. Different
+// embed providers report progress in completely different shapes (see the
+// two message parsers below) but they all funnel through here.
+function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, duration, finished }) {
+  if (!currentPlayer) return;
+  const store = getWatchStore();
+  const prev = store[id] || {};
+  const isTv = mediaType === "tv";
+  if (isTv) {
+    currentPlayer.season = season || currentPlayer.season || 1;
+    currentPlayer.episode = episode || currentPlayer.episode || 1;
+  }
+  if (finished) {
+    if (isTv) {
+      const finishedSeason = season || currentPlayer.season || 1;
+      const finishedEpisode = episode || currentPlayer.episode || 1;
+      markEpWatched(id, finishedSeason, finishedEpisode);
+      const next = nextEpisodeOf(currentPlayer, finishedSeason, finishedEpisode);
+      if (next) {
+        store[id] = {
+          t: 0,
+          d: 0,
+          media_type: "tv",
+          season: next.season,
+          episode: next.episode,
+          upNext: true,
+          title: currentPlayer.title || prev.title,
+          poster_path: prev.poster_path || currentPlayer.poster_path,
+          backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+        };
+      } else {
+        // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
+        delete store[id];
+      }
+    } else {
+      delete store[id];
+    }
+  } else if (currentTime >= 10) {
+    // Ignore near-zero readings: some players briefly report a reset time
+    // right after seeking to a resume point, which would otherwise wipe
+    // out an already-saved Continue Watching entry.
+    store[id] = {
+      t: currentTime,
+      d: duration || prev.d || 0,
+      media_type: mediaType,
+      season: isTv ? season || currentPlayer.season || 1 : undefined,
+      episode: isTv ? episode || currentPlayer.episode || 1 : undefined,
+      title: currentPlayer.title || prev.title,
+      poster_path: prev.poster_path || currentPlayer.poster_path,
+      backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+    };
+  } else {
+    return;
+  }
+  localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+  scheduleCloudSync();
+}
+
 window.addEventListener("message", function (event) {
   if (typeof event.data !== "string") return;
   let msg = null;
@@ -3168,62 +3226,51 @@ window.addEventListener("message", function (event) {
   } catch {
     return;
   }
-  if (!msg || msg.type !== "PLAYER_EVENT") return;
+  if (!msg || !currentPlayer) return;
   if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
-  const d = msg.data || {};
-  if (currentPlayer && d.id && typeof d.currentTime === "number") {
-    const store = getWatchStore();
-    const prev = store[d.id] || {};
-    const isTv = (d.mediaType || currentPlayer.type) === "tv";
-    if (d.event === "ended") {
-      if (isTv) {
-        const finishedSeason = currentPlayer.season || 1;
-        const finishedEpisode = currentPlayer.episode || 1;
-        markEpWatched(d.id, finishedSeason, finishedEpisode);
-        const next = nextEpisodeOf(currentPlayer, finishedSeason, finishedEpisode);
-        if (next) {
-          store[d.id] = {
-            t: 0,
-            d: 0,
-            media_type: "tv",
-            season: next.season,
-            episode: next.episode,
-            upNext: true,
-            title: currentPlayer.title || prev.title,
-            poster_path: prev.poster_path || currentPlayer.poster_path,
-            backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
-          };
-        } else {
-          // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
-          delete store[d.id];
-        }
-      } else {
-        delete store[d.id];
-      }
-      localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-      scheduleCloudSync();
-    } else if (d.currentTime >= 10) {
-      // Ignore near-zero readings: some players briefly report currentTime=0
-      // right after seeking to a resume point, which would otherwise wipe
-      // out an already-saved Continue Watching entry.
-      store[d.id] = {
-        t: d.currentTime,
-        d: d.duration || prev.d || 0,
-        media_type: d.mediaType || currentPlayer.type,
-        season: isTv ? currentPlayer.season || 1 : undefined,
-        episode: isTv ? currentPlayer.episode || 1 : undefined,
-        title: currentPlayer.title || prev.title,
-        poster_path: prev.poster_path || currentPlayer.poster_path,
-        backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
-      };
-      localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-      scheduleCloudSync();
+
+  // VidKing's format: one event per message, with season/episode included directly.
+  if (msg.type === "PLAYER_EVENT") {
+    const d = msg.data || {};
+    if (!d.id || typeof d.currentTime !== "number") return;
+    applyPlaybackUpdate({
+      id: d.id,
+      mediaType: d.mediaType || currentPlayer.type,
+      season: d.season,
+      episode: d.episode,
+      currentTime: d.currentTime,
+      duration: d.duration,
+      finished: d.event === "ended",
+    });
+    const chip = document.querySelector("#messageArea");
+    if (chip) {
+      const icons = { play: "▶ ", pause: "⏸ ", ended: "✓ ", seeked: "⏩ ", timeupdate: "" };
+      chip.innerText = (icons[d.event] ?? "• ") + fmtTime(d.currentTime) + (d.duration ? " / " + fmtTime(d.duration) : "");
     }
+    return;
   }
-  const chip = document.querySelector("#messageArea");
-  if (chip) {
-    const icons = { play: "▶ ", pause: "⏸ ", ended: "✓ ", seeked: "⏩ ", timeupdate: "" };
-    chip.innerText = (icons[d.event] ?? "• ") + fmtTime(d.currentTime) + (d.duration ? " / " + fmtTime(d.duration) : "");
+
+  // VidLink's format: a snapshot of every title it has ever tracked in this
+  // browser, keyed by TMDB id, with its own watched/duration + last episode.
+  if (msg.type === "MEDIA_DATA") {
+    const entry = (msg.data || {})[String(currentPlayer.id)];
+    if (!entry || !entry.progress) return;
+    const watched = entry.progress.watched || 0;
+    const duration = entry.progress.duration || 0;
+    const isTv = entry.type === "tv";
+    const season = isTv ? Number(entry.last_season_watched) || currentPlayer.season || 1 : 1;
+    const episode = isTv ? Number(entry.last_episode_watched) || currentPlayer.episode || 1 : 1;
+    applyPlaybackUpdate({
+      id: currentPlayer.id,
+      mediaType: entry.type || currentPlayer.type,
+      season,
+      episode,
+      currentTime: watched,
+      duration,
+      finished: duration > 0 && watched >= duration - 10,
+    });
+    const chip = document.querySelector("#messageArea");
+    if (chip) chip.innerText = fmtTime(watched) + (duration ? " / " + fmtTime(duration) : "");
   }
 });
 
