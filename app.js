@@ -976,7 +976,6 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   return qs ? `${base}?${qs}` : base;
 }
 
-let nextEpisodePromptActive = false;
 let heartbeatTimer = null;
 
 // Fallback progress tracking that doesn't depend on the embed player
@@ -1013,8 +1012,6 @@ function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   heroArea.querySelector(".modal-trailer")?.remove();
-  heroArea.querySelector("#next-ep-prompt")?.remove();
-  nextEpisodePromptActive = false;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
   const activeId = getPlayerSourceId();
   const wrap = document.createElement("div");
@@ -1040,59 +1037,6 @@ function injectPlayer(url) {
       );
     });
   });
-}
-
-function maybeShowNextEpisodePrompt(id, season, episode) {
-  if (!currentPlayer || String(currentPlayer.id) !== String(id) || currentPlayer.type !== "tv") return;
-  if (activeProfile()?.autoplay === false) return;
-  if (nextEpisodePromptActive) return;
-  if (!$("#modal-overlay") || !$("#modal-hero")) return;
-  nextEpisodePromptActive = true;
-  showNextEpisodeCountdown(season, episode);
-}
-
-function showNextEpisodeCountdown(season, episode) {
-  const heroArea = $("#modal-hero");
-  if (!heroArea) return;
-  heroArea.querySelector("#next-ep-prompt")?.remove();
-
-  const wrap = document.createElement("div");
-  wrap.className = "next-ep-prompt";
-  wrap.id = "next-ep-prompt";
-  wrap.innerHTML = `
-    <button class="next-ep-cancel" id="next-ep-cancel" type="button" aria-label="Cancel">✕</button>
-    <button class="next-ep-btn" id="next-ep-play" type="button">
-      <span class="next-ep-fill" id="next-ep-fill"></span>
-      <span class="next-ep-content">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-        Next Episode
-        <small>S${season} · E${episode}</small>
-      </span>
-    </button>`;
-  heroArea.appendChild(wrap);
-
-  const stop = () => {
-    clearTimeout(timer);
-    wrap.remove();
-    nextEpisodePromptActive = false;
-  };
-  const advance = () => {
-    stop();
-    playNextEpisode(season, episode);
-  };
-
-  const timer = setTimeout(advance, 3000);
-
-  wrap.querySelector("#next-ep-cancel").addEventListener("click", stop);
-  wrap.querySelector("#next-ep-play").addEventListener("click", advance);
-}
-
-function playNextEpisode(season, episode) {
-  if (!currentPlayer) return;
-  currentPlayer.season = season;
-  currentPlayer.episode = episode;
-  markEpWatched(currentPlayer.id, season, episode);
-  injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
 async function openEpisodesView(data) {
@@ -3313,7 +3257,6 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
           poster_path: prev.poster_path || currentPlayer.poster_path,
           backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
         };
-        maybeShowNextEpisodePrompt(id, next.season, next.episode);
       } else {
         // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
         delete store[id];
