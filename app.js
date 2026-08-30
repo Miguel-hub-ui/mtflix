@@ -486,14 +486,21 @@ function bookmarkSvg() {
   return '<svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>';
 }
 
-function cardHTML(item) {
+function cardHTML(item, opts = {}) {
   const active = inList(item.id) ? " active" : "";
   const epBadge = item.episode ? `<div class="card-ep-badge">S${item.season || 1} · E${item.episode}</div>` : "";
+  const menu = opts.removable
+    ? `<button class="card-menu-btn" aria-label="More options" aria-haspopup="true">⋮</button>
+       <div class="card-menu">
+         <button class="card-menu-item" data-remove-continue-id="${item.id}" type="button">Remove from Continue Watching</button>
+       </div>`
+    : "";
   return `
-    <article class="card" data-type="${item.media_type}" data-id="${item.id}">
+    <article class="card${opts.removable ? " has-menu" : ""}" data-type="${item.media_type}" data-id="${item.id}">
       <img class="card-poster" loading="lazy" src="${img(item.poster_path, "w500")}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null;this.src=placeholderImage()">
       ${item.progressPct ? `<div class="card-progress"><span style="width:${item.progressPct}%"></span></div>` : ""}
       ${epBadge}
+      ${menu}
       <button class="bookmark-btn${active}" title="Add to My List" aria-label="Toggle watchlist">${bookmarkSvg()}</button>
       <div class="card-info">
         <div class="card-title">${escapeHtml(item.title)}</div>
@@ -531,9 +538,9 @@ function buildRowSection(rowDef) {
   return section;
 }
 
-function fillRow(section, items) {
+function fillRow(section, items, opts = {}) {
   const scroller = section.querySelector(".row-scroller");
-  scroller.innerHTML = items.map(cardHTML).join("");
+  scroller.innerHTML = items.map((item) => cardHTML(item, opts)).join("");
   const header = section.querySelector(".row-header");
   let countEl = header.querySelector(".row-count");
   if (!countEl) {
@@ -564,7 +571,7 @@ async function renderRows(filter) {
       const cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
       container.appendChild(cwSection);
       wireRowArrows(cwSection);
-      fillRow(cwSection, continueWatching);
+      fillRow(cwSection, continueWatching, { removable: true });
     }
   }
 
@@ -1508,6 +1515,25 @@ function getWatchStore() {
     return JSON.parse(localStorage.getItem(pKey(LS_PROGRESS))) || {};
   } catch {
     return {};
+  }
+}
+
+function removeContinueWatchingCard(id) {
+  const store = getWatchStore();
+  delete store[String(id)];
+  localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+  scheduleCloudSync();
+
+  const card = document.querySelector(`.row-section[data-row-id="continue"] .card[data-id="${id}"]`);
+  const section = card?.closest(".row-section");
+  card?.remove();
+  if (!section) return;
+  const remaining = section.querySelectorAll(".card").length;
+  if (remaining === 0) {
+    section.remove();
+  } else {
+    const countEl = section.querySelector(".row-count");
+    if (countEl) countEl.textContent = `${remaining} titles`;
   }
 }
 
@@ -3147,6 +3173,23 @@ function exitSearch() {
 
 function setupGlobalClickDelegation() {
   document.addEventListener("click", (e) => {
+    const menuBtn = e.target.closest(".card-menu-btn");
+    if (menuBtn) {
+      e.stopPropagation();
+      const menu = menuBtn.nextElementSibling;
+      const wasOpen = menu.classList.contains("open");
+      document.querySelectorAll(".card-menu.open").forEach((m) => m.classList.remove("open"));
+      if (!wasOpen) menu.classList.add("open");
+      return;
+    }
+    const removeItem = e.target.closest(".card-menu-item[data-remove-continue-id]");
+    if (removeItem) {
+      e.stopPropagation();
+      removeContinueWatchingCard(removeItem.dataset.removeContinueId);
+      return;
+    }
+    document.querySelectorAll(".card-menu.open").forEach((m) => m.classList.remove("open"));
+
     const bookmark = e.target.closest(".bookmark-btn");
     if (bookmark) {
       e.stopPropagation();
