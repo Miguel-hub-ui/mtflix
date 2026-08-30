@@ -1005,6 +1005,7 @@ function injectPlayer(url) {
 
 function maybeShowNextEpisodePrompt(id, season, episode) {
   if (!currentPlayer || String(currentPlayer.id) !== String(id) || currentPlayer.type !== "tv") return;
+  if (activeProfile()?.autoplay === false) return;
   if (nextEpisodePromptActive) return;
   const heroArea = $("#modal-hero");
   if (!heroArea || !heroArea.querySelector(".modal-trailer iframe")) return;
