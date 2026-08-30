@@ -1110,12 +1110,12 @@ button { font-family: inherit; cursor: pointer; }
 }
 .episode-play:hover { color: var(--text); }
 .episode-watched-toggle {
+  display: block;
   width: 26px;
   height: 26px;
   border-radius: 50%;
   border: 2px solid var(--muted);
   background: none;
-  cursor: pointer;
   flex-shrink: 0;
 }
 .episode-watched-toggle.watched {

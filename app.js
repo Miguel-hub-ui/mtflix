@@ -1178,20 +1178,13 @@ async function loadSeasonEpisodes(data, seasonNumber) {
           <div class="episode-desc">${escapeHtml(ep.overview || "No description available.")}</div>
         </div>
         <span class="episode-play" aria-hidden="true">›</span>
-        <button class="episode-watched-toggle${watched ? " watched" : ""}" data-ep="${ep.episode_number}" type="button" aria-label="Mark watched"></button>
+        <span class="episode-watched-toggle${watched ? " watched" : ""}" aria-hidden="true"></span>
       </div>`;
     })
     .join("");
 
   list.querySelectorAll(".episode-row").forEach((row) =>
     row.addEventListener("click", () => playEpisode(data, seasonNumber, Number(row.dataset.ep)))
-  );
-  list.querySelectorAll(".episode-watched-toggle").forEach((btn) =>
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleEpWatched(data.id, seasonNumber, Number(btn.dataset.ep));
-      loadSeasonEpisodes(data, seasonNumber);
-    })
   );
 }
 
@@ -1528,16 +1521,6 @@ function getEpWatchStore() {
 
 function isEpWatched(showId, season, ep) {
   return !!getEpWatchStore()[`${showId}_s${season}e${ep}`];
-}
-
-function toggleEpWatched(showId, season, ep) {
-  const store = getEpWatchStore();
-  const key = `${showId}_s${season}e${ep}`;
-  if (store[key]) delete store[key];
-  else store[key] = true;
-  localStorage.setItem(pKey(LS_EPWATCH), JSON.stringify(store));
-  scheduleCloudSync();
-  return !!store[key];
 }
 
 function markEpWatched(showId, season, ep) {
