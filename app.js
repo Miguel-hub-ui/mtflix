@@ -490,10 +490,7 @@ function cardHTML(item, opts = {}) {
   const active = inList(item.id) ? " active" : "";
   const epBadge = item.episode ? `<div class="card-ep-badge">S${item.season || 1} · E${item.episode}</div>` : "";
   const menu = opts.removable
-    ? `<button class="card-menu-btn" aria-label="More options" aria-haspopup="true">⋮</button>
-       <div class="card-menu">
-         <button class="card-menu-item" data-remove-continue-id="${item.id}" type="button">Remove from Continue Watching</button>
-       </div>`
+    ? `<button class="card-menu-btn" data-remove-continue-id="${item.id}" aria-label="More options" aria-haspopup="true">⋮</button>`
     : "";
   return `
     <article class="card${opts.removable ? " has-menu" : ""}" data-type="${item.media_type}" data-id="${item.id}">
@@ -3115,24 +3112,46 @@ function exitSearch() {
   }
 }
 
+function closeCardMenu() {
+  $("#card-menu-floating")?.remove();
+}
+
+function openCardMenu(btn) {
+  closeCardMenu();
+  const rect = btn.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "card-menu";
+  menu.id = "card-menu-floating";
+  menu.innerHTML = `<button class="card-menu-item" data-remove-continue-id="${btn.dataset.removeContinueId}" type="button">Remove</button>`;
+  document.body.appendChild(menu);
+  const menuWidth = menu.offsetWidth;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || menuWidth + 16;
+  const left = Math.max(8, Math.min(rect.right - menuWidth, viewportWidth - menuWidth - 8));
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${left}px`;
+}
+
 function setupGlobalClickDelegation() {
   document.addEventListener("click", (e) => {
     const menuBtn = e.target.closest(".card-menu-btn");
     if (menuBtn) {
       e.stopPropagation();
-      const menu = menuBtn.nextElementSibling;
-      const wasOpen = menu.classList.contains("open");
-      document.querySelectorAll(".card-menu.open").forEach((m) => m.classList.remove("open"));
-      if (!wasOpen) menu.classList.add("open");
+      const reopening = $("#card-menu-floating")?.dataset.forBtn !== menuBtn.dataset.removeContinueId;
+      closeCardMenu();
+      if (reopening) {
+        openCardMenu(menuBtn);
+        $("#card-menu-floating").dataset.forBtn = menuBtn.dataset.removeContinueId;
+      }
       return;
     }
     const removeItem = e.target.closest(".card-menu-item[data-remove-continue-id]");
     if (removeItem) {
       e.stopPropagation();
       removeContinueWatchingCard(removeItem.dataset.removeContinueId);
+      closeCardMenu();
       return;
     }
-    document.querySelectorAll(".card-menu.open").forEach((m) => m.classList.remove("open"));
+    closeCardMenu();
 
     const bookmark = e.target.closest(".bookmark-btn");
     if (bookmark) {
@@ -3157,6 +3176,7 @@ function setupGlobalClickDelegation() {
       openDetail(card.dataset.type, card.dataset.id, false);
     }
   });
+  window.addEventListener("scroll", closeCardMenu, true);
 }
 
 function toggleListFromCard(card, item) {
