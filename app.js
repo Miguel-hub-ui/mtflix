@@ -970,6 +970,37 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
 }
 
 let nextEpisodePromptActive = false;
+let heartbeatTimer = null;
+
+// Fallback progress tracking that doesn't depend on the embed player
+// cooperating at all: every 15s, estimate elapsed watch time from wall-clock
+// time since the player was opened (plus wherever it resumed from), using
+// TMDB's own runtime as the estimated duration. Real postMessage updates
+// (when a source sends them) still apply on top of this via the same
+// applyPlaybackUpdate function — whichever arrives last simply wins.
+function startPlaybackHeartbeat(startSeconds) {
+  clearInterval(heartbeatTimer);
+  if (!currentPlayer) return;
+  const heartbeatStart = Date.now();
+  const player = currentPlayer;
+  heartbeatTimer = setInterval(() => {
+    if (currentPlayer !== player) {
+      clearInterval(heartbeatTimer);
+      return;
+    }
+    const elapsed = startSeconds + (Date.now() - heartbeatStart) / 1000;
+    const duration = player.estimatedDurationSec || 0;
+    applyPlaybackUpdate({
+      id: player.id,
+      mediaType: player.type,
+      season: player.season,
+      episode: player.episode,
+      currentTime: elapsed,
+      duration,
+      finished: duration > 0 && elapsed >= duration - 15,
+    });
+  }, 15000);
+}
 
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
@@ -977,6 +1008,7 @@ function injectPlayer(url) {
   heroArea.querySelector(".modal-trailer")?.remove();
   heroArea.querySelector("#next-ep-prompt")?.remove();
   nextEpisodePromptActive = false;
+  if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
   const activeId = getPlayerSourceId();
   const wrap = document.createElement("div");
   wrap.className = "modal-trailer";
@@ -1604,6 +1636,10 @@ async function openDetail(type, id, autoplayTrailer) {
       if (s.season_number > 0) seasonEpisodeCounts[s.season_number] = s.episode_count;
     });
   }
+  const estimatedDurationSec =
+    type === "tv"
+      ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 0) * 60
+      : (data.runtime || 0) * 60;
   currentPlayer = {
     type,
     id,
@@ -1613,6 +1649,7 @@ async function openDetail(type, id, autoplayTrailer) {
     season: type === "tv" ? resumeWatch.season || 1 : 1,
     episode: type === "tv" ? resumeWatch.episode || 1 : 1,
     seasonEpisodeCounts,
+    estimatedDurationSec,
   };
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
@@ -1814,6 +1851,7 @@ function syncModalListButton(id) {
 }
 
 function closeModal() {
+  clearInterval(heartbeatTimer);
   $("#modal-overlay")?.remove();
 }
 

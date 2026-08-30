@@ -102,17 +102,17 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 
 Movies and TV shows stream through an embed player inside the detail modal. Four sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
-| Source | Default | Resume tracking |
-|--------|---------|------------------|
+| Source | Default | Live progress events |
+|--------|---------|------------------------|
 | **VidLink** | ✓ main | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
 | VidKing | | Yes — sends `PLAYER_EVENT` postMessages with `currentTime`/`duration`/`season`/`episode`; resumes via `progress=` |
-| VidSrc | | No — confirmed it sends no postMessages at all, so Continue Watching can't update while using it |
+| VidSrc | | No — confirmed it sends no postMessages at all |
 | 2Embed | | No — same as VidSrc, confirmed no postMessages |
 
 Your chosen source is remembered per-browser (`localStorage`) and reused next time you open a player. To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
 
-- **Continue Watching** row appears on the home screen once you've watched something (only updates while on a source with resume tracking)
-- A small status chip (bottom-left) shows live player state (`#messageArea`) when the active source supports it
+- **Continue Watching** works on all four sources. A 15-second wall-clock heartbeat estimates elapsed watch time (using TMDB's runtime as the target duration) as a baseline that doesn't depend on the player sending anything at all; on VidLink/VidKing, their real progress events layer on top of that for more accurate resume points and season/episode tracking.
+- A small status chip (bottom-left) shows live player state (`#messageArea`) when the active source sends progress events.
 
 ## Project Structure
 
