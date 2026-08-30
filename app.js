@@ -969,10 +969,14 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   return qs ? `${base}?${qs}` : base;
 }
 
+let nextEpisodePromptActive = false;
+
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   heroArea.querySelector(".modal-trailer")?.remove();
+  heroArea.querySelector("#next-ep-prompt")?.remove();
+  nextEpisodePromptActive = false;
   const activeId = getPlayerSourceId();
   const wrap = document.createElement("div");
   wrap.className = "modal-trailer";
@@ -997,6 +1001,74 @@ function injectPlayer(url) {
       );
     });
   });
+}
+
+function maybeShowNextEpisodePrompt(id, season, episode) {
+  if (!currentPlayer || String(currentPlayer.id) !== String(id) || currentPlayer.type !== "tv") return;
+  if (nextEpisodePromptActive) return;
+  const heroArea = $("#modal-hero");
+  if (!heroArea || !heroArea.querySelector(".modal-trailer iframe")) return;
+  nextEpisodePromptActive = true;
+  showNextEpisodeCountdown(season, episode);
+}
+
+function showNextEpisodeCountdown(season, episode) {
+  const heroArea = $("#modal-hero");
+  if (!heroArea) return;
+  heroArea.querySelector("#next-ep-prompt")?.remove();
+
+  const wrap = document.createElement("div");
+  wrap.className = "next-ep-prompt";
+  wrap.id = "next-ep-prompt";
+  wrap.innerHTML = `
+    <div class="next-ep-card">
+      <div class="next-ep-ring">
+        <svg viewBox="0 0 44 44">
+          <circle class="next-ep-ring-bg" cx="22" cy="22" r="20"></circle>
+          <circle class="next-ep-ring-fg" cx="22" cy="22" r="20"></circle>
+        </svg>
+        <span class="next-ep-count" id="next-ep-count">3</span>
+      </div>
+      <div class="next-ep-text">
+        <div class="next-ep-label">Next Episode</div>
+        <div class="next-ep-title">Season ${season} · Episode ${episode}</div>
+      </div>
+      <button class="link-btn next-ep-cancel" id="next-ep-cancel" type="button">Cancel</button>
+      <button class="btn btn-accent next-ep-play" id="next-ep-play" type="button">Play Now</button>
+    </div>`;
+  heroArea.appendChild(wrap);
+
+  let remaining = 3;
+  const countEl = wrap.querySelector("#next-ep-count");
+
+  const stop = () => {
+    clearInterval(timer);
+    wrap.remove();
+    nextEpisodePromptActive = false;
+  };
+  const advance = () => {
+    stop();
+    playNextEpisode(season, episode);
+  };
+
+  const timer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      advance();
+      return;
+    }
+    countEl.textContent = String(remaining);
+  }, 1000);
+
+  wrap.querySelector("#next-ep-cancel").addEventListener("click", stop);
+  wrap.querySelector("#next-ep-play").addEventListener("click", advance);
+}
+
+function playNextEpisode(season, episode) {
+  if (!currentPlayer) return;
+  currentPlayer.season = season;
+  currentPlayer.episode = episode;
+  injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
 async function openEpisodesView(data) {
@@ -3190,6 +3262,7 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
           poster_path: prev.poster_path || currentPlayer.poster_path,
           backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
         };
+        maybeShowNextEpisodePrompt(id, next.season, next.episode);
       } else {
         // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
         delete store[id];

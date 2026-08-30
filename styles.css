@@ -746,6 +746,75 @@ button { font-family: inherit; cursor: pointer; }
   border-color: var(--accent);
 }
 
+.next-ep-prompt {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 7;
+}
+.next-ep-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(10, 10, 16, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.next-ep-ring {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.next-ep-ring svg { width: 44px; height: 44px; transform: rotate(-90deg); }
+.next-ep-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 3;
+}
+.next-ep-ring-fg {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 125.6;
+  stroke-dashoffset: 0;
+  animation: nextEpRing 3s linear forwards;
+}
+@keyframes nextEpRing {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 125.6; }
+}
+.next-ep-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text);
+}
+.next-ep-text { display: flex; flex-direction: column; gap: 2px; }
+.next-ep-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.next-ep-title { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.next-ep-prompt .btn { padding: 8px 16px; font-size: 0.82rem; white-space: nowrap; }
+.next-ep-cancel { font-size: 0.78rem; }
+
+@media (max-width: 640px) {
+  .next-ep-card { flex-wrap: wrap; padding: 12px; }
+  .next-ep-text { order: 1; }
+}
+
 .modal-body { padding: 26px 34px 36px; }
 .modal-title-row {
   display: flex;
