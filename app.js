@@ -1053,28 +1053,19 @@ function showNextEpisodeCountdown(season, episode) {
   wrap.className = "next-ep-prompt";
   wrap.id = "next-ep-prompt";
   wrap.innerHTML = `
-    <div class="next-ep-card">
-      <div class="next-ep-ring">
-        <svg viewBox="0 0 44 44">
-          <circle class="next-ep-ring-bg" cx="22" cy="22" r="20"></circle>
-          <circle class="next-ep-ring-fg" cx="22" cy="22" r="20"></circle>
-        </svg>
-        <span class="next-ep-count" id="next-ep-count">3</span>
-      </div>
-      <div class="next-ep-text">
-        <div class="next-ep-label">Next Episode</div>
-        <div class="next-ep-title">Season ${season} · Episode ${episode}</div>
-      </div>
-      <button class="link-btn next-ep-cancel" id="next-ep-cancel" type="button">Cancel</button>
-      <button class="btn btn-accent next-ep-play" id="next-ep-play" type="button">Play Now</button>
-    </div>`;
+    <button class="next-ep-cancel" id="next-ep-cancel" type="button" aria-label="Cancel">✕</button>
+    <button class="next-ep-btn" id="next-ep-play" type="button">
+      <span class="next-ep-fill" id="next-ep-fill"></span>
+      <span class="next-ep-content">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Next Episode
+        <small>S${season} · E${episode}</small>
+      </span>
+    </button>`;
   heroArea.appendChild(wrap);
 
-  let remaining = 3;
-  const countEl = wrap.querySelector("#next-ep-count");
-
   const stop = () => {
-    clearInterval(timer);
+    clearTimeout(timer);
     wrap.remove();
     nextEpisodePromptActive = false;
   };
@@ -1083,14 +1074,7 @@ function showNextEpisodeCountdown(season, episode) {
     playNextEpisode(season, episode);
   };
 
-  const timer = setInterval(() => {
-    remaining -= 1;
-    if (remaining <= 0) {
-      advance();
-      return;
-    }
-    countEl.textContent = String(remaining);
-  }, 1000);
+  const timer = setTimeout(advance, 3000);
 
   wrap.querySelector("#next-ep-cancel").addEventListener("click", stop);
   wrap.querySelector("#next-ep-play").addEventListener("click", advance);
