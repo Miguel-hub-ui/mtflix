@@ -1200,13 +1200,34 @@ function playEpisode(data, season, episode) {
     popNavIfNeeded();
     updateBodyScrollLock();
   }
-  const watch = getWatch(data.id);
   if (currentPlayer) {
     currentPlayer.season = season;
     currentPlayer.episode = episode;
   }
   markEpWatched(data.id, season, episode);
-  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, watch.t));
+
+  // Persist the season/episode selection to the watch store immediately,
+  // rather than waiting for a real playback progress event (which can take
+  // 10-15+ seconds to arrive) -- otherwise reopening the episode picker
+  // right after clicking still shows the previous season.
+  const store = getWatchStore();
+  const prev = store[String(data.id)] || {};
+  const sameEpisode = prev.season === season && prev.episode === episode;
+  const resumeSeconds = sameEpisode ? prev.t || 0 : 0;
+  store[String(data.id)] = {
+    t: resumeSeconds,
+    d: sameEpisode ? prev.d || 0 : 0,
+    media_type: "tv",
+    season,
+    episode,
+    title: currentPlayer?.title || prev.title,
+    poster_path: prev.poster_path || currentPlayer?.poster_path,
+    backdrop_path: prev.backdrop_path || currentPlayer?.backdrop_path,
+  };
+  localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+  scheduleCloudSync();
+
+  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
 }
 
 async function openAdminDashboard() {
