@@ -824,11 +824,6 @@ function closeTopLayer() {
     updateBodyScrollLock();
     return;
   }
-  if ($("#episodes-overlay")) {
-    $("#episodes-overlay").remove();
-    updateBodyScrollLock();
-    return;
-  }
   if ($("#modal-overlay")) {
     closeModal();
     updateBodyScrollLock();
@@ -860,7 +855,7 @@ window.addEventListener("popstate", () => {
 let bodyLockScrollY = 0;
 
 function updateBodyScrollLock() {
-  const shouldLock = !!($("#modal-overlay") || $("#episodes-overlay") || $("#admin-overlay"));
+  const shouldLock = !!($("#modal-overlay") || $("#admin-overlay"));
   const isLocked = document.body.classList.contains("body-locked");
   if (shouldLock && !isLocked) {
     bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
@@ -1009,6 +1004,7 @@ function startPlaybackHeartbeat(startSeconds) {
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
+  heroArea.scrollIntoView({ behavior: "smooth", block: "start" });
   heroArea.querySelector(".modal-trailer")?.remove();
   heroArea.querySelector("#next-ep-prompt")?.remove();
   nextEpisodePromptActive = false;
@@ -1092,55 +1088,6 @@ function playNextEpisode(season, episode) {
   injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
-async function openEpisodesView(data) {
-  const seasons = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
-  if (!seasons.length) return;
-  const lastWatchedSeason = getWatch(data.id).season;
-  const hasLastWatchedSeason = seasons.some((s) => s.season_number === lastWatchedSeason);
-  let currentSeason = hasLastWatchedSeason ? lastWatchedSeason : seasons[0].season_number;
-
-  const overlay = document.createElement("div");
-  overlay.className = "episodes-overlay";
-  overlay.id = "episodes-overlay";
-  overlay.innerHTML = `
-    <div class="episodes-panel">
-      <div class="episodes-head">
-        <button class="episodes-back" id="episodes-back" aria-label="Back">←</button>
-        <h2>Episodes</h2>
-        <span class="episodes-showname">${escapeHtml(data.name || data.title || "")}</span>
-      </div>
-      <div class="episodes-progress" id="episodes-progress"></div>
-      <div class="episodes-season-row">
-        <span>Season</span>
-        <select id="episodes-season-select">
-          ${seasons.map((s) => `<option value="${s.season_number}"${s.season_number === currentSeason ? " selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
-        </select>
-      </div>
-      <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>
-    </div>`;
-  $("#modal-root").appendChild(overlay);
-  pushNav();
-  updateBodyScrollLock();
-
-  $("#episodes-back").addEventListener("click", () => {
-    overlay.remove();
-    popNavIfNeeded();
-    updateBodyScrollLock();
-  });
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) {
-      overlay.remove();
-      popNavIfNeeded();
-      updateBodyScrollLock();
-    }
-  });
-  $("#episodes-season-select").addEventListener("change", (e) => {
-    currentSeason = Number(e.target.value);
-    loadSeasonEpisodes(data, currentSeason);
-  });
-
-  await loadSeasonEpisodes(data, currentSeason);
-}
 
 async function loadSeasonEpisodes(data, seasonNumber) {
   const list = $("#episodes-list");
@@ -1195,11 +1142,6 @@ async function loadSeasonEpisodes(data, seasonNumber) {
 }
 
 function playEpisode(data, season, episode) {
-  if ($("#episodes-overlay")) {
-    $("#episodes-overlay").remove();
-    popNavIfNeeded();
-    updateBodyScrollLock();
-  }
   if (currentPlayer) {
     currentPlayer.season = season;
     currentPlayer.episode = episode;
@@ -1733,11 +1675,6 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
-            canStream && type === "tv" && seasonsForPicker.length
-              ? `<button class="btn btn-ghost" id="open-episodes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>Episodes</button>`
-              : ""
-          }
-          ${
             trailer
               ? `<button class="btn btn-${canStream ? "ghost" : "accent"}" id="play-trailer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${t("hdr_trailer")}</button>`
               : ""
@@ -1764,6 +1701,19 @@ async function openDetail(type, id, autoplayTrailer) {
           </div>
         </div>
         <div class="genre-pills">${genres}</div>
+        ${
+          type === "tv" && seasonsForPicker.length
+            ? `<h3 class="modal-section-title">Episodes</h3>
+               <div class="episodes-progress" id="episodes-progress"></div>
+               <div class="episodes-season-row">
+                 <span>Season</span>
+                 <select id="episodes-season-select">
+                   ${seasonsForPicker.map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`).join("")}
+                 </select>
+               </div>
+               <div class="episodes-list" id="episodes-list">${skeletonRow(4)}</div>`
+            : ""
+        }
         <h3 class="modal-section-title">Overview</h3>
         <p style="color:#cfd2da;line-height:1.65;font-size:.95rem;">${escapeHtml(data.overview || "No overview available.")}</p>
         ${
@@ -1810,7 +1760,18 @@ async function openDetail(type, id, autoplayTrailer) {
   };
 
   $("#play-now")?.addEventListener("click", playNow);
-  $("#open-episodes")?.addEventListener("click", () => openEpisodesView(data));
+
+  if (type === "tv" && seasonsForPicker.length) {
+    const lastWatchedSeason = resumeWatch.season;
+    const hasLastWatchedSeason = seasonsForPicker.some((s) => s.season_number === lastWatchedSeason);
+    const initialSeason = hasLastWatchedSeason ? lastWatchedSeason : seasonsForPicker[0].season_number;
+    const seasonSelect = $("#episodes-season-select");
+    seasonSelect.value = String(initialSeason);
+    seasonSelect.addEventListener("change", (e) => {
+      loadSeasonEpisodes(data, Number(e.target.value));
+    });
+    loadSeasonEpisodes(data, initialSeason);
+  }
 
   const trailerBtn = $("#play-trailer");
   if (trailerBtn) {
