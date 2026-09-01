@@ -114,10 +114,6 @@ Your chosen source is remembered per-browser (`localStorage`) and reused next ti
 - **Continue Watching** works on all four sources. A 15-second wall-clock heartbeat estimates elapsed watch time (using TMDB's runtime as the target duration) as a baseline that doesn't depend on the player sending anything at all; on VidLink/VidKing, their real progress events layer on top of that for more accurate resume points and season/episode tracking.
 - A small status chip (bottom-left) shows live player state (`#messageArea`) when the active source sends progress events.
 
-### Popup/redirect blocking
-
-These embed providers are free, ad-supported services, and their ads commonly arrive as pop-unders or full-tab redirect hijacks rather than in-page banners. The player `<iframe>` carries a `sandbox` attribute that omits `allow-popups` and `allow-top-navigation`, which stops the embed from opening new tabs/windows or navigating your tab away to an ad page — verified this doesn't break real playback or postMessage progress events on VidLink/VidKing. This can't touch ads rendered *inside* the player itself (a cross-origin iframe's own DOM and network requests are invisible to the parent page by browser design), only the popup/redirect vectors.
-
 ## Project Structure
 
 | File | Purpose |
