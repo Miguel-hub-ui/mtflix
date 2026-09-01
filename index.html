@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MTFlix.com — Watch Movies &amp; TV</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta name="theme-color" content="#0a0a10" />
@@ -20,7 +20,7 @@
 
   <div id="setup-overlay" class="setup-overlay hidden">
     <div class="setup-panel">
-      <div class="setup-logo"><img src="logo.svg" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
+      <div class="setup-logo"><img src="logo.svg?v=2" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
       <h1>Connect to TMDB</h1>
       <p>
         This site streams live data from <strong>TMDB</strong> (The Movie Database).
@@ -39,7 +39,7 @@
 
   <div id="auth-screen" class="auth-screen hidden">
     <div class="auth-panel">
-      <div class="setup-logo"><img src="logo.svg" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
+      <div class="setup-logo"><img src="logo.svg?v=2" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
       <div class="auth-tabs">
         <button id="tab-signin" class="active" type="button" data-i18n="auth_in">Sign In</button>
         <button id="tab-signup" type="button" data-i18n="auth_up">Sign Up</button>
@@ -120,7 +120,7 @@
 
   <header class="navbar" id="navbar">
     <a href="#" class="logo" id="nav-home">
-      <img src="logo.svg" alt="MT" class="logo-mark" />
+      <img src="logo.svg?v=2" alt="MT" class="logo-mark" />
       <span class="logo-text">FLIX</span>
     </a>
     <nav class="nav-links" id="nav-links">
@@ -188,7 +188,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <!-- Bump ?v= on app.js and styles.css (line 17) whenever either file changes, -->
+  <!-- Bump ?v= on app.js, styles.css (line 17), logo.svg, and favicon.svg whenever any of them change, -->
   <!-- otherwise returning visitors' browsers can keep serving a stale cached copy. -->
   <script src="app.js?v=8"></script>
 </body>

@@ -1,12 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 246 150" role="img" aria-label="MTFlix">
-  <defs>
-    <linearGradient id="mtSilver" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#c4c4cc"/>
-    </linearGradient>
-  </defs>
-  <path d="M12 138 V14 L66 84 L120 14 V138" fill="none" stroke="url(#mtSilver)" stroke-width="26" stroke-miterlimit="8"/>
-  <rect x="176" y="14" width="26" height="124" fill="url(#mtSilver)"/>
-  <path d="M107 14 H236 L224 40 H107 Z" fill="url(#mtSilver)"/>
-  <path d="M140 68 V120 L174 94 Z" fill="#e50914"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="MTFlix">
+  <rect x="4" y="4" width="92" height="92" rx="22" fill="#e50914"/>
+  <path d="M39 29 L74 50 L39 71 Z" fill="#ffffff"/>
 </svg>
