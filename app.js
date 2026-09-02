@@ -1839,6 +1839,28 @@ function syncModalListButton(id) {
 function closeModal() {
   clearInterval(heartbeatTimer);
   $("#modal-overlay")?.remove();
+  refreshContinueWatchingRow();
+}
+
+// Updates the Continue Watching row in place, without a full page refresh
+// or refetching every other row's TMDB data -- called whenever the modal
+// closes so a title you just started watching shows up immediately.
+function refreshContinueWatchingRow() {
+  if (currentFilter !== "home") return;
+  const rowsEl = $("#rows");
+  if (!rowsEl) return;
+  const continueWatching = continueItems();
+  let cwSection = rowsEl.querySelector('.row-section[data-row-id="continue"]');
+  if (!continueWatching.length) {
+    cwSection?.remove();
+    return;
+  }
+  if (!cwSection) {
+    cwSection = buildRowSection({ id: "continue", titleKey: "row_continue" });
+    rowsEl.insertBefore(cwSection, rowsEl.firstChild);
+    wireRowArrows(cwSection);
+  }
+  fillRow(cwSection, continueWatching, { removable: true });
 }
 
 function pKey(key) {
