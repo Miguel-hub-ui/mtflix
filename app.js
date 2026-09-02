@@ -1013,7 +1013,7 @@ function injectPlayer(url) {
   const wrap = document.createElement("div");
   wrap.className = "modal-trailer";
   wrap.innerHTML = `
-    <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-orientation-lock allow-modals allow-pointer-lock allow-downloads allow-storage-access-by-user-activation"></iframe>
+    <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     <div class="player-switcher">
       ${Object.entries(PLAYER_SOURCES)
         .map(
