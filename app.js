@@ -410,6 +410,32 @@ let heroIndex = 0;
 let heroTimer = null;
 let searchTimer = null;
 
+// The hero rotation has no reason to keep fetching backdrop images and
+// touching the DOM while it's hidden behind an open modal, or while the tab
+// itself is backgrounded (mobile browsers keep JS timers alive even when
+// switched away from) -- competing with an actively-decoding video for CPU
+// this way is a real source of stutter/glitches on weaker mobile hardware.
+function startHeroRotation() {
+  clearInterval(heroTimer);
+  if (!heroItems.length) return;
+  heroTimer = setInterval(() => {
+    setHeroSlide((heroIndex + 1) % heroItems.length);
+  }, 8000);
+}
+
+function stopHeroRotation() {
+  clearInterval(heroTimer);
+  heroTimer = null;
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopHeroRotation();
+  } else if (currentFilter === "home" && !$("#modal-overlay") && heroItems.length) {
+    startHeroRotation();
+  }
+});
+
 const ROWS = [
   { id: "trending", titleKey: "row_trending", path: "/trending/all/day" },
   { id: "popular-movies", titleKey: "row_popmovies", path: "/movie/popular" },
@@ -876,6 +902,8 @@ function setFilter(filter) {
   const heroHidden = filter === "list" || filter === "movie" || filter === "tv";
   $("#hero").classList.toggle("hidden", heroHidden);
   $("#rows").classList.toggle("no-hero", heroHidden);
+  if (heroHidden) stopHeroRotation();
+  else if (!document.hidden && !$("#modal-overlay")) startHeroRotation();
   renderRows(filter);
 }
 
@@ -915,10 +943,7 @@ async function buildHero() {
     });
 
     setHeroSlide(0);
-    clearInterval(heroTimer);
-    heroTimer = setInterval(() => {
-      setHeroSlide((heroIndex + 1) % heroItems.length);
-    }, 8000);
+    startHeroRotation();
 
     $("#hero-play").addEventListener("click", () => {
       openDetail(heroItems[heroIndex].media_type, heroItems[heroIndex].id, true);
@@ -1739,6 +1764,7 @@ async function openDetail(type, id, autoplayTrailer) {
     </div>`;
 
   $("#modal-root").appendChild(overlay);
+  stopHeroRotation();
   pushNav();
   updateBodyScrollLock();
   overlay.addEventListener("click", (e) => {
@@ -1840,6 +1866,7 @@ function closeModal() {
   clearInterval(heartbeatTimer);
   $("#modal-overlay")?.remove();
   refreshContinueWatchingRow();
+  if (currentFilter === "home" && !document.hidden) startHeroRotation();
 }
 
 // Updates the Continue Watching row in place, without a full page refresh
