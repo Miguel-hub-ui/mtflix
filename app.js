@@ -1002,6 +1002,13 @@ let nextEpisodePromptActive = false;
 // TMDB's own runtime as the estimated duration. Real postMessage updates
 // (when a source sends them) still apply on top of this via the same
 // applyPlaybackUpdate function — whichever arrives last simply wins.
+//
+// This never reports `finished`, even past the estimated duration: it's a
+// wall-clock guess with no idea whether you're actually still watching,
+// paused, or scrubbed back, and using it to auto-advance to the next episode
+// caused random mid-watch jumps to the wrong episode. Only a real "ended"
+// postMessage from a source that actually reports events should trigger the
+// next-episode prompt.
 function startPlaybackHeartbeat(startSeconds) {
   clearInterval(heartbeatTimer);
   if (!currentPlayer) return;
@@ -1013,15 +1020,14 @@ function startPlaybackHeartbeat(startSeconds) {
       return;
     }
     const elapsed = startSeconds + (Date.now() - heartbeatStart) / 1000;
-    const duration = player.estimatedDurationSec || 0;
     applyPlaybackUpdate({
       id: player.id,
       mediaType: player.type,
       season: player.season,
       episode: player.episode,
       currentTime: elapsed,
-      duration,
-      finished: duration > 0 && elapsed >= duration - 15,
+      duration: player.estimatedDurationSec || 0,
+      finished: false,
     });
   }, 15000);
 }
@@ -1029,6 +1035,10 @@ function startPlaybackHeartbeat(startSeconds) {
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
+  // Swapping out an iframe while it's the fullscreen element leaves the
+  // Fullscreen API stuck in some browsers (fullscreen silently stops working
+  // until the page is reloaded) -- always exit cleanly first.
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   heroArea.scrollIntoView({ behavior: "smooth", block: "start" });
   heroArea.querySelector(".modal-trailer")?.remove();
   heroArea.querySelector("#next-ep-prompt")?.remove();
@@ -1624,9 +1634,9 @@ async function openDetail(type, id, autoplayTrailer) {
     });
   }
   // TMDB often leaves episode_run_time empty for TV shows -- fall back to a
-  // typical episode/movie length so the heartbeat can still detect "finished"
-  // and trigger the next-episode prompt on sources that never send real
-  // progress events (VidSrc, 2Embed), instead of never firing at all.
+  // typical episode/movie length so the Continue Watching progress bar still
+  // has a duration to show for sources that never send real progress events
+  // (VidSrc, 2Embed), instead of showing nothing.
   const estimatedDurationSec =
     type === "tv"
       ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60
@@ -1920,6 +1930,24 @@ function scheduleCloudSync() {
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(() => pushCloudData(), 1200);
 }
+
+// The 1.2s debounce above means a write that happens right before the user
+// closes the tab (very common: they watch until they're done, then leave)
+// can be lost -- it never gets pushed, so it isn't there for pullCloudData
+// to restore next time, and that pull silently overwrites the still-correct
+// local progress with the older cloud copy, which looks like watch progress
+// "resetting" days later. Flush any pending write immediately once the page
+// is actually going away or backgrounded, instead of waiting on the timer.
+function flushPendingCloudSync() {
+  if (cloudSyncTimer == null) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = null;
+  pushCloudData();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) flushPendingCloudSync();
+});
+window.addEventListener("pagehide", flushPendingCloudSync);
 
 async function pushCloudData() {
   const uid = getAuthUserId();
