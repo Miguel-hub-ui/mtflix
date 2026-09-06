@@ -2420,6 +2420,10 @@ function wireAvatarMenu() {
     $("#avatar-menu").classList.add("hidden");
     openAdminDashboard();
   });
+  $("#menu-install")?.addEventListener("click", () => {
+    $("#avatar-menu").classList.add("hidden");
+    triggerInstall();
+  });
   $("#settings-close").addEventListener("click", () => {
     closeSettings();
     popNavIfNeeded();
@@ -3098,6 +3102,60 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 2600);
 }
 
+// --- Install as an app (PWA) ---------------------------------------------
+let deferredInstallPrompt = null;
+
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function setupInstallPrompt() {
+  if (isStandaloneApp()) return;
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    $("#menu-install")?.classList.remove("hidden");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    $("#menu-install")?.classList.add("hidden");
+    showToast("MTFlix installed! Launch it from your home screen.");
+  });
+
+  // Chrome/Edge/Android fire beforeinstallprompt themselves; iOS Safari never
+  // does, so offer the manual "Add to Home Screen" instructions instead.
+  if (isIOSDevice()) {
+    $("#menu-install")?.classList.remove("hidden");
+  }
+}
+
+async function triggerInstall() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === "accepted") $("#menu-install")?.classList.add("hidden");
+    deferredInstallPrompt = null;
+    return;
+  }
+  if (isIOSDevice()) {
+    $("#ios-install-modal")?.classList.remove("hidden");
+    return;
+  }
+  showToast("Use your browser's menu to install MTFlix as an app.");
+}
+
+function wireInstallModal() {
+  $("#ios-install-close")?.addEventListener("click", () => {
+    $("#ios-install-modal")?.classList.add("hidden");
+  });
+}
+
 let suggestToken = 0;
 
 function setupSearch() {
@@ -3523,6 +3581,8 @@ window.addEventListener("load", () => {
   wireProfileGate();
   wireAuth();
   wireAvatarMenu();
+  wireInstallModal();
+  setupInstallPrompt();
   initAuth();
   initEmailDelivery();
   if ("serviceWorker" in navigator) {
