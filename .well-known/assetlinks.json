@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "site.mtflix.twa",
+    "sha256_cert_fingerprints": ["5A:4C:E6:DD:14:E1:74:9E:14:A2:82:65:5E:D0:51:74:95:62:47:07:E1:94:BD:E8:FC:A5:C9:D8:FD:C3:D0:6C"]
+  }
+}]

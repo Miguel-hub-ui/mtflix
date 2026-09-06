@@ -1,5 +1,21 @@
 "use strict";
 
+(function initIntroSplash() {
+  const splash = document.getElementById("intro-splash");
+  if (!splash) return;
+  document.body.classList.add("intro-active");
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    splash.classList.add("intro-hiding");
+    document.body.classList.remove("intro-active");
+    setTimeout(() => splash.remove(), 500);
+  };
+  splash.addEventListener("click", finish);
+  setTimeout(finish, 2300);
+})();
+
 const firebaseConfig = {
   apiKey: "AIzaSyDCBacYdDwQ8-9kNgmvMuQ0Q95CXLdBZHQ",
   authDomain: "mtflix-79292.firebaseapp.com",

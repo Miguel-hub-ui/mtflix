@@ -2024,3 +2024,76 @@ button { font-family: inherit; cursor: pointer; }
   .profile-initial { font-size: 1.8rem; }
   .profile-grid { gap: 18px; margin-bottom: 28px; }
 }
+
+/* --- Intro splash animation --- */
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #000;
+  cursor: pointer;
+  transition: opacity 0.5s ease;
+}
+.intro-splash.intro-hiding { opacity: 0; pointer-events: none; }
+body.intro-active { overflow: hidden; }
+
+.intro-logo {
+  width: 180px;
+  height: auto;
+  filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  animation: introGlow 1.8s ease 0.6s 1;
+}
+.intro-part { opacity: 0; }
+.intro-m {
+  opacity: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: introDrawM 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s forwards;
+}
+.intro-t-bar, .intro-t-top {
+  animation: introFadeUp 0.4s ease 0.65s forwards;
+}
+.intro-triangle {
+  transform-origin: 140px 94px;
+  animation: introPopTriangle 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.95s forwards;
+}
+.intro-word {
+  font-family: "Inter", sans-serif;
+  font-weight: 800;
+  font-size: 2.4rem;
+  letter-spacing: 2px;
+  color: #f2f2f5;
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: introTextFade 0.4s ease 1.15s forwards;
+}
+
+@keyframes introDrawM {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes introFadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes introPopTriangle {
+  0% { opacity: 0; transform: scale(0); }
+  60% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes introTextFade {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes introGlow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+  50% { filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.8)); }
+}
+
+@media (max-width: 600px) {
+  .intro-logo { width: 130px; }
+  .intro-word { font-size: 1.8rem; }
+}
