@@ -771,7 +771,7 @@ function renderWatchlistTab(content) {
       </div>`;
     return;
   }
-  content.innerHTML = `<p class="results-sub">${list.length} saved titles</p><div class="results-grid"></div>`;
+  content.innerHTML = `<p class="results-sub">${list.length} saved titles</p><div class="results-grid mylist-grid"></div>`;
   content.querySelector(".results-grid").innerHTML = list.map(cardHTML).join("");
 }
 

@@ -693,6 +693,7 @@ button { font-family: inherit; cursor: pointer; }
   gap: 18px;
 }
 .results-grid .card { width: auto; }
+.mylist-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 .empty-state {
   padding: 90px 20px;
   text-align: center;
@@ -1988,6 +1989,12 @@ button { font-family: inherit; cursor: pointer; }
   .results-grid .card-title { font-size: 0.62rem; }
   .results-grid .card-sub { font-size: 0.56rem; }
   .results-grid .card-info { padding: 14px 5px 5px; }
+  .mylist-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .mylist-grid .card-title { font-size: 0.72rem; }
+  .mylist-grid .card-sub { font-size: 0.65rem; }
+  .mylist-grid .card-info { padding: 18px 7px 7px; }
   .rows, .discover-view, .search-results, .admin-panel { padding-bottom: 90px; }
   .footer { padding-bottom: 110px; }
 
