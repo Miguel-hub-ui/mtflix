@@ -1981,6 +1981,13 @@ button { font-family: inherit; cursor: pointer; }
   .discover-grid .card-title { font-size: 0.72rem; }
   .discover-grid .card-sub { font-size: 0.65rem; }
   .discover-grid .card-info { padding: 18px 7px 7px; }
+  .results-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .results-grid .card-title { font-size: 0.62rem; }
+  .results-grid .card-sub { font-size: 0.56rem; }
+  .results-grid .card-info { padding: 14px 5px 5px; }
   .rows, .discover-view, .search-results, .admin-panel { padding-bottom: 90px; }
   .footer { padding-bottom: 110px; }
 

@@ -170,7 +170,7 @@ const I18N = {
     mylist_add: "Add to My List", mylist_in: "In My List ✓",
     st_plan: "Plan to Watch", st_watching: "Watching", st_completed: "Completed", st_hold: "On Hold", st_dropped: "Dropped",
     row_trending: "Trending Now", row_popmovies: "Popular Movies", row_toprated: "Top Rated of All Time",
-    row_poptv: "Binge-Worthy TV Shows", row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
+    row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
     row_romance: "Romance Night In", row_airing: "Airing This Week", row_continue: "Continue Watching",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
@@ -201,7 +201,7 @@ const I18N = {
     mylist_add: "Añadir a Mi Lista", mylist_in: "En Mi Lista ✓",
     st_plan: "Pendiente", st_watching: "Viendo", st_completed: "Completado", st_hold: "En pausa", st_dropped: "Abandonado",
     row_trending: "Tendencias", row_popmovies: "Películas populares", row_toprated: "Las mejor valoradas",
-    row_poptv: "Series para maratón", row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
+    row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
     row_horror: "Apaga la luz — Terror", row_comedy: "Comedias para relajar", row_animation: "Animación para todos",
     row_romance: "Noche romántica", row_airing: "Al aire esta semana", row_continue: "Seguir viendo",
   },
@@ -230,7 +230,7 @@ const I18N = {
     mylist_add: "Ajouter à Ma Liste", mylist_in: "Dans Ma Liste ✓",
     st_plan: "À voir", st_watching: "En cours", st_completed: "Terminé", st_hold: "En pause", st_dropped: "Abandonné",
     row_trending: "Tendances", row_popmovies: "Films populaires", row_toprated: "Les mieux notés",
-    row_poptv: "Séries à dévorer", row_action: "Action et aventure", row_scifi: "Univers science-fiction",
+    row_action: "Action et aventure", row_scifi: "Univers science-fiction",
     row_horror: "Lumières éteintes — Horreur", row_comedy: "Comédies détente", row_animation: "Animation pour tous",
     row_romance: "Soirée romance", row_airing: "Diffusées cette semaine", row_continue: "Reprendre",
   },
@@ -259,7 +259,7 @@ const I18N = {
     mylist_add: "Zur Meine Liste hinzufügen", mylist_in: "In Meine Liste ✓",
     st_plan: "Geplant", st_watching: "Am Schauen", st_completed: "Abgeschlossen", st_hold: "Pausiert", st_dropped: "Abgebrochen",
     row_trending: "Im Trend", row_popmovies: "Beliebte Filme", row_toprated: "Beste aller Zeiten",
-    row_poptv: "Serien zum Binge-Watchen", row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
+    row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
     row_horror: "Licht aus — Horror", row_comedy: "Comedys zum Entspannen", row_animation: "Animation für alle",
     row_romance: "Romantischer Abend", row_airing: "Diese Woche neu", row_continue: "Weiterschauen",
   },
@@ -288,7 +288,7 @@ const I18N = {
     mylist_add: "Adicionar à Minha Lista", mylist_in: "Na Minha Lista ✓",
     st_plan: "Planejo ver", st_watching: "Assistindo", st_completed: "Concluído", st_hold: "Em pausa", st_dropped: "Abandonado",
     row_trending: "Em alta", row_popmovies: "Filmes populares", row_toprated: "Melhores de todos os tempos",
-    row_poptv: "Séries para maratonar", row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
+    row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
     row_horror: "Luzes apagadas — Terror", row_comedy: "Comédias para relaxar", row_animation: "Animação para todos",
     row_romance: "Noite romântica", row_airing: "No ar esta semana", row_continue: "Continuar assistindo",
   },
@@ -317,7 +317,7 @@ const I18N = {
     mylist_add: "Listeme Ekle", mylist_in: "Listemde ✓",
     st_plan: "İzleyecek", st_watching: "İzliyor", st_completed: "Tamamladı", st_hold: "Bekletiyor", st_dropped: "Bıraktı",
     row_trending: "Popüler", row_popmovies: "Popüler Filmler", row_toprated: "Tüm Zamanların En İyileri",
-    row_poptv: "Kaçırılmayacak Diziler", row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
+    row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
     row_horror: "Işıkları Kapat — Korku", row_comedy: "Keyifli Komediler", row_animation: "Herkese Animasyon",
     row_romance: "Romantik Gece", row_airing: "Bu Hafta Yayında", row_continue: "İzlemeye Devam Et",
   },
@@ -456,7 +456,6 @@ const ROWS = [
   { id: "trending", titleKey: "row_trending", path: "/trending/all/day" },
   { id: "popular-movies", titleKey: "row_popmovies", path: "/movie/popular" },
   { id: "top-rated", titleKey: "row_toprated", path: "/movie/top_rated" },
-  { id: "popular-tv", titleKey: "row_poptv", path: "/tv/popular" },
   { id: "action", titleKey: "row_action", path: "/discover/movie", params: { with_genres: 28, sort_by: "popularity.desc" } },
   { id: "scifi", titleKey: "row_scifi", path: "/discover/movie", params: { with_genres: 878, sort_by: "popularity.desc" } },
   { id: "horror", titleKey: "row_horror", path: "/discover/movie", params: { with_genres: 27, sort_by: "popularity.desc" } },
@@ -1011,20 +1010,47 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
 
 let heartbeatTimer = null;
 let nextEpisodePromptActive = false;
+// How long before the estimated/actual end of an episode the "Next Episode"
+// prompt should appear -- roughly the length of a typical end-credits/outro.
+const OUTRO_WINDOW_SEC = 60;
+// Episode key (`${id}_s${season}e${episode}`) the user explicitly dismissed
+// the outro prompt for, so a source that keeps reporting progress inside the
+// outro window doesn't just pop it right back up.
+let outroPromptDismissedKey = null;
+
+// The most recent REAL (non-estimated) playback position a source has
+// reported for the currently-playing episode, so the heartbeat below can
+// extrapolate from it instead of waiting on that source's own event cadence.
+// Some sources (VidKing) only post a handful of postMessage events over the
+// course of an episode, which made the outro prompt land accurately but late
+// -- this lets the 15s heartbeat close that gap once real data exists.
+let lastKnownPlayback = null; // { key, t, d, at }
+// Whether the last real "play"/"pause" event we saw said the video is
+// paused. While paused, the heartbeat must not keep extrapolating the real
+// anchor forward in wall-clock time, or a long pause would make it look like
+// playback ran straight into the outro and auto-advance to the wrong spot.
+let realPlaybackPaused = false;
+
+function playbackKey(player) {
+  return player.type === "tv" ? `${player.id}_s${player.season}e${player.episode}` : String(player.id);
+}
 
 // Fallback progress tracking that doesn't depend on the embed player
-// cooperating at all: every 15s, estimate elapsed watch time from wall-clock
-// time since the player was opened (plus wherever it resumed from), using
-// TMDB's own runtime as the estimated duration. Real postMessage updates
-// (when a source sends them) still apply on top of this via the same
-// applyPlaybackUpdate function — whichever arrives last simply wins.
+// cooperating at all: every 15s, estimate elapsed watch time. When the
+// current source has sent at least one real update for this episode, that
+// real position (frozen while paused) is used as the base and only the wall-
+// clock gap since it arrived is extrapolated -- accurate enough to treat as
+// real. Otherwise this falls back to a guess from wall-clock time since the
+// player was opened, using TMDB's own runtime as the estimated duration.
+// Real postMessage updates (when a source sends them) still apply on top of
+// this via the same applyPlaybackUpdate function — whichever arrives last
+// simply wins.
 //
-// This never reports `finished`, even past the estimated duration: it's a
-// wall-clock guess with no idea whether you're actually still watching,
-// paused, or scrubbed back, and using it to auto-advance to the next episode
-// caused random mid-watch jumps to the wrong episode. Only a real "ended"
-// postMessage from a source that actually reports events should trigger the
-// next-episode prompt.
+// A pure wall-clock guess never reports `finished`, even past the estimated
+// duration: it has no idea whether you're actually still watching, paused,
+// or scrubbed back, and using it to auto-advance to the next episode caused
+// random mid-watch jumps to the wrong episode. Only a real "ended" postMessage,
+// or an extrapolation anchored on real data, should auto-advance.
 function startPlaybackHeartbeat(startSeconds) {
   clearInterval(heartbeatTimer);
   if (!currentPlayer) return;
@@ -1035,15 +1061,19 @@ function startPlaybackHeartbeat(startSeconds) {
       clearInterval(heartbeatTimer);
       return;
     }
-    const elapsed = startSeconds + (Date.now() - heartbeatStart) / 1000;
+    const anchor = lastKnownPlayback && lastKnownPlayback.key === playbackKey(player) ? lastKnownPlayback : null;
+    const elapsed = anchor
+      ? anchor.t + (realPlaybackPaused ? 0 : (Date.now() - anchor.at) / 1000)
+      : startSeconds + (Date.now() - heartbeatStart) / 1000;
     applyPlaybackUpdate({
       id: player.id,
       mediaType: player.type,
       season: player.season,
       episode: player.episode,
       currentTime: elapsed,
-      duration: player.estimatedDurationSec || 0,
+      duration: anchor ? anchor.d : player.estimatedDurationSec || 0,
       finished: false,
+      estimated: !anchor,
     });
   }, 15000);
 }
@@ -1059,6 +1089,8 @@ function injectPlayer(url) {
   heroArea.querySelector(".modal-trailer")?.remove();
   heroArea.querySelector("#next-ep-prompt")?.remove();
   nextEpisodePromptActive = false;
+  outroPromptDismissedKey = null;
+  realPlaybackPaused = false;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
   const activeId = getPlayerSourceId();
   const wrap = document.createElement("div");
@@ -1086,27 +1118,32 @@ function injectPlayer(url) {
   });
 }
 
-function maybeShowNextEpisodePrompt(id, season, episode) {
+function maybeShowNextEpisodePrompt(id, season, episode, opts) {
   if (!currentPlayer || String(currentPlayer.id) !== String(id) || currentPlayer.type !== "tv") return;
   if (activeProfile()?.autoplay === false) return;
   if (nextEpisodePromptActive) return;
   if (!$("#modal-overlay") || !$("#modal-hero")) return;
   nextEpisodePromptActive = true;
-  showNextEpisodeCountdown(season, episode);
+  showNextEpisodeCountdown(season, episode, opts);
 }
 
-function showNextEpisodeCountdown(season, episode) {
+// `autoAdvance` is only safe when the trigger came from real playback data
+// (a postMessage event, or the video actually ending). Sources that never
+// report events (VidSrc, 2Embed) only get a wall-clock guess at when the
+// outro starts, which keeps climbing even while paused -- good enough to
+// surface the button, not good enough to silently jump episodes on its own.
+function showNextEpisodeCountdown(season, episode, { autoAdvance = true } = {}) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   heroArea.querySelector("#next-ep-prompt")?.remove();
 
   const wrap = document.createElement("div");
-  wrap.className = "next-ep-prompt";
+  wrap.className = autoAdvance ? "next-ep-prompt" : "next-ep-prompt manual";
   wrap.id = "next-ep-prompt";
   wrap.innerHTML = `
     <button class="next-ep-cancel" id="next-ep-cancel" type="button" aria-label="Cancel">✕</button>
     <button class="next-ep-btn" id="next-ep-play" type="button">
-      <span class="next-ep-fill" id="next-ep-fill"></span>
+      ${autoAdvance ? `<span class="next-ep-fill" id="next-ep-fill"></span>` : ""}
       <span class="next-ep-content">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         Next Episode
@@ -1125,9 +1162,12 @@ function showNextEpisodeCountdown(season, episode) {
     playNextEpisode(season, episode);
   };
 
-  const timer = setTimeout(advance, 4000);
+  const timer = autoAdvance ? setTimeout(advance, 4000) : null;
 
-  wrap.querySelector("#next-ep-cancel").addEventListener("click", stop);
+  wrap.querySelector("#next-ep-cancel").addEventListener("click", () => {
+    if (currentPlayer) outroPromptDismissedKey = `${currentPlayer.id}_s${currentPlayer.season}e${currentPlayer.episode}`;
+    stop();
+  });
   wrap.querySelector("#next-ep-play").addEventListener("click", advance);
 }
 
@@ -3460,7 +3500,7 @@ function setupNav() {
 // Applies a normalized playback update to the progress store. Different
 // embed providers report progress in completely different shapes (see the
 // two message parsers below) but they all funnel through here.
-function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, duration, finished }) {
+function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, duration, finished, estimated }) {
   if (!currentPlayer) return;
   const store = getWatchStore();
   const prev = store[id] || {};
@@ -3509,6 +3549,31 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
       poster_path: prev.poster_path || currentPlayer.poster_path,
       backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
     };
+    if (isTv) {
+      const resolvedDuration = store[id].d;
+      const epKey = `${id}_s${store[id].season}e${store[id].episode}`;
+      // Remember the latest real position so the heartbeat (see
+      // startPlaybackHeartbeat) can extrapolate from it instead of waiting
+      // on this source's own event cadence, which is what made the outro
+      // prompt land late on sources that only post a handful of events
+      // per episode (VidKing).
+      if (!estimated && resolvedDuration > 0) {
+        lastKnownPlayback = { key: epKey, t: currentTime, d: resolvedDuration, at: Date.now() };
+      }
+      // `estimated` is only true for a heartbeat tick with no real anchor to
+      // extrapolate from -- a pure wall-clock guess, which is enough to
+      // surface the button (VidSrc/2Embed have nothing better) but not
+      // enough to auto-advance on its own.
+      if (
+        resolvedDuration > 0 &&
+        currentTime < resolvedDuration &&
+        epKey !== outroPromptDismissedKey &&
+        resolvedDuration - currentTime <= OUTRO_WINDOW_SEC
+      ) {
+        const next = nextEpisodeOf(currentPlayer, store[id].season, store[id].episode);
+        if (next) maybeShowNextEpisodePrompt(id, next.season, next.episode, { autoAdvance: !estimated });
+      }
+    }
   } else {
     return;
   }
@@ -3535,6 +3600,8 @@ window.addEventListener("message", function (event) {
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
+    if (d.event === "pause") realPlaybackPaused = true;
+    else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
       id: d.id,
       mediaType: d.mediaType || currentPlayer.type,
