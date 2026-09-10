@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
 
@@ -199,6 +199,10 @@
   <div id="toast-root"></div>
   <div id="messageArea"></div>
 
+  <!-- Ad network script/tag goes inside #ad-slot. It's positioned above the
+       mobile bottom nav automatically (see .ad-slot in styles.css). -->
+  <div id="ad-slot" class="ad-slot"></div>
+
   <nav class="bottom-nav hidden" id="bottom-nav">
     <a href="#" data-filter="home" class="active">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-2v9h-5v-6H10v6H5v-9H3z"/></svg>
@@ -224,6 +228,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <!-- Bump ?v= on app.js and styles.css (line 17) whenever either file changes, -->
   <!-- otherwise returning visitors' browsers can keep serving a stale cached copy. -->
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

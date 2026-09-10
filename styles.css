@@ -944,6 +944,25 @@ button { font-family: inherit; cursor: pointer; }
 
 .bottom-nav { display: none; }
 
+/* Ad network script/tag goes inside #ad-slot (see index.html). Sized to
+   collapse to nothing when empty so it's invisible until an ad fills it. */
+.ad-slot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 240;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+.ad-slot:empty { display: none; }
+.ad-slot > * { pointer-events: auto; }
+@media (max-width: 720px) {
+  .ad-slot { bottom: 64px; }
+}
+
 .setup-overlay {
   position: fixed;
   inset: 0;
