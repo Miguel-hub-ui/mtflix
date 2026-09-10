@@ -931,7 +931,7 @@ button { font-family: inherit; cursor: pointer; }
 .similar-grid .card:hover .card-info { display: block; }
 
 .footer {
-  padding: 40px 4% 46px;
+  padding: 40px 4% 96px;
   border-top: 1px solid var(--border);
   font-size: 0.85rem;
   color: #cfd2da;
@@ -2014,8 +2014,8 @@ button { font-family: inherit; cursor: pointer; }
   .mylist-grid .card-title { font-size: 0.72rem; }
   .mylist-grid .card-sub { font-size: 0.65rem; }
   .mylist-grid .card-info { padding: 18px 7px 7px; }
-  .rows, .discover-view, .search-results, .admin-panel { padding-bottom: 90px; }
-  .footer { padding-bottom: 110px; }
+  .rows, .discover-view, .search-results, .admin-panel { padding-bottom: 150px; }
+  .footer { padding-bottom: 170px; }
 
   .bottom-nav {
     display: flex;
