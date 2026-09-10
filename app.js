@@ -172,7 +172,7 @@ const I18N = {
     row_trending: "Trending Now", row_popmovies: "Popular Movies", row_toprated: "Top Rated of All Time",
     row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
-    row_romance: "Romance Night In", row_airing: "Airing This Week", row_continue: "Continue Watching",
+    row_romance: "Romance Night In", row_continue: "Continue Watching",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
     filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
@@ -203,7 +203,7 @@ const I18N = {
     row_trending: "Tendencias", row_popmovies: "Películas populares", row_toprated: "Las mejor valoradas",
     row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
     row_horror: "Apaga la luz — Terror", row_comedy: "Comedias para relajar", row_animation: "Animación para todos",
-    row_romance: "Noche romántica", row_airing: "Al aire esta semana", row_continue: "Seguir viendo",
+    row_romance: "Noche romántica", row_continue: "Seguir viendo",
   },
   fr: {
     nav_home: "Accueil", nav_movies: "Films", nav_tv: "Séries", nav_list: "Ma Liste",
@@ -232,7 +232,7 @@ const I18N = {
     row_trending: "Tendances", row_popmovies: "Films populaires", row_toprated: "Les mieux notés",
     row_action: "Action et aventure", row_scifi: "Univers science-fiction",
     row_horror: "Lumières éteintes — Horreur", row_comedy: "Comédies détente", row_animation: "Animation pour tous",
-    row_romance: "Soirée romance", row_airing: "Diffusées cette semaine", row_continue: "Reprendre",
+    row_romance: "Soirée romance", row_continue: "Reprendre",
   },
   de: {
     nav_home: "Startseite", nav_movies: "Filme", nav_tv: "Serien", nav_list: "Meine Liste",
@@ -261,7 +261,7 @@ const I18N = {
     row_trending: "Im Trend", row_popmovies: "Beliebte Filme", row_toprated: "Beste aller Zeiten",
     row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
     row_horror: "Licht aus — Horror", row_comedy: "Comedys zum Entspannen", row_animation: "Animation für alle",
-    row_romance: "Romantischer Abend", row_airing: "Diese Woche neu", row_continue: "Weiterschauen",
+    row_romance: "Romantischer Abend", row_continue: "Weiterschauen",
   },
   pt: {
     nav_home: "Início", nav_movies: "Filmes", nav_tv: "Séries", nav_list: "Minha Lista",
@@ -290,7 +290,7 @@ const I18N = {
     row_trending: "Em alta", row_popmovies: "Filmes populares", row_toprated: "Melhores de todos os tempos",
     row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
     row_horror: "Luzes apagadas — Terror", row_comedy: "Comédias para relaxar", row_animation: "Animação para todos",
-    row_romance: "Noite romântica", row_airing: "No ar esta semana", row_continue: "Continuar assistindo",
+    row_romance: "Noite romântica", row_continue: "Continuar assistindo",
   },
   tr: {
     nav_home: "Ana Sayfa", nav_movies: "Filmler", nav_tv: "Diziler", nav_list: "Listem",
@@ -319,7 +319,7 @@ const I18N = {
     row_trending: "Popüler", row_popmovies: "Popüler Filmler", row_toprated: "Tüm Zamanların En İyileri",
     row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
     row_horror: "Işıkları Kapat — Korku", row_comedy: "Keyifli Komediler", row_animation: "Herkese Animasyon",
-    row_romance: "Romantik Gece", row_airing: "Bu Hafta Yayında", row_continue: "İzlemeye Devam Et",
+    row_romance: "Romantik Gece", row_continue: "İzlemeye Devam Et",
   },
 };
 
@@ -462,7 +462,6 @@ const ROWS = [
   { id: "comedy", titleKey: "row_comedy", path: "/discover/movie", params: { with_genres: 35, sort_by: "popularity.desc" } },
   { id: "animation", titleKey: "row_animation", path: "/discover/movie", params: { with_genres: 16, sort_by: "popularity.desc" } },
   { id: "romance", titleKey: "row_romance", path: "/discover/movie", params: { with_genres: 10749, sort_by: "popularity.desc" } },
-  { id: "airing", titleKey: "row_airing", path: "/tv/airing_today" },
 ];
 
 const $ = (sel) => document.querySelector(sel);
