@@ -1,11 +1,3 @@
-// Monetag site-verification / ad service worker (push + notificationclick handlers).
-self.options = {
-  "domain": "3nbf4.com",
-  "zoneId": 11772350
-};
-self.lary = "";
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw');
-
 const CACHE_NAME = "mtflix-shell-v1";
 const PRECACHE_URLS = [
   "./",
