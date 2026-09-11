@@ -51,16 +51,8 @@ function loadAds() {
   if (window.__adsLoaded) return;
   window.__adsLoaded = true;
 
-  // Adsterra 320x50 banner (footer ad slot).
-  const slot = $("#ad-slot");
-  if (slot) {
-    const opts = document.createElement("script");
-    opts.textContent = "atOptions = { 'key':'8484845de5bba9ef332665c634590d73', 'format':'iframe', 'height':50, 'width':320, 'params':{} };";
-    slot.appendChild(opts);
-    const invoke = document.createElement("script");
-    invoke.src = "https://www.highrevenueformat.com/8484845de5bba9ef332665c634590d73/invoke.js";
-    slot.appendChild(invoke);
-  }
+  // All ad networks temporarily disabled — forced-redirect creatives were
+  // sending visitors off the site. Re-enable once a clean network is found.
 }
 
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
