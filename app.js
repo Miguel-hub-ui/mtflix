@@ -2263,6 +2263,10 @@ function wireAuth() {
   });
   $("#guest-btn").addEventListener("click", continueAsGuest);
   $("#forgot-pass-btn").addEventListener("click", handleForgotPassword);
+  $("#ad-free-cta")?.addEventListener("click", () => {
+    switchAuthTab("signup");
+    $(".auth-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
 
 async function handleForgotPassword() {

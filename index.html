@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
 
@@ -70,6 +70,17 @@
   </div>
 
   <div id="auth-screen" class="auth-screen hidden">
+    <div class="ad-free-promo">
+      <h2>No Ads. Ever.</h2>
+      <p class="ad-free-price"><strong>$1</strong>/month</p>
+      <ul class="ad-free-list">
+        <li>✓ Zero ads, guaranteed</li>
+        <li>✓ Same movies &amp; shows you love</li>
+        <li>✓ Cancel anytime</li>
+      </ul>
+      <button type="button" class="btn btn-accent ad-free-cta" id="ad-free-cta">Sign Up to Get Started</button>
+      <p class="ad-free-note">Payment setup coming soon — sign up now to be ready when it launches.</p>
+    </div>
     <div class="auth-panel">
       <div class="setup-logo"><img src="logo.svg" alt="MT" class="setup-logo-mark" /><span>FLIX</span></div>
       <div class="auth-tabs">
@@ -254,6 +265,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>

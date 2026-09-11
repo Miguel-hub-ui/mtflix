@@ -1447,10 +1447,50 @@ button { font-family: inherit; cursor: pointer; }
   inset: 0;
   z-index: 260;
   background: radial-gradient(circle at 50% 20%, #17172a, var(--bg) 65%);
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 40px 20px;
   overflow-y: auto;
+}
+
+.ad-free-promo {
+  width: min(420px, 94vw);
+  text-align: center;
+  padding: 28px 24px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(229, 9, 20, 0.18), rgba(229, 9, 20, 0.04));
+  border: 1px solid rgba(229, 9, 20, 0.35);
+}
+.ad-free-promo h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.ad-free-price {
+  font-size: 1rem;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.ad-free-price strong {
+  font-size: 1.8rem;
+  color: var(--text);
+}
+.ad-free-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.ad-free-cta { width: 100%; }
+.ad-free-note {
+  margin-top: 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 .auth-panel {
   width: min(420px, 94vw);
