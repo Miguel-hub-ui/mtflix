@@ -3477,8 +3477,19 @@ function setupNav() {
       const searchWasOpen = !$("#search-results").classList.contains("hidden");
       exitSearch();
       if (searchWasOpen) popNavIfNeeded();
-      if (currentFilter !== "home" && currentFilter !== dest) popNavIfNeeded();
-      if (dest !== "home" && dest !== currentFilter) pushNav();
+      if (currentFilter === "home" && dest !== "home") {
+        pushNav();
+      } else if (currentFilter !== "home" && dest === "home") {
+        popNavIfNeeded();
+      } else if (currentFilter !== "home" && dest !== "home" && dest !== currentFilter) {
+        // Switching directly between two non-home sections (e.g. Movies ->
+        // TV Shows) stays at the same nav depth -- relabel the current
+        // history entry instead of back()+pushState(). Those two calls
+        // raced each other (back() resolves async, pushState() is
+        // synchronous), which could corrupt/exhaust the history stack and
+        // eventually navigate past the site entirely on repeated switches.
+        history.replaceState({ mtflixNav: navDepth }, "", location.href);
+      }
       setFilter(dest);
       $("#nav-links")?.classList.remove("open");
       window.scrollTo(0, 0);
