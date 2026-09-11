@@ -41,6 +41,34 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
+// Your Stripe Payment Link for the $1/month "remove ads" subscription.
+// Create it at https://dashboard.stripe.com/payment-links, then paste the URL here.
+const STRIPE_PAYMENT_LINK = "";
+
+let isPremiumUser = false;
+
+function loadAds() {
+  if (window.__adsLoaded) return;
+  window.__adsLoaded = true;
+
+  // Adsterra 320x50 banner (footer ad slot).
+  const slot = $("#ad-slot");
+  if (slot) {
+    const opts = document.createElement("script");
+    opts.textContent = "atOptions = { 'key':'8484845de5bba9ef332665c634590d73', 'format':'iframe', 'height':50, 'width':320, 'params':{} };";
+    slot.appendChild(opts);
+    const invoke = document.createElement("script");
+    invoke.src = "https://www.highrevenueformat.com/8484845de5bba9ef332665c634590d73/invoke.js";
+    slot.appendChild(invoke);
+  }
+
+  // Monetag Vignette Banner (full-screen, shown periodically).
+  const vignette = document.createElement("script");
+  vignette.dataset.zone = "11772370";
+  vignette.src = "https://n6wxm.com/vignette.min.js";
+  document.body.appendChild(vignette);
+}
+
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -154,7 +182,11 @@ const I18N = {
     auth_pass_min: "Password (min 6 characters)", auth_pass2: "Confirm password", auth_name: "Display name",
     signin_btn: "Sign In", signup_btn: "Create Account", guest_link: "Continue as guest",
     verify_title: "Check your email", pin_enter_title: "Enter profile PIN", cancel: "Cancel",
-    settings_title: "Settings", sec_playback: "Playback", sec_language: "Language", sec_privacy: "Privacy & Security",
+    settings_title: "Settings", sec_playback: "Playback", sec_language: "Language", sec_privacy: "Privacy & Security", sec_membership: "Remove Ads",
+    membership_title: "Remove Ads", membership_desc: "Support MTFlix and browse without any ads for $1/month.",
+    membership_cta: "Remove Ads — $1/month", membership_guest: "Sign in to an account to remove ads.",
+    membership_pending: "After payment, ads are removed manually within 24 hours — thanks for your patience!",
+    membership_active: "✓ Ads removed — thanks for supporting MTFlix!",
     set_autoplay_label: "Auto-play next episode", set_autoplay_desc: "When an episode ends, automatically start the next one.",
     set_lang_desc: "App interface and movie descriptions language.",
     privacy_pin_desc: "Require a 4-digit PIN to open this profile.",
@@ -2051,7 +2083,7 @@ async function pushCloudData() {
 async function pullCloudData(uid) {
   try {
     const snap = await db.collection("users").doc(uid).get();
-    if (!snap.exists) return;
+    if (!snap.exists) return false;
     const data = snap.data();
     if (data.profiles) localStorage.setItem(LS_PROFILES + "_" + uid, JSON.stringify(data.profiles));
     if (data.watchlist) {
@@ -2079,8 +2111,10 @@ async function pullCloudData(uid) {
     } else {
       localStorage.removeItem(`cineverse_dispname_${uid}`);
     }
+    return data.premium === true;
   } catch (e) {
     console.error("Cloud sync (pull) failed", e);
+    return false;
   }
 }
 
@@ -2146,7 +2180,8 @@ function initAuth() {
         return;
       }
       localStorage.setItem(LS_AUTH, fbUser.uid);
-      await pullCloudData(fbUser.uid);
+      isPremiumUser = await pullCloudData(fbUser.uid);
+      if (!isPremiumUser) loadAds();
       const nameOverride = localStorage.getItem(`cineverse_dispname_${fbUser.uid}`);
       const user = {
         id: fbUser.uid,
@@ -2156,6 +2191,7 @@ function initAuth() {
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
+      loadAds();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2511,6 +2547,35 @@ function renderSettings(section) {
   if (section === "playback") renderPlaybackSettings(content);
   else if (section === "language") renderLanguageSettings(content);
   else if (section === "privacy") renderPrivacySettings(content);
+  else if (section === "membership") renderMembershipSettings(content);
+}
+
+function renderMembershipSettings(content) {
+  const uidNow = getAuthUserId();
+  const isGuest = !uidNow || uidNow === "guest";
+
+  let body;
+  if (isGuest) {
+    body = `<p class="setting-desc">${t("membership_guest")}</p>`;
+  } else if (isPremiumUser) {
+    body = `<p class="setting-desc">${t("membership_active")}</p>`;
+  } else {
+    const link = STRIPE_PAYMENT_LINK
+      ? `${STRIPE_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(uidNow)}`
+      : "";
+    body = `
+      <p class="setting-desc">${t("membership_desc")}</p>
+      ${
+        link
+          ? `<a class="btn btn-accent" href="${link}" target="_blank" rel="noopener">${t("membership_cta")}</a>`
+          : `<button type="button" class="btn btn-accent" disabled>${t("membership_cta")}</button>`
+      }
+      <p class="setting-desc">${t("membership_pending")}</p>`;
+  }
+
+  content.innerHTML = `
+    <h3 class="settings-h3">${t("membership_title")}</h3>
+    <div class="privacy-card">${body}</div>`;
 }
 
 function updateActiveProfile(patch) {

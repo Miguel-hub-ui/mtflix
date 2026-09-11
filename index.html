@@ -145,6 +145,7 @@
         <button class="side-link active" data-sec="playback" type="button" data-i18n="sec_playback">Playback</button>
         <button class="side-link" data-sec="language" type="button" data-i18n="sec_language">Language</button>
         <button class="side-link" data-sec="privacy" type="button" data-i18n="sec_privacy">Privacy &amp; Security</button>
+        <button class="side-link" data-sec="membership" type="button" data-i18n="sec_membership">Remove Ads</button>
       </aside>
       <div class="settings-content" id="settings-content"></div>
     </div>
@@ -199,20 +200,10 @@
   <div id="toast-root"></div>
   <div id="messageArea"></div>
 
-  <!-- Ad network script/tag goes inside #ad-slot. It's positioned above the
-       mobile bottom nav automatically (see .ad-slot in styles.css). -->
-  <div id="ad-slot" class="ad-slot">
-    <script>
-      atOptions = {
-        'key' : '8484845de5bba9ef332665c634590d73',
-        'format' : 'iframe',
-        'height' : 50,
-        'width' : 320,
-        'params' : {}
-      };
-    </script>
-    <script src="https://www.highrevenueformat.com/8484845de5bba9ef332665c634590d73/invoke.js"></script>
-  </div>
+  <!-- Ad network scripts are injected here by loadAds() in app.js, only for
+       non-premium users. It's positioned above the mobile bottom nav
+       automatically (see .ad-slot in styles.css). -->
+  <div id="ad-slot" class="ad-slot"></div>
 
   <nav class="bottom-nav hidden" id="bottom-nav">
     <a href="#" data-filter="home" class="active">
@@ -239,9 +230,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <!-- Bump ?v= on app.js and styles.css (line 17) whenever either file changes, -->
   <!-- otherwise returning visitors' browsers can keep serving a stale cached copy. -->
-  <script src="app.js?v=15"></script>
-
-  <!-- Monetag Vignette Banner: full-screen ad shown periodically while browsing. -->
-  <script>(function(s){s.dataset.zone='11772370',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
