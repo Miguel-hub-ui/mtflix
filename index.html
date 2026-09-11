@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
 
@@ -176,6 +176,7 @@
       <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
+      <a href="#" id="nav-premium" class="nav-premium-link">Premium</a>
     </nav>
 
     <button class="nav-burger" id="nav-burger" aria-label="Menu" type="button">
@@ -258,6 +259,13 @@
       </svg>
       <span>My List</span>
     </a>
+
+    <a href="#" id="nav-premium-mobile" class="nav-premium-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 8l4 3 5-6 5 6 4-3-2 11H5L3 8z"/>
+      </svg>
+      <span>Premium</span>
+    </a>
   </nav>
 
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -265,6 +273,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

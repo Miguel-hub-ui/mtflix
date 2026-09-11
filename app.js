@@ -119,6 +119,38 @@ function startAdInterstitialTimer() {
   setInterval(showAdInterstitial, AD_INTERSTITIAL_MINUTES * 60 * 1000);
 }
 
+function showPremiumModal() {
+  if ($(".premium-modal-overlay")) return;
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay premium-modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal ad-free-promo premium-modal">
+      <button type="button" class="modal-close" aria-label="Close">✕</button>
+      <h2>No Ads. Ever.</h2>
+      <p class="ad-free-price"><strong>$1</strong>/month</p>
+      <ul class="ad-free-list">
+        <li>✓ Zero ads, guaranteed</li>
+        <li>✓ Same movies &amp; shows you love</li>
+        <li>✓ Cancel anytime</li>
+      </ul>
+      <p class="ad-free-note">Payment setup is coming soon — check back shortly to subscribe.</p>
+    </div>`;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+function wirePremiumLinks() {
+  document.querySelectorAll(".nav-premium-link").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      showPremiumModal();
+    });
+  });
+}
+
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -3560,7 +3592,7 @@ function setupNav() {
   window.addEventListener("scroll", () => {
     $("#navbar").classList.toggle("scrolled", window.scrollY > 40);
   });
-  document.querySelectorAll(".nav-links a, .bottom-nav a, #nav-home").forEach((a) => {
+  document.querySelectorAll(".nav-links a[data-filter], .bottom-nav a[data-filter], #nav-home").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       const dest = a.dataset.filter || "home";
@@ -3765,6 +3797,7 @@ window.addEventListener("load", () => {
   wireAuth();
   wireAvatarMenu();
   wireInstallModal();
+  wirePremiumLinks();
   setupInstallPrompt();
   initAuth();
   initEmailDelivery();

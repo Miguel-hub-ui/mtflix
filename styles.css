@@ -86,6 +86,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 .nav-links a:hover, .nav-links a.active { color: var(--text); }
 .nav-links a.active { font-weight: 700; }
+.nav-premium-link { color: var(--accent) !important; font-weight: 700 !important; }
+.nav-premium-link:hover { color: var(--accent-hover) !important; }
 
 .nav-burger {
   display: none;
@@ -1491,6 +1493,10 @@ button { font-family: inherit; cursor: pointer; }
   margin-top: 12px;
   font-size: 0.78rem;
   color: var(--muted);
+}
+.premium-modal {
+  position: relative;
+  width: min(420px, 94vw);
 }
 .auth-panel {
   width: min(420px, 94vw);
