@@ -2385,6 +2385,7 @@ function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
   $("#auth-screen").classList.add("hidden");
   applyUserChrome({ id: "guest", name: "Guest", email: "" });
+  loadAds();
   enterGuestSession();
 }
 
