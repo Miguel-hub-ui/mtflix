@@ -3669,14 +3669,9 @@ window.addEventListener("load", () => {
   initEmailDelivery();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
-    // Force an immediate one-time reload when a new service worker takes
-    // over, so visitors on an old cached tab always land on fresh code
-    // instead of being silently stuck on a stale deploy.
-    let swRefreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (swRefreshing) return;
-      swRefreshing = true;
-      window.location.reload();
-    });
+    // A new worker may take control while someone is using the browser site.
+    // Do not reload here: on mobile browsers that can discard the current
+    // page and feel like the site has suddenly exited. The worker is
+    // network-first, so the next navigation still receives the latest files.
   }
 });
