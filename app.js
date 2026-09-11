@@ -74,6 +74,21 @@ function initFooterAd() {
   slot.appendChild(createSandboxedAd(320, 50));
 }
 
+const NATIVE_AD_SRC = "https://pl31289900.profitableratecpmnetwork.com/1b/44/78/1b4478e33a9399934dc99c2914054580.js";
+
+function initNativeBanner() {
+  const slot = $("#native-ad-slot");
+  if (!slot) return;
+  const iframe = document.createElement("iframe");
+  iframe.style.width = "100%";
+  iframe.height = "300";
+  iframe.sandbox = "allow-scripts allow-popups allow-popups-to-escape-sandbox";
+  iframe.srcdoc = `<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
+    <script src="${NATIVE_AD_SRC}"><\/script>
+  </body></html>`;
+  slot.appendChild(iframe);
+}
+
 function showAdInterstitial() {
   if (document.hidden || $(".ad-interstitial-overlay")) return;
   const overlay = document.createElement("div");
@@ -3733,6 +3748,7 @@ window.addEventListener("load", () => {
   initAuth();
   initEmailDelivery();
   initFooterAd();
+  initNativeBanner();
   startAdInterstitialTimer();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
