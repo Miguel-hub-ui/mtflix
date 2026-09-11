@@ -59,12 +59,21 @@ function adTagHtml(width, height) {
   </body></html>`;
 }
 
+// data: URLs always get their own unique, opaque origin -- unlike srcdoc,
+// this stays true even with allow-same-origin, so the ad script can use
+// cookies/storage (most ad networks need this just to serve anything) while
+// remaining fully isolated from mtflix.site's real cookies/storage/DOM.
+// allow-top-navigation is still never granted, so it can't redirect the page.
+function toDataUrl(html) {
+  return "data:text/html;base64," + btoa(unescape(encodeURIComponent(html)));
+}
+
 function createSandboxedAd(width, height) {
   const iframe = document.createElement("iframe");
   iframe.width = String(width);
   iframe.height = String(height);
-  iframe.sandbox = "allow-scripts allow-popups allow-popups-to-escape-sandbox";
-  iframe.srcdoc = adTagHtml(width, height);
+  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+  iframe.src = toDataUrl(adTagHtml(width, height));
   return iframe;
 }
 
@@ -82,10 +91,10 @@ function initNativeBanner() {
   const iframe = document.createElement("iframe");
   iframe.style.width = "100%";
   iframe.height = "300";
-  iframe.sandbox = "allow-scripts allow-popups allow-popups-to-escape-sandbox";
-  iframe.srcdoc = `<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
+  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+  iframe.src = toDataUrl(`<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
     <script src="${NATIVE_AD_SRC}"><\/script>
-  </body></html>`;
+  </body></html>`);
   slot.appendChild(iframe);
 }
 
