@@ -76,6 +76,7 @@
         <button id="tab-signin" class="active" type="button" data-i18n="auth_in">Sign In</button>
         <button id="tab-signup" type="button" data-i18n="auth_up">Sign Up</button>
       </div>
+
       <form id="form-signin" novalidate>
         <input id="signin-email" type="email" placeholder="Email" autocomplete="email" data-i18n-placeholder="auth_email" />
         <input id="signin-pass" type="password" placeholder="Password" autocomplete="current-password" data-i18n-placeholder="auth_pass" />
@@ -87,6 +88,7 @@
         <button type="submit" class="btn btn-accent" data-i18n="signin_btn">Sign In</button>
         <button id="forgot-pass-btn" class="link-btn forgot-pass-link" type="button">Forgot password?</button>
       </form>
+
       <form id="form-signup" class="hidden" novalidate>
         <input id="signup-name" type="text" maxlength="30" placeholder="Display name" autocomplete="name" data-i18n-placeholder="auth_name" />
         <input id="signup-email" type="email" placeholder="Email" autocomplete="email" data-i18n-placeholder="auth_email" />
@@ -95,6 +97,7 @@
         <p id="signup-error" class="auth-error hidden"></p>
         <button type="submit" class="btn btn-accent" data-i18n="signup_btn">Create Account</button>
       </form>
+
       <div id="form-verify" class="hidden">
         <p class="verify-title">Verify your email</p>
         <p class="verify-sub" id="verify-sub"></p>
@@ -111,6 +114,7 @@
           <button id="verify-back" class="link-btn" type="button">Sign out</button>
         </div>
       </div>
+
       <button id="guest-btn" class="guest-link" type="button" data-i18n="guest_link">Continue as guest</button>
       <p class="auth-note">We'll send a 6-digit verification code to your email — accounts sync automatically across all your devices.</p>
     </div>
@@ -155,20 +159,31 @@
       <img src="logo.svg" alt="MT" class="logo-mark" />
       <span class="logo-text">FLIX</span>
     </a>
+
     <nav class="nav-links" id="nav-links">
       <a href="#" data-filter="home" class="active" data-i18n="nav_home">Home</a>
       <a href="#" data-filter="movie" data-i18n="nav_movies">Movies</a>
       <a href="#" data-filter="tv" data-i18n="nav_tv">TV Shows</a>
       <a href="#" data-filter="list" data-i18n="nav_list">My List</a>
     </nav>
+
     <button class="nav-burger" id="nav-burger" aria-label="Menu" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="4" y1="7" x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
+      </svg>
     </button>
+
     <div class="nav-search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/>
+        <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+      </svg>
       <input id="search-input" type="text" placeholder="Titles, people, genres" autocomplete="off" spellcheck="false" data-i18n-placeholder="search_ph" />
       <div id="search-suggest" class="search-suggest hidden"></div>
     </div>
+
     <div class="avatar-wrap">
       <div class="avatar" id="nav-avatar" title="Account">M</div>
       <div class="avatar-menu hidden" id="avatar-menu">
@@ -199,26 +214,36 @@
   <div id="toast-root"></div>
   <div id="messageArea"></div>
 
-  <!-- Adsterra banner removed: confirmed serving a creative with an
-       invisible click-hijacking overlay that redirected/opened new tabs
-       from taps anywhere near it, not just on the visible ad. -->
   <div id="ad-slot" class="ad-slot"></div>
 
   <nav class="bottom-nav hidden" id="bottom-nav">
     <a href="#" data-filter="home" class="active">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-2v9h-5v-6H10v6H5v-9H3z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 3l9 8h-2v9h-5v-6H10v6H5v-9H3z"/>
+      </svg>
       <span>Home</span>
     </a>
+
     <a href="#" data-filter="movie">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M7 6l3-4M12 6l3-4M17 6l3-4"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="6" width="20" height="14" rx="2"/>
+        <path d="M7 6l3-4M12 6l3-4M17 6l3-4"/>
+      </svg>
       <span>Movies</span>
     </a>
+
     <a href="#" data-filter="tv">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="6" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+      </svg>
       <span>TV Shows</span>
     </a>
+
     <a href="#" data-filter="list">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 10-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 000-7.6z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 10-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 000-7.6z"/>
+      </svg>
       <span>My List</span>
     </a>
   </nav>
@@ -227,8 +252,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <!-- Bump ?v= on app.js and styles.css (line 17) whenever either file changes, -->
-  <!-- otherwise returning visitors' browsers can keep serving a stale cached copy. -->
-  <script src="app.js?v=16"></script>
+
+  <script src="app.js?v=17"></script>
 </body>
 </html>
