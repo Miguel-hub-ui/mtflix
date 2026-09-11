@@ -41,20 +41,6 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
-// Your payment provider's hosted checkout link for the $1/month "remove ads"
-// subscription (e.g. a Tap Payments payment page). Paste the URL here once created.
-const REMOVE_ADS_PAYMENT_LINK = "";
-
-let isPremiumUser = false;
-
-function loadAds() {
-  if (window.__adsLoaded) return;
-  window.__adsLoaded = true;
-
-  // All ad networks temporarily disabled — forced-redirect creatives were
-  // sending visitors off the site. Re-enable once a clean network is found.
-}
-
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -168,11 +154,7 @@ const I18N = {
     auth_pass_min: "Password (min 6 characters)", auth_pass2: "Confirm password", auth_name: "Display name",
     signin_btn: "Sign In", signup_btn: "Create Account", guest_link: "Continue as guest",
     verify_title: "Check your email", pin_enter_title: "Enter profile PIN", cancel: "Cancel",
-    settings_title: "Settings", sec_playback: "Playback", sec_language: "Language", sec_privacy: "Privacy & Security", sec_membership: "Remove Ads",
-    membership_title: "Remove Ads", membership_desc: "Support MTFlix and browse without any ads for $1/month.",
-    membership_cta: "Remove Ads — $1/month", membership_guest: "Sign in to an account to remove ads.",
-    membership_pending: "After payment, ads are removed manually within 24 hours — thanks for your patience!",
-    membership_active: "✓ Ads removed — thanks for supporting MTFlix!",
+    settings_title: "Settings", sec_playback: "Playback", sec_language: "Language", sec_privacy: "Privacy & Security",
     set_autoplay_label: "Auto-play next episode", set_autoplay_desc: "When an episode ends, automatically start the next one.",
     set_lang_desc: "App interface and movie descriptions language.",
     privacy_pin_desc: "Require a 4-digit PIN to open this profile.",
@@ -2069,7 +2051,7 @@ async function pushCloudData() {
 async function pullCloudData(uid) {
   try {
     const snap = await db.collection("users").doc(uid).get();
-    if (!snap.exists) return false;
+    if (!snap.exists) return;
     const data = snap.data();
     if (data.profiles) localStorage.setItem(LS_PROFILES + "_" + uid, JSON.stringify(data.profiles));
     if (data.watchlist) {
@@ -2097,10 +2079,8 @@ async function pullCloudData(uid) {
     } else {
       localStorage.removeItem(`cineverse_dispname_${uid}`);
     }
-    return data.premium === true;
   } catch (e) {
     console.error("Cloud sync (pull) failed", e);
-    return false;
   }
 }
 
@@ -2166,8 +2146,7 @@ function initAuth() {
         return;
       }
       localStorage.setItem(LS_AUTH, fbUser.uid);
-      isPremiumUser = await pullCloudData(fbUser.uid);
-      if (!isPremiumUser) loadAds();
+      await pullCloudData(fbUser.uid);
       const nameOverride = localStorage.getItem(`cineverse_dispname_${fbUser.uid}`);
       const user = {
         id: fbUser.uid,
@@ -2177,7 +2156,6 @@ function initAuth() {
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
-      loadAds();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2533,37 +2511,6 @@ function renderSettings(section) {
   if (section === "playback") renderPlaybackSettings(content);
   else if (section === "language") renderLanguageSettings(content);
   else if (section === "privacy") renderPrivacySettings(content);
-  else if (section === "membership") renderMembershipSettings(content);
-}
-
-function renderMembershipSettings(content) {
-  const uidNow = getAuthUserId();
-  const isGuest = !uidNow || uidNow === "guest";
-
-  let body;
-  if (isGuest) {
-    body = `<p class="setting-desc">${t("membership_guest")}</p>`;
-  } else if (isPremiumUser) {
-    body = `<p class="setting-desc">${t("membership_active")}</p>`;
-  } else {
-    // Some providers (Stripe) read a client_reference_id param for matching;
-    // others don't, in which case match manually by the payer's email instead.
-    const link = REMOVE_ADS_PAYMENT_LINK
-      ? `${REMOVE_ADS_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(uidNow)}`
-      : "";
-    body = `
-      <p class="setting-desc">${t("membership_desc")}</p>
-      ${
-        link
-          ? `<a class="btn btn-accent" href="${link}" target="_blank" rel="noopener">${t("membership_cta")}</a>`
-          : `<button type="button" class="btn btn-accent" disabled>${t("membership_cta")}</button>`
-      }
-      <p class="setting-desc">${t("membership_pending")}</p>`;
-  }
-
-  content.innerHTML = `
-    <h3 class="settings-h3">${t("membership_title")}</h3>
-    <div class="privacy-card">${body}</div>`;
 }
 
 function updateActiveProfile(patch) {
