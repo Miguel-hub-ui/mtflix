@@ -84,18 +84,24 @@ function initFooterAd() {
 }
 
 const NATIVE_AD_SRC = "https://pl31289900.profitableratecpmnetwork.com/1b/44/78/1b4478e33a9399934dc99c2914054580.js";
+const NATIVE_AD_SRC_2 = "https://pl31298183.profitableratecpmnetwork.com/bb/fe/c2/bbfec22f558f18d3ce1024c76e4bd56b.js";
 
-function initNativeBanner() {
-  const slot = $("#native-ad-slot");
+function initNativeAdSlot(slotId, scriptSrc) {
+  const slot = $(slotId);
   if (!slot) return;
   const iframe = document.createElement("iframe");
   iframe.style.width = "100%";
   iframe.height = "300";
   iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
   iframe.src = toDataUrl(`<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
-    <script src="${NATIVE_AD_SRC}"><\/script>
+    <script src="${scriptSrc}"><\/script>
   </body></html>`);
   slot.appendChild(iframe);
+}
+
+function initNativeBanner() {
+  initNativeAdSlot("#native-ad-slot", NATIVE_AD_SRC);
+  initNativeAdSlot("#native-ad-slot-2", NATIVE_AD_SRC_2);
 }
 
 function showAdInterstitial() {
