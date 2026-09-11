@@ -41,9 +41,9 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
-// Your Stripe Payment Link for the $1/month "remove ads" subscription.
-// Create it at https://dashboard.stripe.com/payment-links, then paste the URL here.
-const STRIPE_PAYMENT_LINK = "";
+// Your payment provider's hosted checkout link for the $1/month "remove ads"
+// subscription (e.g. a Tap Payments payment page). Paste the URL here once created.
+const REMOVE_ADS_PAYMENT_LINK = "";
 
 let isPremiumUser = false;
 
@@ -2560,8 +2560,10 @@ function renderMembershipSettings(content) {
   } else if (isPremiumUser) {
     body = `<p class="setting-desc">${t("membership_active")}</p>`;
   } else {
-    const link = STRIPE_PAYMENT_LINK
-      ? `${STRIPE_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(uidNow)}`
+    // Some providers (Stripe) read a client_reference_id param for matching;
+    // others don't, in which case match manually by the payer's email instead.
+    const link = REMOVE_ADS_PAYMENT_LINK
+      ? `${REMOVE_ADS_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(uidNow)}`
       : "";
     body = `
       <p class="setting-desc">${t("membership_desc")}</p>
