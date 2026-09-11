@@ -199,20 +199,10 @@
   <div id="toast-root"></div>
   <div id="messageArea"></div>
 
-  <!-- Ad network script/tag goes inside #ad-slot. It's positioned above the
-       mobile bottom nav automatically (see .ad-slot in styles.css). -->
-  <div id="ad-slot" class="ad-slot">
-    <script>
-      atOptions = {
-        'key' : '8484845de5bba9ef332665c634590d73',
-        'format' : 'iframe',
-        'height' : 50,
-        'width' : 320,
-        'params' : {}
-      };
-    </script>
-    <script src="https://www.highrevenueformat.com/8484845de5bba9ef332665c634590d73/invoke.js"></script>
-  </div>
+  <!-- Adsterra banner removed: confirmed serving a creative with an
+       invisible click-hijacking overlay that redirected/opened new tabs
+       from taps anywhere near it, not just on the visible ad. -->
+  <div id="ad-slot" class="ad-slot"></div>
 
   <nav class="bottom-nav hidden" id="bottom-nav">
     <a href="#" data-filter="home" class="active">
