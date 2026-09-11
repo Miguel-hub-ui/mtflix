@@ -41,6 +41,60 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
+// Adsterra banner key (same one used in the footer ad slot and the periodic
+// interstitial below). Both are rendered inside a sandboxed iframe with no
+// allow-same-origin/allow-top-navigation, so the ad script can show its
+// content and let genuine clicks open a new tab, but it cannot touch the
+// rest of the page or force any navigation -- the whole reason a bad ad
+// creative was able to hijack clicks and redirects earlier tonight.
+const AD_KEY = "8484845de5bba9ef332665c634590d73";
+const AD_INTERSTITIAL_MINUTES = 4;
+
+function adTagHtml(width, height) {
+  return `<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:transparent}</style></head><body>
+    <script>
+      atOptions = { key: "${AD_KEY}", format: "iframe", height: ${height}, width: ${width}, params: {} };
+    <\/script>
+    <script src="https://www.highrevenueformat.com/${AD_KEY}/invoke.js"><\/script>
+  </body></html>`;
+}
+
+function createSandboxedAd(width, height) {
+  const iframe = document.createElement("iframe");
+  iframe.width = String(width);
+  iframe.height = String(height);
+  iframe.sandbox = "allow-scripts allow-popups allow-popups-to-escape-sandbox";
+  iframe.srcdoc = adTagHtml(width, height);
+  return iframe;
+}
+
+function initFooterAd() {
+  const slot = $("#ad-slot");
+  if (!slot) return;
+  slot.appendChild(createSandboxedAd(320, 50));
+}
+
+function showAdInterstitial() {
+  if (document.hidden || $(".ad-interstitial-overlay")) return;
+  const overlay = document.createElement("div");
+  overlay.className = "ad-interstitial-overlay";
+  overlay.innerHTML = `
+    <div class="ad-interstitial">
+      <span class="ad-interstitial-label">Advertisement</span>
+      <button type="button" class="ad-interstitial-close" aria-label="Close ad">✕</button>
+    </div>`;
+  overlay.querySelector(".ad-interstitial").appendChild(createSandboxedAd(320, 50));
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  overlay.querySelector(".ad-interstitial-close").addEventListener("click", () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+function startAdInterstitialTimer() {
+  setInterval(showAdInterstitial, AD_INTERSTITIAL_MINUTES * 60 * 1000);
+}
+
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -3678,6 +3732,8 @@ window.addEventListener("load", () => {
   setupInstallPrompt();
   initAuth();
   initEmailDelivery();
+  initFooterAd();
+  startAdInterstitialTimer();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
     // A new worker may take control while someone is using the browser site.
