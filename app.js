@@ -2265,7 +2265,6 @@ function friendlyAuthError(err) {
 }
 
 function loadAds() {
-  initFooterAd();
   initNativeBanner();
   startAdInterstitialTimer();
 }
