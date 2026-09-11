@@ -115,8 +115,15 @@ function showAdInterstitial() {
   document.body.appendChild(overlay);
 }
 
+let lastAdShownAt = Date.now();
+
 function startAdInterstitialTimer() {
-  setInterval(showAdInterstitial, AD_INTERSTITIAL_MINUTES * 60 * 1000);
+  document.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - lastAdShownAt < AD_INTERSTITIAL_MINUTES * 60 * 1000) return;
+    lastAdShownAt = now;
+    showAdInterstitial();
+  });
 }
 
 function showPremiumModal() {
