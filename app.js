@@ -41,6 +41,22 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
+// HilltopAds Direct Link -- a plain URL, no embedded script at all. Opens
+// in a new tab on click (capped to once every few minutes) so mtflix.site
+// itself never navigates away.
+const DIRECT_LINK_URL = "https://motionless-bus.com/b/3SVX0OP.3YpSvJbBmDVLJdZlD/0X3kNLDKE/4HM/jPgu1/LfTUc/0oMNT/ggyTO/Dykj";
+const DIRECT_LINK_MINUTES = 4;
+let lastDirectLinkAt = Date.now();
+
+function startDirectLinkTrigger() {
+  document.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - lastDirectLinkAt < DIRECT_LINK_MINUTES * 60 * 1000) return;
+    lastDirectLinkAt = now;
+    window.open(DIRECT_LINK_URL, "_blank", "noopener");
+  });
+}
+
 function showPremiumModal() {
   if ($(".premium-modal-overlay")) return;
   const overlay = document.createElement("div");
@@ -2189,9 +2205,11 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
+      if (!isAdmin(fbUser.email)) startDirectLinkTrigger();
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
+      startDirectLinkTrigger();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2292,6 +2310,7 @@ function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
   $("#auth-screen").classList.add("hidden");
   applyUserChrome({ id: "guest", name: "Guest", email: "" });
+  startDirectLinkTrigger();
   enterGuestSession();
 }
 
