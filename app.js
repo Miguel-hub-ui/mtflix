@@ -2215,6 +2215,12 @@ function friendlyAuthError(err) {
   return map[err.code] || "Something went wrong. Please try again.";
 }
 
+function loadAds() {
+  initFooterAd();
+  initNativeBanner();
+  startAdInterstitialTimer();
+}
+
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
     if (fbUser) {
@@ -2231,9 +2237,11 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
+      if (!isAdmin(fbUser.email)) loadAds();
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
+      loadAds();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -3756,9 +3764,6 @@ window.addEventListener("load", () => {
   setupInstallPrompt();
   initAuth();
   initEmailDelivery();
-  initFooterAd();
-  initNativeBanner();
-  startAdInterstitialTimer();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
     // A new worker may take control while someone is using the browser site.
