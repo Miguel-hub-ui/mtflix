@@ -61,12 +61,6 @@ function loadAds() {
     invoke.src = "https://www.highrevenueformat.com/8484845de5bba9ef332665c634590d73/invoke.js";
     slot.appendChild(invoke);
   }
-
-  // Monetag Vignette Banner (full-screen, shown periodically).
-  const vignette = document.createElement("script");
-  vignette.dataset.zone = "11772370";
-  vignette.src = "https://n6wxm.com/vignette.min.js";
-  document.body.appendChild(vignette);
 }
 
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
