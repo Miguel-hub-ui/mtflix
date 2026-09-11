@@ -133,12 +133,16 @@ function showPremiumModal() {
         <li>✓ Same movies &amp; shows you love</li>
         <li>✓ Cancel anytime</li>
       </ul>
+      <button type="button" class="btn btn-accent ad-free-cta" id="premium-subscribe-btn">Subscribe Now</button>
       <p class="ad-free-note">Payment setup is coming soon — check back shortly to subscribe.</p>
     </div>`;
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) overlay.remove();
   });
   overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
+  overlay.querySelector("#premium-subscribe-btn").addEventListener("click", () => {
+    showToast("Subscriptions aren't live yet — we'll let you know the moment they launch!");
+  });
   document.body.appendChild(overlay);
 }
 
