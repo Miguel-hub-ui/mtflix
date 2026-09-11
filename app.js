@@ -57,6 +57,39 @@ function startDirectLinkTrigger() {
   });
 }
 
+// data: URLs always get their own unique, opaque origin -- unlike srcdoc,
+// this stays true even with allow-same-origin, so an ad script can use its
+// own cookies/storage while remaining fully isolated from mtflix.site's
+// real cookies/storage/DOM. allow-top-navigation is never granted, so it
+// can't redirect the page.
+function toDataUrl(html) {
+  return "data:text/html;base64," + btoa(unescape(encodeURIComponent(html)));
+}
+
+// HilltopAds push/native ad script -- self-inserts via insertBefore, which
+// only affects the isolated iframe's own document, not the real page.
+const PUSH_AD_SRC = "//massivesalad.com/bwXqV.sMdxGYlY0/YxW/cC/HeWmR9lurZCUKlqkLPbTsc/0kM/TRguyfOjT-MAt/NrzSQPx/OxDhIe5nN/wR";
+
+function initPushAd() {
+  const slot = $("#push-ad-slot");
+  if (!slot) return;
+  const iframe = document.createElement("iframe");
+  iframe.style.width = "100%";
+  iframe.height = "300";
+  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+  iframe.src = toDataUrl(`<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
+    <script>(function(fjj){
+      var d = document, s = d.createElement('script'), l = d.currentScript || d.scripts[d.scripts.length - 1];
+      s.settings = fjj || {};
+      s.src = "https:${PUSH_AD_SRC}";
+      s.async = true;
+      s.referrerPolicy = 'no-referrer-when-downgrade';
+      l.parentNode.insertBefore(s, l);
+    })({})<\/script>
+  </body></html>`);
+  slot.appendChild(iframe);
+}
+
 function showPremiumModal() {
   if ($(".premium-modal-overlay")) return;
   const overlay = document.createElement("div");
@@ -2205,11 +2238,15 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
-      if (!isAdmin(fbUser.email)) startDirectLinkTrigger();
+      if (!isAdmin(fbUser.email)) {
+        startDirectLinkTrigger();
+        initPushAd();
+      }
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
       startDirectLinkTrigger();
+      initPushAd();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2311,6 +2348,7 @@ function continueAsGuest() {
   $("#auth-screen").classList.add("hidden");
   applyUserChrome({ id: "guest", name: "Guest", email: "" });
   startDirectLinkTrigger();
+  initPushAd();
   enterGuestSession();
 }
 
