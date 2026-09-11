@@ -978,7 +978,7 @@ function setHeroSlide(i) {
   backdrop.classList.remove("visible");
   content.classList.add("fading");
   setTimeout(() => {
-    backdrop.style.backgroundImage = `url(${IMG_BASE}original${item.backdrop_path})`;
+    backdrop.style.backgroundImage = `url(${img(item.backdrop_path, "w1280")})`;
     backdrop.classList.add("visible");
     $("#hero-type").textContent = item.media_type === "tv" ? "SERIES" : "FILM";
     $("#hero-rating").textContent = `★ ${rating(item.vote_average)}`;
