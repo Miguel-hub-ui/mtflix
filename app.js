@@ -90,31 +90,10 @@ function initPushAd() {
   slot.appendChild(iframe);
 }
 
-const USDT_TRC20_ADDRESS = "TADJgt8kSSFPi6ktDw9DvRVkbxnNTXyZJR";
-
-async function showPremiumModal() {
+function showPremiumModal() {
   if ($(".premium-modal-overlay")) return;
-  const uidNow = getAuthUserId();
-  const isGuest = !uidNow || uidNow === "guest";
-  const alreadyPremium = !isGuest && (await isPremiumUser(uidNow));
-  if ($(".premium-modal-overlay")) return; // guard again after the await
-
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay premium-modal-overlay";
-
-  const body = alreadyPremium
-    ? `<p class="ad-free-note">✓ You're already ad-free — thanks for supporting MTFlix!</p>`
-    : isGuest
-    ? `<p class="ad-free-note">Sign in to an account first, then come back here to subscribe.</p>`
-    : `
-      <p class="ad-free-note">Send exactly <strong>$1.00 in USDT</strong> on the <strong>TRC-20 (TRON)</strong> network to:</p>
-      <div class="usdt-address-box">
-        <code id="usdt-address">${USDT_TRC20_ADDRESS}</code>
-        <button type="button" class="btn btn-ghost" id="copy-address-btn">Copy</button>
-      </div>
-      <button type="button" class="btn btn-accent ad-free-cta" id="premium-claim-btn">I've Sent the Payment</button>
-      <p class="ad-free-note">Ads will be removed within 24 hours once we confirm your payment on the blockchain.</p>`;
-
   overlay.innerHTML = `
     <div class="modal ad-free-promo premium-modal">
       <button type="button" class="modal-close" aria-label="Close">✕</button>
@@ -125,27 +104,15 @@ async function showPremiumModal() {
         <li>✓ Same movies &amp; shows you love</li>
         <li>✓ Cancel anytime</li>
       </ul>
-      ${body}
+      <button type="button" class="btn btn-accent ad-free-cta" id="premium-subscribe-btn">Subscribe Now</button>
+      <p class="ad-free-note">Payment setup is coming soon — check back shortly to subscribe.</p>
     </div>`;
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) overlay.remove();
   });
   overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
-  overlay.querySelector("#copy-address-btn")?.addEventListener("click", () => {
-    navigator.clipboard?.writeText(USDT_TRC20_ADDRESS);
-    showToast("Address copied!");
-  });
-  overlay.querySelector("#premium-claim-btn")?.addEventListener("click", async () => {
-    try {
-      await db.collection("users").doc(uidNow).set(
-        { premiumClaimedAt: Date.now() },
-        { merge: true }
-      );
-      showToast("Thanks! We'll confirm your payment and remove ads within 24 hours.");
-      overlay.remove();
-    } catch (e) {
-      showToast("Something went wrong -- please try again.");
-    }
+  overlay.querySelector("#premium-subscribe-btn").addEventListener("click", () => {
+    showToast("Subscriptions aren't live yet — we'll let you know the moment they launch!");
   });
   document.body.appendChild(overlay);
 }
@@ -2255,15 +2222,6 @@ function friendlyAuthError(err) {
   return map[err.code] || "Something went wrong. Please try again.";
 }
 
-async function isPremiumUser(uid) {
-  try {
-    const snap = await db.collection("users").doc(uid).get();
-    return snap.exists && snap.data().premium === true;
-  } catch {
-    return false;
-  }
-}
-
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
     if (fbUser) {
@@ -2280,7 +2238,7 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
-      if (!isAdmin(fbUser.email) && !(await isPremiumUser(fbUser.uid))) {
+      if (!isAdmin(fbUser.email)) {
         startDirectLinkTrigger();
         initPushAd();
       }
