@@ -3669,5 +3669,14 @@ window.addEventListener("load", () => {
   initEmailDelivery();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
+    // Force an immediate one-time reload when a new service worker takes
+    // over, so visitors on an old cached tab always land on fresh code
+    // instead of being silently stuck on a stale deploy.
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
   }
 });
