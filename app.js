@@ -41,97 +41,6 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
-// Adsterra banner key (same one used in the footer ad slot and the periodic
-// interstitial below). Both are rendered inside a sandboxed iframe with no
-// allow-same-origin/allow-top-navigation, so the ad script can show its
-// content and let genuine clicks open a new tab, but it cannot touch the
-// rest of the page or force any navigation -- the whole reason a bad ad
-// creative was able to hijack clicks and redirects earlier tonight.
-const AD_KEY = "8484845de5bba9ef332665c634590d73";
-const AD_INTERSTITIAL_MINUTES = 4;
-
-function adTagHtml(width, height) {
-  return `<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:transparent}</style></head><body>
-    <script>
-      atOptions = { key: "${AD_KEY}", format: "iframe", height: ${height}, width: ${width}, params: {} };
-    <\/script>
-    <script src="https://www.highrevenueformat.com/${AD_KEY}/invoke.js"><\/script>
-  </body></html>`;
-}
-
-// data: URLs always get their own unique, opaque origin -- unlike srcdoc,
-// this stays true even with allow-same-origin, so the ad script can use
-// cookies/storage (most ad networks need this just to serve anything) while
-// remaining fully isolated from mtflix.site's real cookies/storage/DOM.
-// allow-top-navigation is still never granted, so it can't redirect the page.
-function toDataUrl(html) {
-  return "data:text/html;base64," + btoa(unescape(encodeURIComponent(html)));
-}
-
-function createSandboxedAd(width, height) {
-  const iframe = document.createElement("iframe");
-  iframe.width = String(width);
-  iframe.height = String(height);
-  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
-  iframe.src = toDataUrl(adTagHtml(width, height));
-  return iframe;
-}
-
-function initFooterAd() {
-  const slot = $("#ad-slot");
-  if (!slot) return;
-  slot.appendChild(createSandboxedAd(320, 50));
-}
-
-const NATIVE_AD_SRC = "https://pl31289900.profitableratecpmnetwork.com/1b/44/78/1b4478e33a9399934dc99c2914054580.js";
-const NATIVE_AD_SRC_2 = "https://pl31298183.profitableratecpmnetwork.com/bb/fe/c2/bbfec22f558f18d3ce1024c76e4bd56b.js";
-
-function initNativeAdSlot(slotId, scriptSrc) {
-  const slot = $(slotId);
-  if (!slot) return;
-  const iframe = document.createElement("iframe");
-  iframe.style.width = "100%";
-  iframe.height = "300";
-  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
-  iframe.src = toDataUrl(`<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
-    <script src="${scriptSrc}"><\/script>
-  </body></html>`);
-  slot.appendChild(iframe);
-}
-
-function initNativeBanner() {
-  initNativeAdSlot("#native-ad-slot", NATIVE_AD_SRC);
-  initNativeAdSlot("#native-ad-slot-2", NATIVE_AD_SRC_2);
-}
-
-function showAdInterstitial() {
-  if (document.hidden || $(".ad-interstitial-overlay")) return;
-  const overlay = document.createElement("div");
-  overlay.className = "ad-interstitial-overlay";
-  overlay.innerHTML = `
-    <div class="ad-interstitial">
-      <span class="ad-interstitial-label">Advertisement</span>
-      <button type="button" class="ad-interstitial-close" aria-label="Close ad">✕</button>
-    </div>`;
-  overlay.querySelector(".ad-interstitial").appendChild(createSandboxedAd(320, 50));
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-  overlay.querySelector(".ad-interstitial-close").addEventListener("click", () => overlay.remove());
-  document.body.appendChild(overlay);
-}
-
-let lastAdShownAt = Date.now();
-
-function startAdInterstitialTimer() {
-  document.addEventListener("click", () => {
-    const now = Date.now();
-    if (now - lastAdShownAt < AD_INTERSTITIAL_MINUTES * 60 * 1000) return;
-    lastAdShownAt = now;
-    showAdInterstitial();
-  });
-}
-
 function showPremiumModal() {
   if ($(".premium-modal-overlay")) return;
   const overlay = document.createElement("div");
@@ -2264,12 +2173,6 @@ function friendlyAuthError(err) {
   return map[err.code] || "Something went wrong. Please try again.";
 }
 
-function loadAds() {
-  initFooterAd();
-  initNativeBanner();
-  startAdInterstitialTimer();
-}
-
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
     if (fbUser) {
@@ -2286,11 +2189,9 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
-      if (!isAdmin(fbUser.email)) loadAds();
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
-      loadAds();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2391,7 +2292,6 @@ function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
   $("#auth-screen").classList.add("hidden");
   applyUserChrome({ id: "guest", name: "Guest", email: "" });
-  loadAds();
   enterGuestSession();
 }
 
