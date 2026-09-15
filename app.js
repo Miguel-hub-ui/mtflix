@@ -166,8 +166,9 @@ const I18N = {
     profile_name_ph: "Name", profile_save: "Save", profile_cancel: "Cancel", profile_delete: "Delete",
     tab_colors: "Colors", tab_avatars: "Avatars", tab_custom: "Custom", btn_upload: "Choose Image", btn_random: "🎲 Random",
     list_watchlist: "Watchlist", list_tracking: "Tracking",
-    hdr_trailer: "Watch Trailer", hdr_play: "Play", hdr_resume: "Resume",
+    hdr_trailer: "Watch Trailer", hdr_play: "Play", hdr_resume: "Resume", hdr_start_over: "Start Over",
     mylist_add: "Add to My List", mylist_in: "In My List ✓",
+    toast_start_over: "Starting over",
     st_plan: "Plan to Watch", st_watching: "Watching", st_completed: "Completed", st_hold: "On Hold", st_dropped: "Dropped",
     row_trending: "Trending Now", row_popmovies: "Popular Movies", row_toprated: "Top Rated of All Time",
     row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
@@ -197,8 +198,9 @@ const I18N = {
     profile_name_ph: "Nombre", profile_save: "Guardar", profile_cancel: "Cancelar", profile_delete: "Eliminar",
     tab_colors: "Colores", tab_avatars: "Avatares", tab_custom: "Personalizado", btn_upload: "Elegir imagen", btn_random: "🎲 Aleatorio",
     list_watchlist: "Mi Lista", list_tracking: "Seguimiento",
-    hdr_trailer: "Ver tráiler", hdr_play: "Reproducir", hdr_resume: "Reanudar",
+    hdr_trailer: "Ver tráiler", hdr_play: "Reproducir", hdr_resume: "Reanudar", hdr_start_over: "Empezar de nuevo",
     mylist_add: "Añadir a Mi Lista", mylist_in: "En Mi Lista ✓",
+    toast_start_over: "Empezando de nuevo",
     st_plan: "Pendiente", st_watching: "Viendo", st_completed: "Completado", st_hold: "En pausa", st_dropped: "Abandonado",
     row_trending: "Tendencias", row_popmovies: "Películas populares", row_toprated: "Las mejor valoradas",
     row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
@@ -226,8 +228,9 @@ const I18N = {
     profile_name_ph: "Nom", profile_save: "Enregistrer", profile_cancel: "Annuler", profile_delete: "Supprimer",
     tab_colors: "Couleurs", tab_avatars: "Avatars", tab_custom: "Personnalisé", btn_upload: "Choisir une image", btn_random: "🎲 Aléatoire",
     list_watchlist: "Ma Liste", list_tracking: "Suivi",
-    hdr_trailer: "Voir la bande-annonce", hdr_play: "Lecture", hdr_resume: "Reprendre",
+    hdr_trailer: "Voir la bande-annonce", hdr_play: "Lecture", hdr_resume: "Reprendre", hdr_start_over: "Recommencer",
     mylist_add: "Ajouter à Ma Liste", mylist_in: "Dans Ma Liste ✓",
+    toast_start_over: "Reprise depuis le début",
     st_plan: "À voir", st_watching: "En cours", st_completed: "Terminé", st_hold: "En pause", st_dropped: "Abandonné",
     row_trending: "Tendances", row_popmovies: "Films populaires", row_toprated: "Les mieux notés",
     row_action: "Action et aventure", row_scifi: "Univers science-fiction",
@@ -255,8 +258,9 @@ const I18N = {
     profile_name_ph: "Name", profile_save: "Speichern", profile_cancel: "Abbrechen", profile_delete: "Löschen",
     tab_colors: "Farben", tab_avatars: "Avatare", tab_custom: "Eigenes", btn_upload: "Bild auswählen", btn_random: "🎲 Zufällig",
     list_watchlist: "Meine Liste", list_tracking: "Verfolgung",
-    hdr_trailer: "Trailer ansehen", hdr_play: "Abspielen", hdr_resume: "Fortsetzen",
+    hdr_trailer: "Trailer ansehen", hdr_play: "Abspielen", hdr_resume: "Fortsetzen", hdr_start_over: "Neu starten",
     mylist_add: "Zur Meine Liste hinzufügen", mylist_in: "In Meine Liste ✓",
+    toast_start_over: "Von vorn beginnen",
     st_plan: "Geplant", st_watching: "Am Schauen", st_completed: "Abgeschlossen", st_hold: "Pausiert", st_dropped: "Abgebrochen",
     row_trending: "Im Trend", row_popmovies: "Beliebte Filme", row_toprated: "Beste aller Zeiten",
     row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
@@ -284,8 +288,9 @@ const I18N = {
     profile_name_ph: "Nome", profile_save: "Salvar", profile_cancel: "Cancelar", profile_delete: "Excluir",
     tab_colors: "Cores", tab_avatars: "Avatares", tab_custom: "Personalizado", btn_upload: "Escolher imagem", btn_random: "🎲 Aleatório",
     list_watchlist: "Minha Lista", list_tracking: "Acompanhamento",
-    hdr_trailer: "Assistir trailer", hdr_play: "Reproduzir", hdr_resume: "Retomar",
+    hdr_trailer: "Assistir trailer", hdr_play: "Reproduzir", hdr_resume: "Retomar", hdr_start_over: "Começar de novo",
     mylist_add: "Adicionar à Minha Lista", mylist_in: "Na Minha Lista ✓",
+    toast_start_over: "Começando de novo",
     st_plan: "Planejo ver", st_watching: "Assistindo", st_completed: "Concluído", st_hold: "Em pausa", st_dropped: "Abandonado",
     row_trending: "Em alta", row_popmovies: "Filmes populares", row_toprated: "Melhores de todos os tempos",
     row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
@@ -313,8 +318,9 @@ const I18N = {
     profile_name_ph: "İsim", profile_save: "Kaydet", profile_cancel: "İptal", profile_delete: "Sil",
     tab_colors: "Renkler", tab_avatars: "Avatarlar", tab_custom: "Özel", btn_upload: "Resim seç", btn_random: "🎲 Rastgele",
     list_watchlist: "Listem", list_tracking: "Takip",
-    hdr_trailer: "Fragmanı izle", hdr_play: "Oynat", hdr_resume: "Devam Et",
+    hdr_trailer: "Fragmanı izle", hdr_play: "Oynat", hdr_resume: "Devam Et", hdr_start_over: "Baştan Başlat",
     mylist_add: "Listeme Ekle", mylist_in: "Listemde ✓",
+    toast_start_over: "Baştan başlatılıyor",
     st_plan: "İzleyecek", st_watching: "İzliyor", st_completed: "Tamamladı", st_hold: "Bekletiyor", st_dropped: "Bıraktı",
     row_trending: "Popüler", row_popmovies: "Popüler Filmler", row_toprated: "Tüm Zamanların En İyileri",
     row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
@@ -1765,6 +1771,11 @@ async function openDetail(type, id, autoplayTrailer) {
               : ""
           }
           ${
+            canStream && watch.t > 30
+              ? `<button class="btn btn-ghost" id="start-over"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>${t("hdr_start_over")}</button>`
+              : ""
+          }
+          ${
             trailer
               ? `<button class="btn btn-${canStream ? "ghost" : "accent"}" id="play-trailer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${t("hdr_trailer")}</button>`
               : ""
@@ -1851,6 +1862,18 @@ async function openDetail(type, id, autoplayTrailer) {
   };
 
   $("#play-now")?.addEventListener("click", playNow);
+
+  $("#start-over")?.addEventListener("click", () => {
+    removeContinueWatchingCard(data.id);
+    watch.t = 0;
+    if (type === "tv") {
+      currentPlayer.season = 1;
+      currentPlayer.episode = 1;
+    }
+    showToast(`${t("toast_start_over")} — "${title}"`);
+    if (type === "tv") markEpWatched(data.id, currentPlayer.season, currentPlayer.episode);
+    injectPlayer(buildPlayerUrl(type, data.id, currentPlayer.season, currentPlayer.episode, 0));
+  });
 
   if (type === "tv" && seasonsForPicker.length) {
     const lastWatchedSeason = resumeWatch.season;
