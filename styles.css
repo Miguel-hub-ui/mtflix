@@ -908,7 +908,7 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 14px;
 }
-.cast-item { text-align: center; }
+.cast-item { text-align: center; cursor: pointer; }
 .cast-photo {
   width: 84px;
   height: 84px;
@@ -917,9 +917,14 @@ button { font-family: inherit; cursor: pointer; }
   margin: 0 auto 8px;
   background: var(--surface-2);
   border: 2px solid var(--border);
+  transition: border-color 0.2s;
 }
-.cast-name { font-size: 0.78rem; font-weight: 600; }
+.cast-item:hover .cast-photo { border-color: var(--accent); }
+.cast-name { font-size: 0.78rem; font-weight: 600; transition: color 0.2s; }
+.cast-item:hover .cast-name { color: var(--accent); }
 .cast-role { font-size: 0.7rem; color: var(--muted); }
+
+.person-hero { background-position: center 20%; }
 
 .similar-grid {
   display: grid;

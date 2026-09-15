@@ -1671,6 +1671,78 @@ function continueItems() {
     }));
 }
 
+async function openPersonModal(personId) {
+  const hadModal = !!$("#modal-overlay");
+  closeModal();
+  if (hadModal) popNavIfNeeded();
+  let data;
+  try {
+    data = await tmdb(`/person/${personId}`, {
+      language: "en-US",
+      append_to_response: "combined_credits",
+    });
+  } catch (err) {
+    handleFetchError(err);
+    return;
+  }
+
+  const seen = new Set();
+  const filmography = (data.combined_credits?.cast || [])
+    .filter((c) => c.poster_path && (c.media_type === "movie" || c.media_type === "tv"))
+    .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+    .filter((c) => {
+      const key = `${c.media_type}-${c.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((c) => normalizeItem(c, c.media_type));
+
+  const bio = data.biography ? data.biography.trim() : "";
+  const bioShort = bio.length > 420 ? bio.slice(0, 420).trim() + "…" : bio;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-hero person-hero" style="background-image:url(${img(data.profile_path, "h632")})" id="modal-hero">
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-title-row">
+          <div>
+            <h2 class="modal-title">${escapeHtml(data.name || "")}</h2>
+            ${data.known_for_department ? `<p class="modal-tagline">${escapeHtml(data.known_for_department)}</p>` : ""}
+          </div>
+        </div>
+        ${bioShort ? `<p style="color:#cfd2da;line-height:1.65;font-size:.95rem;margin-top:18px;">${escapeHtml(bioShort)}</p>` : ""}
+        ${
+          filmography.length
+            ? `<h3 class="modal-section-title">Known For</h3><div class="similar-grid">${filmography.map(cardHTML).join("")}</div>`
+            : `<p style="color:var(--muted);margin-top:20px;">No titles found.</p>`
+        }
+      </div>
+    </div>`;
+
+  $("#modal-root").appendChild(overlay);
+  stopHeroRotation();
+  pushNav();
+  updateBodyScrollLock();
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      closeModal();
+      popNavIfNeeded();
+      updateBodyScrollLock();
+    }
+  });
+  $("#modal-close").addEventListener("click", () => {
+    closeModal();
+    popNavIfNeeded();
+    updateBodyScrollLock();
+  });
+}
+
 async function openDetail(type, id, autoplayTrailer) {
   const hadModal = !!$("#modal-overlay");
   closeModal();
@@ -1822,7 +1894,7 @@ async function openDetail(type, id, autoplayTrailer) {
             ? `<h3 class="modal-section-title">Cast</h3><div class="cast-list">${cast
                 .map(
                   (c) => `
-                <div class="cast-item">
+                <div class="cast-item" data-person-id="${c.id}">
                   <img class="cast-photo" loading="lazy" src="${img(c.profile_path, "w185")}" alt="${escapeHtml(c.name)}" onerror="this.onerror=null;this.src=placeholderImage('No Photo');this.style.objectFit='contain';this.style.padding='22px'">
                   <div class="cast-name">${escapeHtml(c.name)}</div>
                   <div class="cast-role">${escapeHtml(c.character || "")}</div>
@@ -3441,6 +3513,11 @@ function setupGlobalClickDelegation() {
         overview: "",
       };
       toggleListFromCard(card, item || fallback);
+      return;
+    }
+    const castItem = e.target.closest(".cast-item[data-person-id]");
+    if (castItem) {
+      openPersonModal(castItem.dataset.personId);
       return;
     }
     const card = e.target.closest(".card");
