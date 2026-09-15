@@ -41,91 +41,6 @@ function isAdmin(email) {
   return !!email && ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
-// HilltopAds Direct Link -- a plain URL, no embedded script at all. Opens
-// in a new tab on click (capped to once every few minutes) so mtflix.site
-// itself never navigates away.
-const DIRECT_LINK_URL = "https://motionless-bus.com/b/3SVX0OP.3YpSvJbBmDVLJdZlD/0X3kNLDKE/4HM/jPgu1/LfTUc/0oMNT/ggyTO/Dykj";
-const DIRECT_LINK_MINUTES = 4;
-let lastDirectLinkAt = Date.now();
-
-function startDirectLinkTrigger() {
-  document.addEventListener("click", () => {
-    const now = Date.now();
-    if (now - lastDirectLinkAt < DIRECT_LINK_MINUTES * 60 * 1000) return;
-    lastDirectLinkAt = now;
-    window.open(DIRECT_LINK_URL, "_blank", "noopener");
-  });
-}
-
-// data: URLs always get their own unique, opaque origin -- unlike srcdoc,
-// this stays true even with allow-same-origin, so an ad script can use its
-// own cookies/storage while remaining fully isolated from mtflix.site's
-// real cookies/storage/DOM. allow-top-navigation is never granted, so it
-// can't redirect the page.
-function toDataUrl(html) {
-  return "data:text/html;base64," + btoa(unescape(encodeURIComponent(html)));
-}
-
-// HilltopAds push/native ad script -- self-inserts via insertBefore, which
-// only affects the isolated iframe's own document, not the real page.
-const PUSH_AD_SRC = "//massivesalad.com/bwXqV.sMdxGYlY0/YxW/cC/HeWmR9lurZCUKlqkLPbTsc/0kM/TRguyfOjT-MAt/NrzSQPx/OxDhIe5nN/wR";
-
-function initPushAd() {
-  const slot = $("#push-ad-slot");
-  if (!slot) return;
-  const iframe = document.createElement("iframe");
-  iframe.style.width = "100%";
-  iframe.height = "300";
-  iframe.sandbox = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
-  iframe.src = toDataUrl(`<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body>
-    <script>(function(fjj){
-      var d = document, s = d.createElement('script'), l = d.currentScript || d.scripts[d.scripts.length - 1];
-      s.settings = fjj || {};
-      s.src = "https:${PUSH_AD_SRC}";
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      l.parentNode.insertBefore(s, l);
-    })({})<\/script>
-  </body></html>`);
-  slot.appendChild(iframe);
-}
-
-function showPremiumModal() {
-  if ($(".premium-modal-overlay")) return;
-  const overlay = document.createElement("div");
-  overlay.className = "modal-overlay premium-modal-overlay";
-  overlay.innerHTML = `
-    <div class="modal ad-free-promo premium-modal">
-      <button type="button" class="modal-close" aria-label="Close">✕</button>
-      <h2>No Ads. Ever.</h2>
-      <p class="ad-free-price"><strong>$1</strong>/month</p>
-      <ul class="ad-free-list">
-        <li>✓ Zero ads, guaranteed</li>
-        <li>✓ Same movies &amp; shows you love</li>
-        <li>✓ Cancel anytime</li>
-      </ul>
-      <button type="button" class="btn btn-accent ad-free-cta" id="premium-subscribe-btn">Subscribe Now</button>
-      <p class="ad-free-note">Payment setup is coming soon — check back shortly to subscribe.</p>
-    </div>`;
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-  overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
-  overlay.querySelector("#premium-subscribe-btn").addEventListener("click", () => {
-    showToast("Subscriptions aren't live yet — we'll let you know the moment they launch!");
-  });
-  document.body.appendChild(overlay);
-}
-
-function wirePremiumLinks() {
-  document.querySelectorAll(".nav-premium-link").forEach((a) => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      showPremiumModal();
-    });
-  });
-}
-
 const TMDB_API_KEY = "d3f97b423b8ea5b94ed9e7a5804c0e96";
 
 const API_BASE = "https://api.themoviedb.org/3";
@@ -2238,15 +2153,9 @@ function initAuth() {
         name: nameOverride || fbUser.displayName || (fbUser.email ? fbUser.email.split("@")[0] : "User"),
         email: fbUser.email || "",
       };
-      if (!isAdmin(fbUser.email)) {
-        startDirectLinkTrigger();
-        initPushAd();
-      }
       enterAfterAuth(user);
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
-      startDirectLinkTrigger();
-      initPushAd();
       enterGuestSession();
     } else {
       localStorage.removeItem(LS_AUTH);
@@ -2347,8 +2256,6 @@ function continueAsGuest() {
   localStorage.setItem(LS_AUTH, "guest");
   $("#auth-screen").classList.add("hidden");
   applyUserChrome({ id: "guest", name: "Guest", email: "" });
-  startDirectLinkTrigger();
-  initPushAd();
   enterGuestSession();
 }
 
@@ -3768,7 +3675,6 @@ window.addEventListener("load", () => {
   wireAuth();
   wireAvatarMenu();
   wireInstallModal();
-  wirePremiumLinks();
   setupInstallPrompt();
   initAuth();
   initEmailDelivery();
