@@ -107,10 +107,10 @@ Movies and TV shows stream through an embed player inside the detail modal. Four
 | **VidLink** | ✓ main | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
 | VidKing | | Yes — sends `PLAYER_EVENT` postMessages with `currentTime`/`duration`/`season`/`episode`; resumes via `progress=` |
 | VidSrc | | No — confirmed it sends no postMessages at all |
-| VidSrc SU | | No — vidsrc.su mirror, same behavior as VidSrc |
-| VidSrc ME | | No — v2.vidsrc.me mirror, same behavior as VidSrc |
 | MultiEmbed | | No — supports `t=` resume seconds; v=/vi= params exist for subtitles/UI language |
 | 2Embed | | No — same as VidSrc, confirmed no postMessages |
+
+VidSrc's own player hides a server picker (Pro Multi / Cinesrc / 4K) inside its iframe where it can't be reached, so those are recreated as a **nested SERVER dropdown** that appears on the watch page when VidSrc is the active source. Each name maps to a different live VidSrc-family mirror so switching actually changes the stream: **Pro Multi** → `v2.vidsrc.me`, **Cinesrc** → `vidsrc.su`, **4K** → `vidsrc.to`. The choice is saved per-source in `localStorage` (`cineverse_player_subserver.<source>`); to change the names or add more, edit the `servers` array on the `vidsrc` entry in `PLAYER_SOURCES`.
 
 Your chosen source is remembered per-browser (`localStorage`) and reused next time you open a player. To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
 

@@ -79,26 +79,30 @@ const PLAYER_SOURCES = {
   },
   vidsrc: {
     label: "VidSrc",
-    movie: "https://vidsrc.to/embed/movie/{id}",
-    tv: "https://vidsrc.to/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  "vidsrc-su": {
-    label: "VidSrc SU",
-    movie: "https://vidsrc.su/embed/movie/{id}",
-    tv: "https://vidsrc.su/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  "vidsrc-me": {
-    label: "VidSrc ME",
-    movie: "https://v2.vidsrc.me/embed/movie/{id}",
-    tv: "https://v2.vidsrc.me/embed/tv/{id}/{season}/{episode}",
+    // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)
+    // inside the iframe where we can't reach it, so those names are recreated
+    // here as a nested SERVER picker, each wired to a different live
+    // VidSrc-family mirror so switching actually changes the stream.
+    servers: [
+      {
+        id: "pro-multi",
+        label: "Pro Multi",
+        movie: "https://v2.vidsrc.me/embed/movie/{id}",
+        tv: "https://v2.vidsrc.me/embed/tv/{id}/{season}/{episode}",
+      },
+      {
+        id: "cinesrc",
+        label: "Cinesrc",
+        movie: "https://vidsrc.su/embed/movie/{id}",
+        tv: "https://vidsrc.su/embed/tv/{id}/{season}/{episode}",
+      },
+      {
+        id: "4k",
+        label: "4K",
+        movie: "https://vidsrc.to/embed/movie/{id}",
+        tv: "https://vidsrc.to/embed/tv/{id}/{season}/{episode}",
+      },
+    ],
     supportsEvents: false,
     buildParams() {
       return new URLSearchParams();
@@ -127,6 +131,7 @@ const PLAYER_SOURCES = {
 };
 
 const LS_PLAYER_SOURCE = "cineverse_player_source";
+const LS_PLAYER_SUBSERVER = "cineverse_player_subserver";
 const DEFAULT_PLAYER_SOURCE = "vidlink";
 
 function getPlayerSourceId() {
@@ -136,6 +141,27 @@ function getPlayerSourceId() {
 
 function setPlayerSourceId(id) {
   if (PLAYER_SOURCES[id]) localStorage.setItem(LS_PLAYER_SOURCE, id);
+}
+
+// Nested "SERVER" picker for sources that bundle multiple backends
+// (e.g. VidSrc's Pro Multi / Cinesrc / 4K). One choice per source, kept in
+// localStorage and applied on top of the source's URL templates.
+function getPlayerSubServer(sourceId = getPlayerSourceId()) {
+  const source = PLAYER_SOURCES[sourceId];
+  if (!source?.servers?.length) return null;
+  const wanted = localStorage.getItem(`${LS_PLAYER_SUBSERVER}.${sourceId}`);
+  return source.servers.find((s) => s.id === wanted) || source.servers[0];
+}
+
+function setPlayerSubServer(sourceId, subId) {
+  const source = PLAYER_SOURCES[sourceId];
+  if (source?.servers?.some((s) => s.id === subId)) localStorage.setItem(`${LS_PLAYER_SUBSERVER}.${sourceId}`, subId);
+}
+
+function resolvePlayerSource(sourceId = getPlayerSourceId()) {
+  const source = PLAYER_SOURCES[sourceId];
+  const sub = getPlayerSubServer(sourceId);
+  return sub ? { ...source, label: `${source.label} — ${sub.label}`, movie: sub.movie, tv: sub.tv } : source;
 }
 
 let currentPlayer = null;
@@ -1032,7 +1058,7 @@ function hasPlayer() {
 }
 
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
-  const source = PLAYER_SOURCES[getPlayerSourceId()];
+  const source = resolvePlayerSource();
   const base =
     type === "tv"
       ? source.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
@@ -1159,8 +1185,9 @@ function injectPlayer(url) {
   wireFullscreenBtn(heroArea);
 }
 
-// Populates the top-bar source dropdown and the "SERVER" pill, and rebuilds
-// the current player whenever the viewer picks a different source.
+// Populates the top-bar source dropdown and, when the chosen source bundles
+// multiple backends (VidSrc: Pro Multi / Cinesrc / 4K), the nested "SERVER"
+// pill dropdown that picks between them -- like other streaming sites do.
 function setupSourceDropdown() {
   const dropdown = $("#watch-source-dropdown");
   const btn = $("#watch-source-btn");
@@ -1168,9 +1195,52 @@ function setupSourceDropdown() {
   const menu = $("#watch-source-menu");
   if (!dropdown || !btn || !menu) return;
 
+  // The SERVER pill is injected next to the source dropdown only when the
+  // active source actually has sub-servers, so nothing changes visually for
+  // single-backend sources.
   const render = () => {
     const activeId = getPlayerSourceId();
-    if (label) label.textContent = PLAYER_SOURCES[activeId].label;
+    const active = PLAYER_SOURCES[activeId];
+    const sub = getPlayerSubServer(activeId);
+    if (label) label.textContent = active.label;
+    if (sub) {
+      let pill = $("#watch-server-dropdown");
+      if (!pill) {
+        pill = document.createElement("div");
+        pill.className = "watch-source-dropdown watch-server-dropdown";
+        pill.id = "watch-server-dropdown";
+        pill.innerHTML = `
+          <button type="button" class="watch-source-btn watch-server-btn" id="watch-server-btn">
+            <span class="watch-server-label-text">SERVER</span>
+            <span id="watch-server-name">Server</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="watch-source-menu" id="watch-server-menu"></div>`;
+        dropdown.after(pill);
+      }
+      $("#watch-server-name").textContent = sub.label;
+      $("#watch-server-menu").innerHTML = active.servers
+        .map(
+          (srv) =>
+            `<button type="button" class="watch-source-option${srv.id === sub.id ? " active" : ""}" data-subserver="${srv.id}">${srv.label}</button>`
+        )
+        .join("");
+      $("#watch-server-menu").querySelectorAll(".watch-source-option").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          pill.classList.remove("open");
+          if (opt.dataset.subserver === getPlayerSubServer(activeId)?.id) return;
+          setPlayerSubServer(activeId, opt.dataset.subserver);
+          render();
+          if (!currentPlayer) return; // choice is saved; applies when play starts
+          const watch = getWatch(currentPlayer.id);
+          injectPlayer(
+            buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
+          );
+        });
+      });
+    } else {
+      $("#watch-server-dropdown")?.remove();
+    }
     menu.innerHTML = Object.entries(PLAYER_SOURCES)
       .map(
         ([id, src]) =>
@@ -1195,9 +1265,27 @@ function setupSourceDropdown() {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.classList.toggle("open");
+    $("#watch-server-dropdown")?.classList.remove("open");
   });
+  // The pill button is re-created by render(), so wire its click handler via
+  // delegation on a stable ancestor -- guarded so loadWatch() running more
+  // than once doesn't stack duplicate handlers (a double-toggle cancels out).
+  const delegationRoot = dropdown.parentElement;
+  if (delegationRoot && !delegationRoot.dataset.serverDelegation) {
+    delegationRoot.dataset.serverDelegation = "1";
+    delegationRoot.addEventListener("click", (e) => {
+      const pillBtn = e.target.closest("#watch-server-btn");
+      if (!pillBtn) return;
+      e.stopPropagation();
+      dropdown.classList.remove("open");
+      $("#watch-server-dropdown")?.classList.toggle("open");
+    });
+  }
   document.addEventListener("click", (e) => {
-    if (!dropdown.contains(e.target)) dropdown.classList.remove("open");
+    if (!dropdown.contains(e.target) && !$("#watch-server-dropdown")?.contains(e.target)) {
+      dropdown.classList.remove("open");
+      $("#watch-server-dropdown")?.classList.remove("open");
+    }
   });
 }
 

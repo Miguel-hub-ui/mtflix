@@ -1,6 +1,6 @@
 :root {
   --bg: #000000;
-  --surface: #15151f;
+  --surface: #000000;
   --surface-2: #1e1e2b;
   --border: #2a2a3a;
   --text: #f4f4f6;
@@ -858,6 +858,40 @@ body.watch-page {
 }
 .watch-source-option:hover { background: var(--surface); color: var(--text); }
 .watch-source-option.active { background: var(--surface); color: var(--accent); }
+
+/* Nested "SERVER" pill (Pro Multi / Cinesrc / 4K) shown when the active
+   source bundles multiple backends, e.g. VidSrc. Sits left of the source
+   dropdown, styled like the reference: red status dot + server name. */
+.watch-server-dropdown { margin-left: 0; }
+.watch-server-btn {
+  border-color: rgba(229, 9, 20, 0.55);
+  background: rgba(229, 9, 20, 0.08);
+}
+.watch-server-btn:hover { border-color: var(--accent); }
+.watch-server-label-text {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+#watch-server-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#watch-server-name::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.watch-server-dropdown .watch-source-menu {
+  right: auto;
+  left: 0;
+  min-width: 140px;
+}
 
 .watch-card {
   background: var(--surface);
