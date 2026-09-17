@@ -1,12 +1,12 @@
 :root {
-  --bg: #0a0a0a;
-  --surface: #121212;
-  --surface-2: #1e1e2b;
-  --border: #2a2a3a;
-  --text: #f4f4f6;
-  --muted: #9aa0ae;
-  --accent: #e50914;
-  --accent-hover: #ff1f2c;
+  --bg: #1a1a1a;
+  --surface: #232323;
+  --surface-2: #2e2e2e;
+  --border: #3a3a3a;
+  --text: #7dd8e6;
+  --muted: #93b0b6;
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
   --radius: 10px;
 }
 
@@ -432,7 +432,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .btn:active { transform: scale(0.97); }
 .btn svg { width: 19px; height: 19px; }
-.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent { background: var(--accent); color: #062024; }
 .btn-accent:hover { background: var(--accent-hover); }
 .btn-ghost { background: rgba(109, 109, 128, 0.45); color: #fff; backdrop-filter: blur(6px); }
 .btn-ghost:hover { background: rgba(109, 109, 128, 0.65); }
@@ -929,7 +929,7 @@ body.watch-page {
   border-radius: 50%;
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: #062024;
   display: grid;
   place-items: center;
   cursor: pointer;
