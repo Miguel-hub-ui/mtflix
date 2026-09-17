@@ -1450,7 +1450,6 @@ async function initWatchPage() {
 
 async function loadSeasonEpisodes(data, seasonNumber) {
   const list = $("#episodes-list");
-  const progressBox = $("#episodes-progress");
   if (!list) return;
   list.innerHTML = skeletonRow(4);
 
@@ -1463,20 +1462,6 @@ async function loadSeasonEpisodes(data, seasonNumber) {
   }
 
   const episodes = seasonData.episodes || [];
-  const watchedCount = countWatchedInSeason(data.id, seasonNumber, episodes.length);
-  const pct = episodes.length ? Math.round((watchedCount / episodes.length) * 100) : 0;
-
-  if (progressBox) {
-    progressBox.innerHTML = `
-      <div class="ep-progress-card">
-        <div class="ep-progress-top">
-          <span class="ep-progress-label">YOUR SEASON PROGRESS</span>
-          <span class="ep-progress-pct">${pct}%</span>
-        </div>
-        <p class="ep-progress-sub">${watchedCount} of ${episodes.length} episodes watched</p>
-        <div class="ep-progress-track"><div class="ep-progress-fill" style="width:${pct}%"></div></div>
-      </div>`;
-  }
 
   list.innerHTML = episodes
     .map((ep) => {
@@ -1900,15 +1885,6 @@ function nextEpisodeOf(player, season, episode) {
   return null;
 }
 
-function countWatchedInSeason(showId, season, totalEpisodes) {
-  const store = getEpWatchStore();
-  let n = 0;
-  for (let i = 1; i <= totalEpisodes; i++) {
-    if (store[`${showId}_s${season}e${i}`]) n++;
-  }
-  return n;
-}
-
 function getWatch(id) {
   return getWatchStore()[String(id)] || { t: 0, d: 0 };
 }
@@ -2149,7 +2125,6 @@ async function openDetail(type, id, autoplayTrailer) {
         ${
           type === "tv" && seasonsForPicker.length
             ? `<h3 class="modal-section-title">Episodes</h3>
-               <div class="episodes-progress" id="episodes-progress"></div>
                <div class="episodes-season-row">
                  <span>Season</span>
                  <select id="episodes-season-select">
