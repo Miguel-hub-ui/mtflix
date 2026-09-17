@@ -348,17 +348,32 @@ button { font-family: inherit; cursor: pointer; }
   height: min(88vh, 800px);
   min-height: 520px;
   overflow: hidden;
+  cursor: grab;
+  /* Swiping/dragging the banner is handled entirely in JS (it needs to tell
+     a horizontal swipe from a vertical page-scroll before committing to
+     either), and text selection starting under the pointer mid-drag would
+     otherwise fight it. */
+  touch-action: pan-y;
+  user-select: none;
 }
-.hero-backdrop {
+.hero-track {
   position: absolute;
   inset: 0;
+  display: flex;
+  height: 100%;
+  transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.hero-track.dragging { transition: none; }
+.hero:active { cursor: grabbing; }
+.hero-slide {
+  flex: 0 0 100%;
+  height: 100%;
   background-size: cover;
   background-position: center 12%;
-  opacity: 0;
   transform: scale(1.06);
-  transition: opacity 1.1s ease, transform 9s ease-out;
+  transition: transform 9s ease-out;
 }
-.hero-backdrop.visible { opacity: 1; transform: scale(1); }
+.hero-slide.active { transform: scale(1); }
 .hero::after {
   content: "";
   position: absolute;
@@ -439,21 +454,49 @@ button { font-family: inherit; cursor: pointer; }
 
 .hero-dots {
   position: absolute;
-  z-index: 3;
-  right: 4%;
-  bottom: 20%;
+  /* Above the row list's z-index: 5 too -- .rows overlaps the bottom of the
+     hero by -110px (see .rows) to blend into it, which would otherwise
+     bury dots placed too close to the bottom edge underneath that row. */
+  z-index: 6;
+  left: 50%;
+  bottom: 130px;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
 }
 .hero-dot {
-  width: 26px;
+  width: 22px;
   height: 4px;
   border-radius: 3px;
   border: none;
-  background: rgba(255, 255, 255, 0.25);
-  transition: background 0.3s;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.3s, width 0.3s;
 }
-.hero-dot.active { background: var(--accent); }
+.hero-dot.active { width: 34px; background: var(--accent); }
+
+.hero-nav {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(10, 10, 16, 0.45);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+}
+.hero-nav svg { width: 22px; height: 22px; }
+.hero-nav-prev { left: 16px; }
+.hero-nav-next { right: 16px; }
+.hero:hover .hero-nav { opacity: 1; }
+.hero-nav:hover { background: rgba(10, 10, 16, 0.8); }
 
 .rows {
   position: relative;
@@ -2237,14 +2280,17 @@ body.watch-page {
   .bottom-nav a.active { color: var(--text); }
   .bottom-nav a.active svg { color: var(--text); }
   #messageArea { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
-  .hero-content { bottom: 12%; right: 4%; }
+  .hero-content { bottom: 16%; right: 4%; }
   .rows { margin-top: 0; gap: 32px; padding-top: 30px; }
   .hero { height: min(66vh, 560px); min-height: 420px; }
-  .hero-backdrop { background-position: center 22%; }
+  .hero-slide { background-position: center 22%; }
   .modal-body { padding: 20px 20px 28px; }
   .modal-body { padding-bottom: 90px; }
   .modal-title { font-size: 1.4rem; }
-  .hero-dots { display: none; }
+  /* Arrow nav relies on hover to appear, which touch screens don't have --
+     swiping the banner directly is the mobile equivalent, with the dots
+     (kept visible here, unlike before) showing which slide you're on. */
+  .hero-nav { display: none; }
   .modal-hero { aspect-ratio: 4 / 3; }
   .modal-overlay { backdrop-filter: none; background: rgba(4, 4, 8, 0.94); }
   .cast-list { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }

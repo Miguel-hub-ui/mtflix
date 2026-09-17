@@ -999,7 +999,13 @@ async function buildHero() {
     if (!heroItems.length) return;
 
     hero.innerHTML = `
-      <div class="hero-backdrop" id="hero-backdrop"></div>
+      <div class="hero-track" id="hero-track">
+        ${heroItems
+          .map(
+            (it) => `<div class="hero-slide" style="background-image:url(${img(it.backdrop_path, "w1280")})"></div>`
+          )
+          .join("")}
+      </div>
       <div class="hero-content" id="hero-content">
         <div class="hero-meta">
           <span class="hero-type-badge" id="hero-type">MOVIE</span>
@@ -1013,19 +1019,33 @@ async function buildHero() {
           <button class="btn btn-ghost" id="hero-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>More Info</button>
         </div>
       </div>
+      <button type="button" class="hero-nav hero-nav-prev" id="hero-prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button type="button" class="hero-nav hero-nav-next" id="hero-next" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
       <div class="hero-dots" id="hero-dots"></div>`;
 
     const dots = $("#hero-dots");
     heroItems.forEach((_, i) => {
       const dot = document.createElement("button");
       dot.className = "hero-dot" + (i === 0 ? " active" : "");
-      dot.addEventListener("click", () => setHeroSlide(i));
+      dot.addEventListener("click", () => {
+        setHeroSlide(i);
+        startHeroRotation();
+      });
       dots.appendChild(dot);
     });
 
     setHeroSlide(0);
     startHeroRotation();
+    wireHeroSwipe();
 
+    $("#hero-prev").addEventListener("click", () => {
+      setHeroSlide((heroIndex - 1 + heroItems.length) % heroItems.length);
+      startHeroRotation();
+    });
+    $("#hero-next").addEventListener("click", () => {
+      setHeroSlide((heroIndex + 1) % heroItems.length);
+      startHeroRotation();
+    });
     $("#hero-play").addEventListener("click", () => {
       openDetail(heroItems[heroIndex].media_type, heroItems[heroIndex].id, true);
     });
@@ -1037,16 +1057,89 @@ async function buildHero() {
   }
 }
 
+// Lets the featured-titles banner be swiped (touch) or dragged (mouse) left/
+// right to change movies, instead of only the auto-rotation and the small
+// dots. Pointer Events cover touch + mouse in one listener set; the track is
+// only committed to a new slide past a distance threshold, otherwise it
+// springs back to where it was.
+const HERO_SWIPE_THRESHOLD = 50;
+
+function wireHeroSwipe() {
+  const hero = $("#hero");
+  const track = $("#hero-track");
+  if (!hero || !track) return;
+  // Listens on the whole banner, not just the track: .hero-content (title,
+  // overview, buttons) is a sibling that visually sits on top of most of the
+  // track, so a listener on the track alone only ever saw drags started over
+  // its few uncovered edges -- everywhere else just selected text instead of
+  // swiping.
+  let startX = 0;
+  let startY = 0;
+  let deltaX = 0;
+  let dragging = false;
+  let decided = false; // becomes true once we know this gesture is horizontal, not a page scroll
+
+  const setTrackX = (px) => {
+    track.style.transform = `translateX(calc(-${heroIndex * 100}% + ${px}px))`;
+  };
+
+  hero.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragging = true;
+    decided = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    deltaX = 0;
+  });
+
+  hero.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+    if (!decided) {
+      if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
+      // A steeper vertical drag is the viewer scrolling the page, not
+      // swiping the banner -- bail out and let that scroll happen.
+      if (Math.abs(deltaY) > Math.abs(deltaX)) {
+        dragging = false;
+        return;
+      }
+      decided = true;
+      track.classList.add("dragging");
+      hero.setPointerCapture?.(e.pointerId);
+    }
+    e.preventDefault();
+    setTrackX(deltaX);
+  });
+
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    track.classList.remove("dragging");
+    if (decided && Math.abs(deltaX) > HERO_SWIPE_THRESHOLD) {
+      const dir = deltaX < 0 ? 1 : -1;
+      setHeroSlide((heroIndex + dir + heroItems.length) % heroItems.length);
+    } else if (decided) {
+      setHeroSlide(heroIndex);
+    }
+    if (decided) startHeroRotation();
+    decided = false;
+  };
+  hero.addEventListener("pointerup", endDrag);
+  hero.addEventListener("pointercancel", endDrag);
+}
+
 function setHeroSlide(i) {
   heroIndex = i;
   const item = heroItems[i];
-  const backdrop = $("#hero-backdrop");
+  const track = $("#hero-track");
   const content = $("#hero-content");
-  backdrop.classList.remove("visible");
+  if (track) {
+    track.style.transform = `translateX(-${i * 100}%)`;
+    track.querySelectorAll(".hero-slide").forEach((slide, si) => slide.classList.toggle("active", si === i));
+  }
   content.classList.add("fading");
   setTimeout(() => {
-    backdrop.style.backgroundImage = `url(${img(item.backdrop_path, "w1280")})`;
-    backdrop.classList.add("visible");
     $("#hero-type").textContent = item.media_type === "tv" ? "SERIES" : "FILM";
     $("#hero-rating").textContent = `★ ${rating(item.vote_average)}`;
     $("#hero-year").textContent = year(item.date);
