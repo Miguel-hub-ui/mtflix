@@ -107,6 +107,9 @@ Movies and TV shows stream through an embed player inside the detail modal. Four
 | **VidLink** | ✓ main | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
 | VidKing | | Yes — sends `PLAYER_EVENT` postMessages with `currentTime`/`duration`/`season`/`episode`; resumes via `progress=` |
 | VidSrc | | No — confirmed it sends no postMessages at all |
+| VidSrc SU | | No — vidsrc.su mirror, same behavior as VidSrc |
+| VidSrc ME | | No — v2.vidsrc.me mirror, same behavior as VidSrc |
+| MultiEmbed | | No — supports `t=` resume seconds; v=/vi= params exist for subtitles/UI language |
 | 2Embed | | No — same as VidSrc, confirmed no postMessages |
 
 Your chosen source is remembered per-browser (`localStorage`) and reused next time you open a player. To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.

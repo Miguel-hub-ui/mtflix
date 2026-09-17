@@ -86,6 +86,35 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
+  "vidsrc-su": {
+    label: "VidSrc SU",
+    movie: "https://vidsrc.su/embed/movie/{id}",
+    tv: "https://vidsrc.su/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
+  "vidsrc-me": {
+    label: "VidSrc ME",
+    movie: "https://v2.vidsrc.me/embed/movie/{id}",
+    tv: "https://v2.vidsrc.me/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
+  multiembed: {
+    label: "MultiEmbed",
+    movie: "https://multiembed.mov/?video_id={id}",
+    tv: "https://multiembed.mov/?video_id={id}&s={season}&e={episode}",
+    supportsEvents: false,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams();
+      if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
+      return params;
+    },
+  },
   "2embed": {
     label: "2Embed",
     movie: "https://2embed.cc/embed/movie/{id}",
@@ -1852,18 +1881,17 @@ async function openPersonModal(personId) {
   overlay.className = "modal-overlay";
   overlay.id = "modal-overlay";
   overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-hero person-hero" style="background-image:url(${img(data.profile_path, "h632")})" id="modal-hero">
+    <div class="modal person-modal">
+      <div class="modal-body person-modal-body">
         <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-title-row">
+        <div class="person-head">
+          <img class="person-photo" loading="lazy" src="${img(data.profile_path, "w185")}" alt="${escapeHtml(data.name || "")}" onerror="this.onerror=null;this.src=placeholderImage('No Photo');this.style.objectFit='contain';this.style.padding='14px'">
           <div>
-            <h2 class="modal-title">${escapeHtml(data.name || "")}</h2>
+            <h2 class="modal-title person-name">${escapeHtml(data.name || "")}</h2>
             ${data.known_for_department ? `<p class="modal-tagline">${escapeHtml(data.known_for_department)}</p>` : ""}
           </div>
         </div>
-        ${bioShort ? `<p style="color:#cfd2da;line-height:1.65;font-size:.95rem;margin-top:18px;">${escapeHtml(bioShort)}</p>` : ""}
+        ${bioShort ? `<p class="person-bio">${escapeHtml(bioShort)}</p>` : ""}
         ${
           filmography.length
             ? `<h3 class="modal-section-title">Known For</h3><div class="similar-grid">${filmography.map(cardHTML).join("")}</div>`

@@ -713,6 +713,7 @@ button { font-family: inherit; cursor: pointer; }
   animation: fadeIn 0.25s ease;
 }
 .modal {
+  position: relative;
   width: min(880px, 94vw);
   max-height: 90vh;
   overflow-y: auto;
@@ -1106,7 +1107,29 @@ body.watch-page {
 .cast-item:hover .cast-name { color: var(--accent); }
 .cast-role { font-size: 0.7rem; color: var(--muted); }
 
-.person-hero { background-position: center 20%; }
+.person-modal-body { padding-top: 60px; }
+.person-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.person-photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+.person-name { font-size: 1.5rem; }
+.person-bio {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.9rem;
+  margin-top: 18px;
+}
 
 .similar-grid {
   display: grid;
@@ -2223,6 +2246,12 @@ body.watch-page {
   .modal-hero { aspect-ratio: 4 / 3; }
   .modal-overlay { backdrop-filter: none; background: rgba(4, 4, 8, 0.94); }
   .cast-list { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+  .person-modal-body { padding-top: 50px; }
+  .person-head { gap: 12px; }
+  .person-photo { width: 64px; height: 64px; }
+  .person-name { font-size: 1.2rem; }
+  .person-bio { font-size: 0.85rem; margin-top: 14px; }
+  .person-modal .similar-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
   .profile-item, .profile-box { width: 84px; }
   .profile-box { height: 84px; border-radius: 10px; }
   .profile-initial { font-size: 1.8rem; }
