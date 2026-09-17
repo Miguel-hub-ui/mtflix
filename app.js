@@ -1184,6 +1184,86 @@ function playNextEpisode(season, episode) {
   injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
+// Playback happens in its own full-tab page (watch.html) instead of an
+// inline modal player, so it isn't cramped inside the title card and
+// survives closing that card. `reset` starts over from 0 instead of
+// resuming wherever the title was left off.
+function openWatchTab(type, id, season, episode, { reset = false } = {}) {
+  const params = new URLSearchParams({ type, id: String(id) });
+  if (type === "tv") {
+    params.set("s", String(season || 1));
+    params.set("e", String(episode || 1));
+  }
+  if (reset) params.set("reset", "1");
+  window.open(`watch.html?${params.toString()}`, "_blank", "noopener");
+}
+
+async function initWatchPage() {
+  const params = new URLSearchParams(location.search);
+  const type = params.get("type") === "tv" ? "tv" : "movie";
+  const id = Number(params.get("id"));
+  const reset = params.get("reset") === "1";
+
+  if (!id || !activeProfile()) {
+    location.replace("index.html");
+    return;
+  }
+
+  let data;
+  try {
+    data = await tmdb(`/${type}/${id}`, {});
+  } catch (err) {
+    $("#modal-hero").innerHTML = `<div class="empty-state"><h2>Couldn't load this title</h2><p>Check your connection and try again.</p></div>`;
+    return;
+  }
+
+  const title = data.title || data.name || "Untitled";
+  document.title = `${title} — MTFlix`;
+
+  const seasonEpisodeCounts = {};
+  if (type === "tv") {
+    (data.seasons || []).forEach((s) => {
+      if (s.season_number > 0) seasonEpisodeCounts[s.season_number] = s.episode_count;
+    });
+  }
+  const estimatedDurationSec =
+    type === "tv"
+      ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60
+      : (data.runtime || 100) * 60;
+
+  const resumeWatch = reset ? { t: 0, d: 0 } : getWatch(id);
+  const season = type === "tv" ? Number(params.get("s")) || resumeWatch.season || 1 : 1;
+  const episode = type === "tv" ? Number(params.get("e")) || resumeWatch.episode || 1 : 1;
+
+  currentPlayer = {
+    type,
+    id,
+    title,
+    poster_path: data.poster_path,
+    backdrop_path: data.backdrop_path,
+    season,
+    episode,
+    seasonEpisodeCounts,
+    estimatedDurationSec,
+  };
+
+  if (reset) removeContinueWatchingCard(id);
+  if (type === "tv") markEpWatched(id, season, episode);
+
+  const sameProgress = type === "tv" ? season === resumeWatch.season && episode === resumeWatch.episode : true;
+  const startAt = !reset && sameProgress ? resumeWatch.t : 0;
+  injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
+
+  $("#watch-back")?.addEventListener("click", () => {
+    window.close();
+    // window.close() is silently ignored for tabs not opened by script
+    // (e.g. a bookmarked/typed URL) -- fall back to sending them home.
+    setTimeout(() => {
+      location.href = "index.html";
+    }, 200);
+  });
+}
+
 
 async function loadSeasonEpisodes(data, seasonNumber) {
   const list = $("#episodes-list");
@@ -1265,7 +1345,7 @@ function playEpisode(data, season, episode) {
   localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
   scheduleCloudSync();
 
-  injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
+  openWatchTab("tv", data.id, season, episode);
 }
 
 async function openAdminDashboard() {
@@ -1688,7 +1768,11 @@ async function openPersonModal(personId) {
 
   const seen = new Set();
   const filmography = (data.combined_credits?.cast || [])
-    .filter((c) => c.poster_path && (c.media_type === "movie" || c.media_type === "tv"))
+    .filter(
+      (c) =>
+        c.poster_path &&
+        (c.media_type === "movie" || (c.media_type === "tv" && (c.episode_count || 0) > 1))
+    )
     .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
     .filter((c) => {
       const key = `${c.media_type}-${c.id}`;
@@ -1929,22 +2013,18 @@ async function openDetail(type, id, autoplayTrailer) {
   });
 
   const playNow = () => {
-    if (type === "tv") markEpWatched(data.id, currentPlayer.season, currentPlayer.episode);
-    injectPlayer(buildPlayerUrl(type, data.id, currentPlayer.season, currentPlayer.episode, watch.t));
+    openWatchTab(type, data.id, currentPlayer.season, currentPlayer.episode);
   };
 
   $("#play-now")?.addEventListener("click", playNow);
 
   $("#start-over")?.addEventListener("click", () => {
-    removeContinueWatchingCard(data.id);
-    watch.t = 0;
     if (type === "tv") {
       currentPlayer.season = 1;
       currentPlayer.episode = 1;
     }
     showToast(`${t("toast_start_over")} — "${title}"`);
-    if (type === "tv") markEpWatched(data.id, currentPlayer.season, currentPlayer.episode);
-    injectPlayer(buildPlayerUrl(type, data.id, currentPlayer.season, currentPlayer.episode, 0));
+    openWatchTab(type, data.id, currentPlayer.season, currentPlayer.episode, { reset: true });
   });
 
   if (type === "tv" && seasonsForPicker.length) {
@@ -3252,58 +3332,24 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 2600);
 }
 
-// --- Install as an app (PWA) ---------------------------------------------
-let deferredInstallPrompt = null;
-
+// --- Install as an app -----------------------------------------------------
+// The browser-native "Add to Home Screen"/PWA install prompt reports success
+// (fires `appinstalled`) even when the OS never actually creates a working
+// icon — most commonly on Android devices without full Google Play services,
+// and inconsistently across iOS versions. Sending everyone to download.html's
+// real APK / Windows installer / Safari steps is the one path that reliably
+// works everywhere.
 function isStandaloneApp() {
   return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 }
 
-function isIOSDevice() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-}
-
 function setupInstallPrompt() {
   if (isStandaloneApp()) return;
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    $("#menu-install")?.classList.remove("hidden");
-  });
-
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    $("#menu-install")?.classList.add("hidden");
-    showToast("MTFlix installed! Launch it from your home screen.");
-  });
-
-  // Chrome/Edge/Android fire beforeinstallprompt themselves; iOS Safari never
-  // does, so offer the manual "Add to Home Screen" instructions instead.
-  if (isIOSDevice()) {
-    $("#menu-install")?.classList.remove("hidden");
-  }
+  $("#menu-install")?.classList.remove("hidden");
 }
 
-async function triggerInstall() {
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === "accepted") $("#menu-install")?.classList.add("hidden");
-    deferredInstallPrompt = null;
-    return;
-  }
-  if (isIOSDevice()) {
-    $("#ios-install-modal")?.classList.remove("hidden");
-    return;
-  }
-  showToast("Use your browser's menu to install MTFlix as an app.");
-}
-
-function wireInstallModal() {
-  $("#ios-install-close")?.addEventListener("click", () => {
-    $("#ios-install-modal")?.classList.add("hidden");
-  });
+function triggerInstall() {
+  window.open("download.html", "_blank", "noopener");
 }
 
 let suggestToken = 0;
@@ -3767,6 +3813,10 @@ document.addEventListener("keydown", (e) => {
 });
 
 window.addEventListener("load", () => {
+  if (document.body.dataset.page === "watch") {
+    initWatchPage();
+    return;
+  }
   applyI18n();
   setupNav();
   setupSearch();
@@ -3774,7 +3824,6 @@ window.addEventListener("load", () => {
   wireProfileGate();
   wireAuth();
   wireAvatarMenu();
-  wireInstallModal();
   setupInstallPrompt();
   initAuth();
   initEmailDelivery();

@@ -737,6 +737,28 @@ button { font-family: inherit; cursor: pointer; }
   background: linear-gradient(to top, var(--surface) 0%, transparent 55%),
               linear-gradient(to right, rgba(21, 21, 31, 0.5), transparent 50%);
 }
+
+/* Dedicated full-tab watch page (watch.html): the hero fills the entire
+   viewport instead of sitting atop a scrollable modal card. */
+body.watch-page {
+  margin: 0;
+  background: #000;
+  overflow: hidden;
+}
+body.watch-page .modal-overlay {
+  padding: 0;
+  display: block;
+  background: #000;
+  backdrop-filter: none;
+  animation: none;
+}
+.watch-hero {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: unset;
+  background: #000;
+}
+.watch-hero::after { display: none; }
 .modal-close {
   position: absolute;
   top: 14px;
