@@ -77,17 +77,6 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
-  // "VidCloud" — the multi-quality server inside Megashare's player
-  // (megashare-official.lol). TMDB-id based embeds, plain iframe friendly.
-  vidcloud: {
-    label: "VidCloud",
-    movie: "https://megashare-official.lol/embed/movie/{id}",
-    tv: "https://megashare-official.lol/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
   vidsrc: {
     label: "VidSrc",
     // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)
@@ -1419,6 +1408,25 @@ async function initWatchPage() {
 
   if (reset) removeContinueWatchingCard(id);
 
+  if (type === "tv") {
+    const seasonsForPicker = (data.seasons || []).filter((s) => s.season_number > 0 && s.episode_count > 0);
+    const episodesSection = $("#watch-episodes");
+    const seasonSelect = $("#episodes-season-select");
+    if (seasonsForPicker.length && episodesSection && seasonSelect) {
+      episodesSection.classList.remove("hidden");
+      seasonSelect.innerHTML = seasonsForPicker
+        .map((s) => `<option value="${s.season_number}">${escapeHtml(s.name)}</option>`)
+        .join("");
+      const hasCurrentSeason = seasonsForPicker.some((s) => s.season_number === season);
+      const initialSeason = hasCurrentSeason ? season : seasonsForPicker[0].season_number;
+      seasonSelect.value = String(initialSeason);
+      seasonSelect.addEventListener("change", (e) => {
+        loadSeasonEpisodes(data, Number(e.target.value));
+      });
+      loadSeasonEpisodes(data, initialSeason);
+    }
+  }
+
   const sameProgress = type === "tv" ? season === resumeWatch.season && episode === resumeWatch.episode : true;
   const startAt = !reset && sameProgress ? resumeWatch.t : 0;
 
@@ -1520,7 +1528,13 @@ function playEpisode(data, season, episode) {
   localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
   scheduleCloudSync();
 
-  openWatchTab("tv", data.id, season, episode);
+  // Picking an episode from the watch page's own list should swap the
+  // current player in place, not stack another watch tab on top of it.
+  if (document.body.dataset.page === "watch") {
+    injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
+  } else {
+    openWatchTab("tv", data.id, season, episode);
+  }
 }
 
 async function openAdminDashboard() {

@@ -971,6 +971,8 @@ body.watch-page {
 .watch-info-title { font-size: 1.3rem; font-weight: 800; margin: 6px 0 14px; }
 .watch-info-divider { height: 1px; background: var(--border); margin-bottom: 16px; }
 .watch-info-desc { color: var(--muted); line-height: 1.6; max-width: 760px; }
+.watch-episodes { max-width: 1100px; margin: 8px auto 0; }
+.watch-episodes .modal-section-title { margin-top: 18px; }
 
 @media (max-width: 640px) {
   .watch-shell { padding: 14px 16px 40px; }
