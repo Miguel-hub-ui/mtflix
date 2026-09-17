@@ -8,17 +8,17 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
   <meta name="theme-color" content="#000000" />
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body class="watch-page" data-page="watch">
 
   <div class="watch-shell" id="modal-overlay">
-    <header class="watch-topbar">
-      <div class="watch-brand">
+    <a href="index.html" class="watch-back-link" id="watch-back">‹ Back</a>
+
+    <div class="watch-card">
+      <div class="watch-card-head">
         <span class="watch-brand-name">MTFLIX</span>
         <span class="watch-type-tag" id="watch-type-tag">Movie</span>
-      </div>
-      <div class="watch-topbar-actions">
         <div class="watch-source-dropdown" id="watch-source-dropdown">
           <button type="button" class="watch-source-btn" id="watch-source-btn">
             <span id="watch-source-label">Source</span>
@@ -26,18 +26,6 @@
           </button>
           <div class="watch-source-menu" id="watch-source-menu"></div>
         </div>
-        <button class="modal-close" id="watch-back" aria-label="Back">✕</button>
-      </div>
-    </header>
-
-    <div class="watch-card">
-      <div class="watch-card-head">
-        <div class="watch-server-row">
-          <span class="watch-server-label">SERVER</span>
-          <span class="watch-server-pill"><span class="watch-server-dot"></span><span id="watch-server-name">—</span></span>
-        </div>
-        <h1 class="watch-title" id="watch-title">&nbsp;</h1>
-        <p class="watch-meta" id="watch-meta"></p>
       </div>
       <div id="modal-hero" class="watch-stage"></div>
     </div>
@@ -55,6 +43,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>

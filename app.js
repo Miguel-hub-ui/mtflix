@@ -1166,13 +1166,11 @@ function setupSourceDropdown() {
   const btn = $("#watch-source-btn");
   const label = $("#watch-source-label");
   const menu = $("#watch-source-menu");
-  const serverName = $("#watch-server-name");
   if (!dropdown || !btn || !menu) return;
 
   const render = () => {
     const activeId = getPlayerSourceId();
     if (label) label.textContent = PLAYER_SOURCES[activeId].label;
-    if (serverName) serverName.textContent = PLAYER_SOURCES[activeId].label;
     menu.innerHTML = Object.entries(PLAYER_SOURCES)
       .map(
         ([id, src]) =>
@@ -1300,11 +1298,7 @@ async function initWatchPage() {
   const title = data.title || data.name || "Untitled";
   document.title = `${title} — MTFlix`;
 
-  const typeLabel = type === "tv" ? "TV Series" : "Movie";
-  const genreNames = (data.genres || []).slice(0, 2).map((g) => g.name).join(", ");
-  if ($("#watch-type-tag")) $("#watch-type-tag").textContent = typeLabel;
-  if ($("#watch-title")) $("#watch-title").textContent = title;
-  if ($("#watch-meta")) $("#watch-meta").textContent = genreNames ? `${typeLabel} • ${genreNames}` : typeLabel;
+  if ($("#watch-type-tag")) $("#watch-type-tag").textContent = type === "tv" ? "TV Series" : "Movie";
   if ($("#watch-info-title")) $("#watch-info-title").textContent = title;
   if ($("#watch-info-desc")) $("#watch-info-desc").textContent = data.overview || "No description available.";
 
@@ -1346,7 +1340,8 @@ async function initWatchPage() {
     injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
   });
 
-  $("#watch-back")?.addEventListener("click", () => {
+  $("#watch-back")?.addEventListener("click", (e) => {
+    e.preventDefault();
     window.close();
     // window.close() is silently ignored for tabs not opened by script
     // (e.g. a bookmarked/typed URL) -- fall back to sending them home.

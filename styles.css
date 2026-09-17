@@ -779,19 +779,16 @@ body.watch-page {
   margin: 0 auto;
   padding: 20px 24px 60px;
 }
-.watch-topbar {
-  display: flex;
+.watch-back-link {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 4px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
 }
-.watch-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
+.watch-back-link:hover { text-decoration: underline; }
 .watch-brand-name {
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -808,13 +805,7 @@ body.watch-page {
   border-radius: 20px;
   white-space: nowrap;
 }
-.watch-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.watch-source-dropdown { position: relative; }
+.watch-source-dropdown { position: relative; margin-left: auto; }
 .watch-source-btn {
   display: flex;
   align-items: center;
@@ -874,37 +865,13 @@ body.watch-page {
   border-radius: 16px;
   overflow: hidden;
 }
-.watch-card-head { padding: 20px 22px 16px; }
-.watch-server-row {
+.watch-card-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  padding: 16px 16px 14px;
 }
-.watch-server-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-.watch-server-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface-2);
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.watch-server-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.watch-title { font-size: 1.7rem; font-weight: 800; margin-bottom: 4px; }
-.watch-meta { color: var(--accent); font-weight: 600; font-size: 0.85rem; }
 
 .watch-stage {
   position: relative;
@@ -973,7 +940,7 @@ body.watch-page {
 @media (max-width: 640px) {
   .watch-shell { padding: 14px 16px 40px; }
   .watch-brand-name { display: none; }
-  .watch-title { font-size: 1.3rem; }
+  .watch-card-head { padding: 12px 14px 12px; gap: 8px; }
   .watch-play-btn { width: 64px; height: 64px; }
   .watch-play-btn svg { width: 26px; height: 26px; }
 }
