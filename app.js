@@ -892,6 +892,16 @@ let currentFilter = "home";
 // Episodes list, Settings, the Admin dashboard, or switching to a non-Home
 // tab), we push one browser history entry for it. Pressing the phone/browser
 // back button then closes just that one layer instead of leaving the site.
+//
+// The browser's own scroll restoration ("auto", the default) fights this:
+// on popstate it snaps the page back to whatever position was recorded when
+// that history entry was first created, which races updateBodyScrollLock()'s
+// own window.scrollTo() and usually wins, so going back from a movie's modal
+// dropped the grid back to the top instead of where you'd scrolled to (and
+// on top of that, the grid was still `position: fixed` for a frame, which is
+// what made scrolling look stuck right after). Taking restoration over
+// entirely avoids that fight.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 let navDepth = 0;
 let suppressPopstate = false;
 
@@ -954,7 +964,14 @@ function updateBodyScrollLock() {
   } else if (!shouldLock && isLocked) {
     document.body.classList.remove("body-locked");
     document.body.style.top = "";
-    window.scrollTo(0, bodyLockScrollY);
+    // The page's global `scroll-behavior: smooth` (styles.css) hijacks a
+    // plain scrollTo(x, y) call into an animated scroll -- and since it
+    // starts right as body-locked's `position: fixed` is lifted, before
+    // layout has caught back up to the page's real (taller) height, the
+    // animation's target gets clamped short and it lands at the wrong spot
+    // (usually 0) instead of where the viewer actually was. `instant`
+    // bypasses that and snaps straight there.
+    window.scrollTo({ top: bodyLockScrollY, left: 0, behavior: "instant" });
   }
 }
 
@@ -1154,7 +1171,67 @@ function renderPlayOverlay(backdropUrl, onPlay) {
   wireFullscreenBtn(stage);
 }
 
-function injectPlayer(url) {
+// Cross-origin embeds can't be inspected for an actual error page, so "never
+// confirmed alive within a grace window" is the best failure signal
+// available. Event-capable sources (VidLink/VidKing) get a longer window and
+// are confirmed by a real postMessage; sources with no events (VidSrc,
+// 2Embed) only get confirmed by the iframe's own `load` firing, since that's
+// all we can observe about them.
+const AUTO_SWITCH_LOAD_TIMEOUT_MS = 8000;
+const AUTO_SWITCH_PLAYBACK_TIMEOUT_MS = 14000;
+const SOURCE_FALLBACK_ORDER = Object.keys(PLAYER_SOURCES);
+
+let autoSwitchTimers = [];
+let autoSwitchGeneration = 0;
+let sourcesTriedThisPlay = new Set();
+// Set by setupSourceDropdown() to its internal render() so an auto-switch can
+// refresh the source/SERVER pill labels the same way a manual pick does.
+let refreshSourceUI = () => {};
+
+function clearAutoSwitchWatchdog() {
+  autoSwitchTimers.forEach(clearTimeout);
+  autoSwitchTimers = [];
+}
+
+function nextFallbackSourceId(fromId, tried) {
+  const start = SOURCE_FALLBACK_ORDER.indexOf(fromId);
+  for (let i = 1; i <= SOURCE_FALLBACK_ORDER.length; i++) {
+    const candidate = SOURCE_FALLBACK_ORDER[(start + i) % SOURCE_FALLBACK_ORDER.length];
+    if (!tried.has(candidate)) return candidate;
+  }
+  return null;
+}
+
+function scheduleAutoSwitchWatchdog(sourceId, generation) {
+  const source = PLAYER_SOURCES[sourceId];
+  const timeout = source.supportsEvents ? AUTO_SWITCH_PLAYBACK_TIMEOUT_MS : AUTO_SWITCH_LOAD_TIMEOUT_MS;
+  autoSwitchTimers.push(
+    setTimeout(() => {
+      if (generation !== autoSwitchGeneration || !currentPlayer) return;
+      autoSwitchToNextSource(sourceId);
+    }, timeout)
+  );
+}
+
+function autoSwitchToNextSource(failedSourceId) {
+  sourcesTriedThisPlay.add(failedSourceId);
+  if (!currentPlayer) return;
+  const next = nextFallbackSourceId(failedSourceId, sourcesTriedThisPlay);
+  if (!next) {
+    showToast("None of the available servers are responding right now — try again in a bit");
+    return;
+  }
+  setPlayerSourceId(next);
+  refreshSourceUI();
+  showToast(`"${PLAYER_SOURCES[failedSourceId].label}" isn't responding — switched to ${PLAYER_SOURCES[next].label}`);
+  const watch = getWatch(currentPlayer.id);
+  injectPlayer(
+    buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t),
+    { auto: true }
+  );
+}
+
+function injectPlayer(url, { auto = false } = {}) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   // Swapping out an iframe while it's the fullscreen element leaves the
@@ -1165,6 +1242,18 @@ function injectPlayer(url) {
   outroPromptDismissedKey = null;
   realPlaybackPaused = false;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
+
+  // A fresh, user-initiated play (new title, new episode, manual source
+  // switch) gets a clean slate of servers to try; an auto-switch keeps
+  // building on the same attempt so it doesn't loop back to one that just
+  // failed.
+  if (!auto) sourcesTriedThisPlay = new Set();
+  clearAutoSwitchWatchdog();
+  autoSwitchGeneration++;
+  const generation = autoSwitchGeneration;
+  const activeSourceId = getPlayerSourceId();
+  scheduleAutoSwitchWatchdog(activeSourceId, generation);
+
   heroArea.classList.add("is-playing");
   heroArea.style.backgroundImage = "";
   heroArea.innerHTML = `
@@ -1172,6 +1261,22 @@ function injectPlayer(url) {
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>${fullscreenBtnHTML}`;
   wireFullscreenBtn(heroArea);
+
+  const iframe = heroArea.querySelector(".modal-trailer iframe");
+  iframe?.addEventListener(
+    "load",
+    () => {
+      if (generation === autoSwitchGeneration && !PLAYER_SOURCES[activeSourceId].supportsEvents) clearAutoSwitchWatchdog();
+    },
+    { once: true }
+  );
+  iframe?.addEventListener(
+    "error",
+    () => {
+      if (generation === autoSwitchGeneration) autoSwitchToNextSource(activeSourceId);
+    },
+    { once: true }
+  );
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
@@ -1250,6 +1355,7 @@ function setupSourceDropdown() {
     });
   };
   render();
+  refreshSourceUI = render;
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1340,9 +1446,12 @@ function playNextEpisode(season, episode) {
 }
 
 // Playback happens in its own full-tab page (watch.html) instead of an
-// inline modal player, so it isn't cramped inside the title card and
-// survives closing that card. `reset` starts over from 0 instead of
-// resuming wherever the title was left off.
+// inline modal player, so it isn't cramped inside the title card. Navigates
+// in the same tab rather than window.open()'ing a new one -- as an installed
+// PWA, opening a second window re-triggers Android/iOS's native launch splash
+// (the app icon flashing on screen before the page paints), which just reads
+// as a glitch. `reset` starts over from 0 instead of resuming wherever the
+// title was left off.
 function openWatchTab(type, id, season, episode, { reset = false } = {}) {
   const params = new URLSearchParams({ type, id: String(id) });
   if (type === "tv") {
@@ -1350,7 +1459,7 @@ function openWatchTab(type, id, season, episode, { reset = false } = {}) {
     params.set("e", String(episode || 1));
   }
   if (reset) params.set("reset", "1");
-  window.open(`watch.html?${params.toString()}`, "_blank", "noopener");
+  location.href = `watch.html?${params.toString()}`;
 }
 
 async function initWatchPage() {
@@ -1438,12 +1547,15 @@ async function initWatchPage() {
 
   $("#watch-back")?.addEventListener("click", (e) => {
     e.preventDefault();
-    window.close();
-    // window.close() is silently ignored for tabs not opened by script
-    // (e.g. a bookmarked/typed URL) -- fall back to sending them home.
-    setTimeout(() => {
-      location.href = "index.html";
-    }, 200);
+    // watch.html is now reached via a same-tab navigation from index.html
+    // (see openWatchTab), so a real back-navigation lands there and restores
+    // its scroll position/filter via bfcache -- falls back to a fresh load
+    // only when there's no history to go back to (e.g. a bookmarked link).
+    if (history.length > 1) {
+      history.back();
+      return;
+    }
+    location.href = "index.html";
   });
 }
 
@@ -3919,6 +4031,12 @@ window.addEventListener("message", function (event) {
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
+    // Only a message that actually carries a real playback position proves
+    // the source is alive -- clearing the watchdog on any message at all
+    // (including e.g. a bare "ready"/init ping some embeds send immediately
+    // on load, before the video itself has started or errored out) let a
+    // dead source slip past the watchdog with nothing left to catch it.
+    clearAutoSwitchWatchdog();
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
@@ -3943,6 +4061,7 @@ window.addEventListener("message", function (event) {
   if (msg.type === "MEDIA_DATA") {
     const entry = (msg.data || {})[String(currentPlayer.id)];
     if (!entry || !entry.progress) return;
+    clearAutoSwitchWatchdog();
     const watched = entry.progress.watched || 0;
     const duration = entry.progress.duration || 0;
     const isTv = entry.type === "tv";
