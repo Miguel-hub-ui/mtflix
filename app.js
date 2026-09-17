@@ -108,17 +108,6 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
-  multiembed: {
-    label: "MultiEmbed",
-    movie: "https://multiembed.mov/?video_id={id}",
-    tv: "https://multiembed.mov/?video_id={id}&s={season}&e={episode}",
-    supportsEvents: false,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams();
-      if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
-      return params;
-    },
-  },
   "2embed": {
     label: "2Embed",
     movie: "https://2embed.cc/embed/movie/{id}",
