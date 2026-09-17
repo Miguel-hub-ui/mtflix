@@ -1083,6 +1083,33 @@ function startPlaybackHeartbeat(startSeconds) {
   }, 15000);
 }
 
+const fullscreenBtnHTML = `
+    <button type="button" class="watch-fullscreen-btn" id="watch-fullscreen-btn" aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+    </button>`;
+
+function wireFullscreenBtn(stage) {
+  $("#watch-fullscreen-btn")?.addEventListener("click", () => {
+    stage.requestFullscreen?.().catch(() => {});
+  });
+}
+
+// Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
+// iframe once the viewer actually clicks -- avoids autoplaying anything
+// before they've chosen to watch.
+function renderPlayOverlay(backdropUrl, onPlay) {
+  const stage = $("#modal-hero");
+  if (!stage) return;
+  stage.classList.remove("is-playing");
+  stage.style.backgroundImage = backdropUrl ? `url(${backdropUrl})` : "";
+  stage.innerHTML = `
+    <button type="button" class="watch-play-btn" id="watch-play-btn" aria-label="Play">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>${fullscreenBtnHTML}`;
+  $("#watch-play-btn")?.addEventListener("click", onPlay, { once: true });
+  wireFullscreenBtn(stage);
+}
+
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
@@ -1090,36 +1117,60 @@ function injectPlayer(url) {
   // Fullscreen API stuck in some browsers (fullscreen silently stops working
   // until the page is reloaded) -- always exit cleanly first.
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-  heroArea.scrollIntoView({ behavior: "smooth", block: "start" });
-  heroArea.querySelector(".modal-trailer")?.remove();
-  heroArea.querySelector("#next-ep-prompt")?.remove();
   nextEpisodePromptActive = false;
   outroPromptDismissedKey = null;
   realPlaybackPaused = false;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
-  const activeId = getPlayerSourceId();
-  const wrap = document.createElement("div");
-  wrap.className = "modal-trailer";
-  wrap.innerHTML = `
-    <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
-    <div class="player-switcher">
-      ${Object.entries(PLAYER_SOURCES)
-        .map(
-          ([id, src]) =>
-            `<button type="button" class="player-source-btn${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
-        )
-        .join("")}
-    </div>`;
-  heroArea.appendChild(wrap);
-  wrap.querySelectorAll(".player-source-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      if (btn.dataset.source === getPlayerSourceId() || !currentPlayer) return;
-      setPlayerSourceId(btn.dataset.source);
-      const watch = getWatch(currentPlayer.id);
-      injectPlayer(
-        buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
-      );
+  heroArea.classList.add("is-playing");
+  heroArea.style.backgroundImage = "";
+  heroArea.innerHTML = `
+    <div class="modal-trailer">
+      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+    </div>${fullscreenBtnHTML}`;
+  wireFullscreenBtn(heroArea);
+}
+
+// Populates the top-bar source dropdown and the "SERVER" pill, and rebuilds
+// the current player whenever the viewer picks a different source.
+function setupSourceDropdown() {
+  const dropdown = $("#watch-source-dropdown");
+  const btn = $("#watch-source-btn");
+  const label = $("#watch-source-label");
+  const menu = $("#watch-source-menu");
+  const serverName = $("#watch-server-name");
+  if (!dropdown || !btn || !menu) return;
+
+  const render = () => {
+    const activeId = getPlayerSourceId();
+    if (label) label.textContent = PLAYER_SOURCES[activeId].label;
+    if (serverName) serverName.textContent = PLAYER_SOURCES[activeId].label;
+    menu.innerHTML = Object.entries(PLAYER_SOURCES)
+      .map(
+        ([id, src]) =>
+          `<button type="button" class="watch-source-option${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
+      )
+      .join("");
+    menu.querySelectorAll(".watch-source-option").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        dropdown.classList.remove("open");
+        if (opt.dataset.source === getPlayerSourceId() || !currentPlayer) return;
+        setPlayerSourceId(opt.dataset.source);
+        render();
+        const watch = getWatch(currentPlayer.id);
+        injectPlayer(
+          buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
+        );
+      });
     });
+  };
+  render();
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target)) dropdown.classList.remove("open");
   });
 }
 
@@ -1220,6 +1271,14 @@ async function initWatchPage() {
   const title = data.title || data.name || "Untitled";
   document.title = `${title} — MTFlix`;
 
+  const typeLabel = type === "tv" ? "TV Series" : "Movie";
+  const genreNames = (data.genres || []).slice(0, 2).map((g) => g.name).join(", ");
+  if ($("#watch-type-tag")) $("#watch-type-tag").textContent = typeLabel;
+  if ($("#watch-title")) $("#watch-title").textContent = title;
+  if ($("#watch-meta")) $("#watch-meta").textContent = genreNames ? `${typeLabel} • ${genreNames}` : typeLabel;
+  if ($("#watch-info-title")) $("#watch-info-title").textContent = title;
+  if ($("#watch-info-desc")) $("#watch-info-desc").textContent = data.overview || "No description available.";
+
   const seasonEpisodeCounts = {};
   if (type === "tv") {
     (data.seasons || []).forEach((s) => {
@@ -1248,11 +1307,15 @@ async function initWatchPage() {
   };
 
   if (reset) removeContinueWatchingCard(id);
-  if (type === "tv") markEpWatched(id, season, episode);
 
   const sameProgress = type === "tv" ? season === resumeWatch.season && episode === resumeWatch.episode : true;
   const startAt = !reset && sameProgress ? resumeWatch.t : 0;
-  injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
+
+  setupSourceDropdown();
+  renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", () => {
+    if (type === "tv") markEpWatched(id, season, episode);
+    injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
+  });
 
   $("#watch-back")?.addEventListener("click", () => {
     window.close();

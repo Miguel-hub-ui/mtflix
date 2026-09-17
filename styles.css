@@ -738,27 +738,6 @@ button { font-family: inherit; cursor: pointer; }
               linear-gradient(to right, rgba(21, 21, 31, 0.5), transparent 50%);
 }
 
-/* Dedicated full-tab watch page (watch.html): the hero fills the entire
-   viewport instead of sitting atop a scrollable modal card. */
-body.watch-page {
-  margin: 0;
-  background: #000;
-  overflow: hidden;
-}
-body.watch-page .modal-overlay {
-  padding: 0;
-  display: block;
-  background: #000;
-  backdrop-filter: none;
-  animation: none;
-}
-.watch-hero {
-  position: absolute;
-  inset: 0;
-  aspect-ratio: unset;
-  background: #000;
-}
-.watch-hero::after { display: none; }
 .modal-close {
   position: absolute;
   top: 14px;
@@ -788,33 +767,214 @@ body.watch-page .modal-overlay {
   border: none;
   touch-action: manipulation;
 }
-.player-switcher {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 6;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  max-width: calc(100% - 70px);
+/* ---------- Dedicated full-tab watch page (watch.html) ---------- */
+body.watch-page {
+  margin: 0;
+  background: #000;
+  min-height: 100vh;
 }
-.player-source-btn {
-  background: rgba(10, 10, 16, 0.75);
-  border: 1px solid var(--border);
-  color: var(--muted);
+.watch-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+.watch-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.watch-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.watch-brand-name {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.watch-type-tag {
   font-size: 0.72rem;
   font-weight: 600;
+  color: var(--muted);
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.watch-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.watch-source-dropdown { position: relative; }
+.watch-source-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
   font-family: inherit;
-  padding: 6px 12px;
+  padding: 9px 14px;
   border-radius: 20px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition: border-color 0.2s;
 }
-.player-source-btn:hover { color: var(--text); }
-.player-source-btn.active {
+.watch-source-btn:hover { border-color: var(--accent); }
+.watch-source-btn .chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+.watch-source-dropdown.open .chevron { transform: rotate(180deg); }
+.watch-source-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 150px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.watch-source-dropdown.open .watch-source-menu { display: flex; }
+.watch-source-option {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.watch-source-option:hover { background: var(--surface); color: var(--text); }
+.watch-source-option.active { background: var(--surface); color: var(--accent); }
+
+.watch-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.watch-card-head { padding: 20px 22px 16px; }
+.watch-server-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.watch-server-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.watch-server-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.watch-server-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--accent);
+}
+.watch-title { font-size: 1.7rem; font-weight: 800; margin-bottom: 4px; }
+.watch-meta { color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+
+.watch-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000 center / cover no-repeat;
+}
+.watch-stage:not(.is-playing)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.15) 55%);
+}
+.watch-play-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
   color: #fff;
-  border-color: var(--accent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+  transition: transform 0.2s;
+  z-index: 2;
+}
+.watch-play-btn:hover { transform: translate(-50%, -50%) scale(1.08); }
+.watch-play-btn svg { width: 34px; height: 34px; margin-left: 4px; }
+.watch-fullscreen-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 3;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(10, 10, 16, 0.75);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.watch-fullscreen-btn svg { width: 18px; height: 18px; }
+.watch-fullscreen-btn:hover { background: var(--accent); }
+
+.watch-info {
+  max-width: 1100px;
+  margin: 26px auto 0;
+}
+.watch-info-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.watch-info-title { font-size: 1.3rem; font-weight: 800; margin: 6px 0 14px; }
+.watch-info-divider { height: 1px; background: var(--border); margin-bottom: 16px; }
+.watch-info-desc { color: var(--muted); line-height: 1.6; max-width: 760px; }
+
+@media (max-width: 640px) {
+  .watch-shell { padding: 14px 16px 40px; }
+  .watch-brand-name { display: none; }
+  .watch-title { font-size: 1.3rem; }
+  .watch-play-btn { width: 64px; height: 64px; }
+  .watch-play-btn svg { width: 26px; height: 26px; }
 }
 
 .next-ep-prompt {
