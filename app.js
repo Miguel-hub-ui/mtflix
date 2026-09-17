@@ -77,6 +77,17 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
+  // "VidCloud" — the multi-quality server inside Megashare's player
+  // (megashare-official.lol). TMDB-id based embeds, plain iframe friendly.
+  vidcloud: {
+    label: "VidCloud",
+    movie: "https://megashare-official.lol/embed/movie/{id}",
+    tv: "https://megashare-official.lol/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   vidsrc: {
     label: "VidSrc",
     // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)

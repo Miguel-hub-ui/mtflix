@@ -105,6 +105,7 @@ Movies and TV shows stream through an embed player inside the detail modal. Four
 | Source | Default | Live progress events |
 |--------|---------|------------------------|
 | **VidLink** | ✓ main | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
+| VidCloud | | No — Megashare's multi-quality player (megashare-official.lol), TMDB-id based embeds |
 | VidKing | | Yes — sends `PLAYER_EVENT` postMessages with `currentTime`/`duration`/`season`/`episode`; resumes via `progress=` |
 | VidSrc | | No — confirmed it sends no postMessages at all |
 | 2Embed | | No — same as VidSrc, confirmed no postMessages |
