@@ -196,7 +196,7 @@ button { font-family: inherit; cursor: pointer; }
   position: fixed;
   inset: 0;
   z-index: 240;
-  background: radial-gradient(circle at 50% 25%, #0e2d33, var(--bg) 70%);
+  background: linear-gradient(to bottom, #0f3d47 0%, var(--bg) 100%);
   display: grid;
   place-items: center;
   overflow-y: auto;
