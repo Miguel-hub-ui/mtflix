@@ -4083,7 +4083,13 @@ window.addEventListener("message", function (event) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if ($("#modal-overlay")) {
+    // watch.html's own page shell reuses id="modal-overlay" (so shared code
+    // can check "is a player mounted" the same way on both pages) -- it is
+    // NOT a closeable layer there. Without this guard, Escape on the watch
+    // page called closeModal(), which deleted that entire shell (player,
+    // back link, episode list, everything) out from under the viewer,
+    // leaving the page blank while the URL stayed put.
+    if (document.body.dataset.page !== "watch" && $("#modal-overlay")) {
       closeModal();
       popNavIfNeeded();
       updateBodyScrollLock();
