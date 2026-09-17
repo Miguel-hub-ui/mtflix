@@ -1009,6 +1009,10 @@ async function buildHero() {
             (group) => `
           <div class="hero-slide">
             <div class="hero-tri">
+              <div class="hero-tri-glow"></div>
+              <svg class="hero-tri-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polygon points="50,17 15,76 85,72" />
+              </svg>
               ${heroTriCardHTML(group[0], "main")}
               ${group[1] ? heroTriCardHTML(group[1], "sub sub-left") : ""}
               ${group[2] ? heroTriCardHTML(group[2], "sub sub-right") : ""}
@@ -1047,9 +1051,34 @@ async function buildHero() {
     hero.querySelectorAll(".hero-tri-card").forEach((card) => {
       card.addEventListener("click", () => openDetail(card.dataset.type, card.dataset.id, false));
     });
+    wireHeroParallax();
   } catch (err) {
     handleFetchError(err);
   }
+}
+
+// Subtly shifts each triangle card opposite the cursor, by a different
+// amount per card, so the composition feels like it has real depth instead
+// of being three flat images pasted on top of each other. Skipped on touch
+// devices (no hover to drive it, and it'd fight the swipe drag).
+const HERO_TRI_DEPTH = { main: 6, "sub-left": 14, "sub-right": 11 };
+
+function wireHeroParallax() {
+  const hero = $("#hero");
+  if (!hero || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  hero.addEventListener("mousemove", (e) => {
+    if (heroDragging) return; // don't fight the swipe drag's own card movement
+    const rect = hero.getBoundingClientRect();
+    const nx = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+    const ny = (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
+    hero.querySelectorAll(".hero-tri-card").forEach((card) => {
+      const depth = HERO_TRI_DEPTH[card.dataset.variant] || 8;
+      card.style.translate = `${-nx * depth}px ${-ny * depth}px`;
+    });
+  });
+  hero.addEventListener("mouseleave", () => {
+    hero.querySelectorAll(".hero-tri-card").forEach((card) => (card.style.translate = "0 0"));
+  });
 }
 
 // One rectangle of the "3 rectangles forming a triangle" hero: a big "main"
@@ -1057,7 +1086,7 @@ async function buildHero() {
 // movie rather than one full-bleed backdrop with a separate text block.
 function heroTriCardHTML(item, variant) {
   return `
-    <button type="button" class="hero-tri-card hero-tri-${variant.replace(/\s+/g, " hero-tri-")}" data-id="${item.id}" data-type="${item.media_type}">
+    <button type="button" class="hero-tri-card hero-tri-${variant.replace(/\s+/g, " hero-tri-")}" data-id="${item.id}" data-type="${item.media_type}" data-variant="${variant.split(" ").pop()}">
       <img class="hero-tri-img" loading="lazy" src="${img(item.backdrop_path, "w780")}" alt="" />
       <span class="hero-tri-shine"></span>
       <span class="hero-tri-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
@@ -1075,6 +1104,7 @@ function heroTriCardHTML(item, variant) {
 // only committed to a new slide past a distance threshold, otherwise it
 // springs back to where it was.
 const HERO_SWIPE_THRESHOLD = 50;
+let heroDragging = false; // shared with wireHeroParallax so a swipe doesn't fight the parallax hover effect
 
 function wireHeroSwipe() {
   const hero = $("#hero");
@@ -1098,6 +1128,7 @@ function wireHeroSwipe() {
   hero.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     dragging = true;
+    heroDragging = true;
     decided = false;
     startX = e.clientX;
     startY = e.clientY;
@@ -1127,6 +1158,7 @@ function wireHeroSwipe() {
   const endDrag = () => {
     if (!dragging) return;
     dragging = false;
+    heroDragging = false;
     track.classList.remove("dragging");
     if (decided && Math.abs(deltaX) > HERO_SWIPE_THRESHOLD) {
       const dir = deltaX < 0 ? 1 : -1;
@@ -1144,7 +1176,17 @@ function wireHeroSwipe() {
 function setHeroSlide(i) {
   heroIndex = i;
   const track = $("#hero-track");
-  if (track) track.style.transform = `translateX(-${i * 100}%)`;
+  if (track) {
+    track.style.transform = `translateX(-${i * 100}%)`;
+    // Restart the cards' fly-in animation for whichever slide just became
+    // active -- removing the class, forcing a reflow, then re-adding it is
+    // what makes a CSS animation replay instead of only firing once.
+    const activeSlide = track.children[i];
+    const cards = activeSlide?.querySelectorAll(".hero-tri-card");
+    cards?.forEach((c) => c.classList.remove("hero-tri-enter"));
+    void activeSlide?.offsetWidth;
+    cards?.forEach((c) => c.classList.add("hero-tri-enter"));
+  }
   document.querySelectorAll(".hero-dot").forEach((d, di) =>
     d.classList.toggle("active", di === i)
   );
