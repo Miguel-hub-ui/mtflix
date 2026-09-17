@@ -196,7 +196,7 @@ button { font-family: inherit; cursor: pointer; }
   position: fixed;
   inset: 0;
   z-index: 240;
-  background: radial-gradient(circle at 50% 25%, #17172a, var(--bg) 70%);
+  background: radial-gradient(circle at 50% 25%, #0e2d33, var(--bg) 70%);
   display: grid;
   place-items: center;
   overflow-y: auto;
@@ -1160,7 +1160,7 @@ body.watch-page {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: radial-gradient(circle at 20% 10%, #17172a, var(--bg) 60%);
+  background: radial-gradient(circle at 20% 10%, #0e2d33, var(--bg) 60%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1568,7 +1568,7 @@ body.watch-page {
   position: fixed;
   inset: 0;
   z-index: 260;
-  background: radial-gradient(circle at 50% 20%, #17172a, var(--bg) 65%);
+  background: radial-gradient(circle at 50% 20%, #0e2d33, var(--bg) 65%);
   display: flex;
   align-items: center;
   justify-content: center;

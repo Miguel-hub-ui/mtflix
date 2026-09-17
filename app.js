@@ -50,28 +50,6 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SOURCES = {
-  // VidFast: consistently real 1080p/4K on new releases (auto-upgrades
-  // quality as better sources appear), which is why it's the default.
-  vidfast: {
-    label: "VidFast",
-    movie: "https://vidfast.pro/movie/{id}",
-    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  videasy: {
-    label: "Videasy",
-    movie: "https://player.videasy.net/movie/{id}",
-    tv: "https://player.videasy.net/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams();
-      if (resumeSeconds > 30) params.set("progress", String(Math.floor(resumeSeconds)));
-      return params;
-    },
-  },
   vidlink: {
     label: "VidLink",
     movie: "https://vidlink.pro/movie/{id}",
@@ -143,7 +121,7 @@ const PLAYER_SOURCES = {
 
 const LS_PLAYER_SOURCE = "cineverse_player_source";
 const LS_PLAYER_SUBSERVER = "cineverse_player_subserver";
-const DEFAULT_PLAYER_SOURCE = "vidfast";
+const DEFAULT_PLAYER_SOURCE = "vidlink";
 
 function getPlayerSourceId() {
   const id = localStorage.getItem(LS_PLAYER_SOURCE);
