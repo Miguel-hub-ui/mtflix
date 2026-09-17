@@ -4086,6 +4086,7 @@ document.addEventListener("keydown", (e) => {
     if ($("#modal-overlay")) {
       closeModal();
       popNavIfNeeded();
+      updateBodyScrollLock();
     }
     if (!$("#search-results").classList.contains("hidden")) {
       exitSearch();
