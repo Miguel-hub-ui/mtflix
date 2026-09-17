@@ -472,6 +472,7 @@ let apiKey =
 
 let genreMaps = { movie: {}, tv: {} };
 let heroItems = [];
+let heroGroups = []; // heroItems chunked into 3s -- one triangle-of-rectangles per slide
 let heroIndex = 0;
 let heroTimer = null;
 let searchTimer = null;
@@ -483,9 +484,9 @@ let searchTimer = null;
 // this way is a real source of stutter/glitches on weaker mobile hardware.
 function startHeroRotation() {
   clearInterval(heroTimer);
-  if (!heroItems.length) return;
+  if (!heroGroups.length) return;
   heroTimer = setInterval(() => {
-    setHeroSlide((heroIndex + 1) % heroItems.length);
+    setHeroSlide((heroIndex + 1) % heroGroups.length);
   }, 8000);
 }
 
@@ -497,7 +498,7 @@ function stopHeroRotation() {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopHeroRotation();
-  } else if (currentFilter === "home" && !$("#modal-overlay") && heroItems.length) {
+  } else if (currentFilter === "home" && !$("#modal-overlay") && heroGroups.length) {
     startHeroRotation();
   }
 });
@@ -995,36 +996,33 @@ async function buildHero() {
     heroItems = data.results
       .filter((r) => r.backdrop_path && (r.title || r.name))
       .map((r) => normalizeItem(r))
-      .slice(0, 6);
+      .slice(0, 9);
     if (!heroItems.length) return;
+
+    heroGroups = [];
+    for (let i = 0; i < heroItems.length; i += 3) heroGroups.push(heroItems.slice(i, i + 3));
 
     hero.innerHTML = `
       <div class="hero-track" id="hero-track">
-        ${heroItems
+        ${heroGroups
           .map(
-            (it) => `<div class="hero-slide" style="background-image:url(${img(it.backdrop_path, "w1280")})"></div>`
+            (group) => `
+          <div class="hero-slide">
+            <div class="hero-tri">
+              ${heroTriCardHTML(group[0], "main")}
+              ${group[1] ? heroTriCardHTML(group[1], "sub sub-left") : ""}
+              ${group[2] ? heroTriCardHTML(group[2], "sub sub-right") : ""}
+            </div>
+          </div>`
           )
           .join("")}
-      </div>
-      <div class="hero-content" id="hero-content">
-        <div class="hero-meta">
-          <span class="hero-type-badge" id="hero-type">MOVIE</span>
-          <span class="hero-rating" id="hero-rating"></span>
-          <span class="muted" id="hero-year"></span>
-        </div>
-        <h1 class="hero-title" id="hero-title"></h1>
-        <p class="hero-overview" id="hero-overview"></p>
-        <div class="hero-buttons">
-          <button class="btn btn-accent" id="hero-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play</button>
-          <button class="btn btn-ghost" id="hero-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>More Info</button>
-        </div>
       </div>
       <button type="button" class="hero-nav hero-nav-prev" id="hero-prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <button type="button" class="hero-nav hero-nav-next" id="hero-next" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
       <div class="hero-dots" id="hero-dots"></div>`;
 
     const dots = $("#hero-dots");
-    heroItems.forEach((_, i) => {
+    heroGroups.forEach((_, i) => {
       const dot = document.createElement("button");
       dot.className = "hero-dot" + (i === 0 ? " active" : "");
       dot.addEventListener("click", () => {
@@ -1039,22 +1037,36 @@ async function buildHero() {
     wireHeroSwipe();
 
     $("#hero-prev").addEventListener("click", () => {
-      setHeroSlide((heroIndex - 1 + heroItems.length) % heroItems.length);
+      setHeroSlide((heroIndex - 1 + heroGroups.length) % heroGroups.length);
       startHeroRotation();
     });
     $("#hero-next").addEventListener("click", () => {
-      setHeroSlide((heroIndex + 1) % heroItems.length);
+      setHeroSlide((heroIndex + 1) % heroGroups.length);
       startHeroRotation();
     });
-    $("#hero-play").addEventListener("click", () => {
-      openDetail(heroItems[heroIndex].media_type, heroItems[heroIndex].id, true);
-    });
-    $("#hero-info").addEventListener("click", () => {
-      openDetail(heroItems[heroIndex].media_type, heroItems[heroIndex].id, false);
+    hero.querySelectorAll(".hero-tri-card").forEach((card) => {
+      card.addEventListener("click", () => openDetail(card.dataset.type, card.dataset.id, false));
     });
   } catch (err) {
     handleFetchError(err);
   }
+}
+
+// One rectangle of the "3 rectangles forming a triangle" hero: a big "main"
+// card up top and two smaller "sub" cards below it, each its own clickable
+// movie rather than one full-bleed backdrop with a separate text block.
+function heroTriCardHTML(item, variant) {
+  return `
+    <button type="button" class="hero-tri-card hero-tri-${variant.replace(/\s+/g, " hero-tri-")}" data-id="${item.id}" data-type="${item.media_type}">
+      <img class="hero-tri-img" loading="lazy" src="${img(item.backdrop_path, "w780")}" alt="" />
+      <span class="hero-tri-shine"></span>
+      <span class="hero-tri-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+      <div class="hero-tri-info">
+        <span class="hero-tri-badge">${item.media_type === "tv" ? "SERIES" : "FILM"}</span>
+        <h3 class="hero-tri-title">${escapeHtml(item.title)}</h3>
+        <span class="hero-tri-rating">★ ${rating(item.vote_average)}</span>
+      </div>
+    </button>`;
 }
 
 // Lets the featured-titles banner be swiped (touch) or dragged (mouse) left/
@@ -1068,11 +1080,11 @@ function wireHeroSwipe() {
   const hero = $("#hero");
   const track = $("#hero-track");
   if (!hero || !track) return;
-  // Listens on the whole banner, not just the track: .hero-content (title,
-  // overview, buttons) is a sibling that visually sits on top of most of the
-  // track, so a listener on the track alone only ever saw drags started over
-  // its few uncovered edges -- everywhere else just selected text instead of
-  // swiping.
+  // Listens on the whole banner rather than just the track: the triangle
+  // cards are clickable buttons layered on top of it, so a listener on the
+  // track alone would only ever see drags started on the sliver of banner
+  // not covered by a card. A plain tap/click on a card never moves enough to
+  // flip `decided`, so its own click handler still fires normally.
   let startX = 0;
   let startY = 0;
   let deltaX = 0;
@@ -1118,7 +1130,7 @@ function wireHeroSwipe() {
     track.classList.remove("dragging");
     if (decided && Math.abs(deltaX) > HERO_SWIPE_THRESHOLD) {
       const dir = deltaX < 0 ? 1 : -1;
-      setHeroSlide((heroIndex + dir + heroItems.length) % heroItems.length);
+      setHeroSlide((heroIndex + dir + heroGroups.length) % heroGroups.length);
     } else if (decided) {
       setHeroSlide(heroIndex);
     }
@@ -1131,22 +1143,8 @@ function wireHeroSwipe() {
 
 function setHeroSlide(i) {
   heroIndex = i;
-  const item = heroItems[i];
   const track = $("#hero-track");
-  const content = $("#hero-content");
-  if (track) {
-    track.style.transform = `translateX(-${i * 100}%)`;
-    track.querySelectorAll(".hero-slide").forEach((slide, si) => slide.classList.toggle("active", si === i));
-  }
-  content.classList.add("fading");
-  setTimeout(() => {
-    $("#hero-type").textContent = item.media_type === "tv" ? "SERIES" : "FILM";
-    $("#hero-rating").textContent = `★ ${rating(item.vote_average)}`;
-    $("#hero-year").textContent = year(item.date);
-    $("#hero-title").textContent = item.title;
-    $("#hero-overview").textContent = item.overview;
-    content.classList.remove("fading");
-  }, 120);
+  if (track) track.style.transform = `translateX(-${i * 100}%)`;
   document.querySelectorAll(".hero-dot").forEach((d, di) =>
     d.classList.toggle("active", di === i)
   );

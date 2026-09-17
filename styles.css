@@ -366,73 +366,128 @@ button { font-family: inherit; cursor: pointer; }
 .hero-track.dragging { transition: none; }
 .hero:active { cursor: grabbing; }
 .hero-slide {
+  position: relative;
   flex: 0 0 100%;
   height: 100%;
-  background-size: cover;
-  background-position: center 12%;
-  transform: scale(1.06);
-  transition: transform 9s ease-out;
 }
-.hero-slide.active { transform: scale(1); }
 .hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(to top, var(--bg) 2%, rgba(10, 10, 16, 0.15) 42%, rgba(10, 10, 16, 0.55) 100%),
-    linear-gradient(to right, rgba(10, 10, 16, 0.88) 0%, rgba(10, 10, 16, 0.25) 55%, transparent 80%);
+  background: linear-gradient(to top, var(--bg) 0%, transparent 14%);
+  pointer-events: none;
 }
-.hero-content {
+
+/* Three rectangles forming a triangle: one big "main" card on top, two
+   smaller "sub" cards below it -- each its own clickable movie, angled and
+   overlapping for a deliberately non-grid, non-simple composition. */
+.hero-tri {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.hero-tri-card {
   position: absolute;
-  z-index: 2;
-  left: 4%;
-  bottom: 18%;
-  max-width: 640px;
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  border: none;
+  padding: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0c0c12;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.4s ease;
 }
-.hero-content.fading {
-  opacity: 0;
-  transform: translateY(14px);
+.hero-tri-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 6s ease-out;
 }
-.hero-meta {
+.hero-tri-card:hover .hero-tri-img { transform: scale(1.08); }
+.hero-tri-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), transparent 55%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.hero-tri-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(6, 8, 12, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
-  font-size: 0.95rem;
+  justify-content: center;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
-.hero-type-badge {
-  color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+.hero-tri-card:hover .hero-tri-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.hero-tri-play svg { width: 24px; height: 24px; }
+.hero-tri-info {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 14px 16px 12px;
+  background: linear-gradient(to top, rgba(4, 4, 8, 0.92) 15%, transparent);
+}
+.hero-tri-badge {
+  display: inline-block;
+  color: var(--accent);
+  border: 1px solid rgba(34, 211, 238, 0.5);
   border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
-  letter-spacing: 2px;
+  padding: 1px 6px;
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
   font-weight: 700;
+  margin-bottom: 6px;
 }
-.hero-rating { color: #ffd166; font-weight: 600; }
-.hero-title {
-  font-size: clamp(2rem, 5vw, 3.6rem);
+.hero-tri-title {
   font-weight: 800;
-  line-height: 1.08;
-  margin-bottom: 16px;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
-}
-.hero-overview {
-  color: #d9dbe2;
-  font-size: 1rem;
-  line-height: 1.6;
-  max-width: 540px;
-  margin-bottom: 26px;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+  line-height: 1.2;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.hero-buttons { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-tri-rating { display: block; margin-top: 4px; color: #ffd166; font-weight: 600; font-size: 0.8rem; }
+
+.hero-tri-main {
+  /* Fixed px, not %: the navbar floats fixed over the hero (transparent
+     until scrolled), so this needs real clearance below it rather than a
+     percentage that shrinks away on shorter viewports. */
+  top: 88px;
+  left: 50%;
+  width: min(46%, 560px);
+  height: 62%;
+  z-index: 2;
+  transform: translateX(-50%) rotate(-1.4deg);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(34, 211, 238, 0.3);
+}
+.hero-tri-main:hover { transform: translateX(-50%) rotate(0deg) scale(1.025); }
+.hero-tri-main .hero-tri-title { font-size: clamp(1.1rem, 2.1vw, 1.5rem); }
+
+.hero-tri-sub {
+  width: min(28%, 340px);
+  height: 36%;
+  z-index: 1;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+.hero-tri-sub .hero-tri-title { font-size: 0.85rem; }
+/* Fixed px, not %: .rows overlaps the bottom -110px of the hero to blend
+   into it (see .rows), so the sub cards need real clearance above that or
+   the row list underneath visually collides with them. */
+.hero-tri-sub-left { bottom: 140px; left: 3%; transform: rotate(-5deg); }
+.hero-tri-sub-left:hover { transform: rotate(0deg) translateY(-6px) scale(1.04); }
+.hero-tri-sub-right { bottom: 140px; right: 3%; transform: rotate(5deg); }
+.hero-tri-sub-right:hover { transform: rotate(0deg) translateY(-6px) scale(1.04); }
 
 .btn {
   display: inline-flex;
@@ -1105,7 +1160,7 @@ body.watch-page {
 /* Movie/show names read in white, not the app's cyan text color -- everything
    else (person names, cast, UI chrome) keeps the cyan. */
 .card-title,
-.hero-title,
+.hero-tri-title,
 .watch-info-title,
 .modal-title:not(.person-name),
 .search-suggest-item .ss-title {
@@ -2280,10 +2335,18 @@ body.watch-page {
   .bottom-nav a.active { color: var(--text); }
   .bottom-nav a.active svg { color: var(--text); }
   #messageArea { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
-  .hero-content { bottom: 16%; right: 4%; }
   .rows { margin-top: 0; gap: 32px; padding-top: 30px; }
-  .hero { height: min(66vh, 560px); min-height: 420px; }
-  .hero-slide { background-position: center 22%; }
+  .hero { height: min(72vh, 620px); min-height: 460px; }
+  .hero-tri-main { width: 64%; height: 55%; top: 78px; }
+  .hero-tri-sub { width: 40%; height: 34%; }
+  .hero-dots { bottom: 12px; }
+  /* .rows doesn't overlap the hero on mobile (margin-top: 0 above), so the
+     desktop fixed 140px clearance isn't needed here -- back to a % so the
+     cards sit close to the bottom like the composition intends. */
+  .hero-tri-sub-left { bottom: 4%; left: 2%; transform: rotate(-3deg); }
+  .hero-tri-sub-right { bottom: 4%; right: 2%; transform: rotate(3deg); }
+  .hero-tri-sub .hero-tri-info { padding: 8px 10px 7px; }
+  .hero-tri-sub .hero-tri-rating { display: none; }
   .modal-body { padding: 20px 20px 28px; }
   .modal-body { padding-bottom: 90px; }
   .modal-title { font-size: 1.4rem; }
