@@ -1,6 +1,6 @@
 :root {
-  --bg: #000000;
-  --surface: #000000;
+  --bg: #0a0a0a;
+  --surface: #121212;
   --surface-2: #1e1e2b;
   --border: #2a2a3a;
   --text: #f4f4f6;
@@ -707,14 +707,15 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 200;
   background: rgba(4, 4, 8, 0.78);
   backdrop-filter: blur(8px);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 24px;
   animation: fadeIn 0.25s ease;
 }
 .modal {
   position: relative;
-  width: min(880px, 94vw);
+  width: min(880px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   background: var(--surface);
@@ -1160,12 +1161,13 @@ body.watch-page {
   inset: 0;
   z-index: 300;
   background: radial-gradient(circle at 20% 10%, #17172a, var(--bg) 60%);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
 }
 .setup-panel {
-  width: min(520px, 94vw);
+  width: min(520px, 100%);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1567,14 +1569,15 @@ body.watch-page {
   inset: 0;
   z-index: 260;
   background: radial-gradient(circle at 50% 20%, #17172a, var(--bg) 65%);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
   overflow-y: auto;
 }
 
 .auth-panel {
-  width: min(420px, 94vw);
+  width: min(420px, 100%);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -1885,11 +1888,12 @@ body.watch-page {
   z-index: 260;
   background: rgba(4, 4, 8, 0.85);
   backdrop-filter: blur(10px);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
 }
-.pin-panel { width: min(380px, 94vw); text-align: left; }
+.pin-panel { width: min(380px, 100%); text-align: left; }
 .pin-panel .verify-title { margin-bottom: 4px; }
 .pin-panel .code-row { margin-top: 18px; }
 .pin-panel .verify-links { justify-content: center; }
