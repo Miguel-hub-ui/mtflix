@@ -1317,92 +1317,7 @@ function renderPlayOverlay(backdropUrl, onPlay) {
   wireFullscreenBtn(stage);
 }
 
-// Cross-origin embeds can't be inspected for an actual error page, so "never
-// confirmed alive within a grace window" is the best failure signal
-// available. Event-capable sources (VidLink/VidKing) get a longer window and
-// are confirmed by a real postMessage; sources with no events (VidSrc,
-// 2Embed) only get confirmed by the iframe's own `load` firing, since that's
-// all we can observe about them.
-const AUTO_SWITCH_LOAD_TIMEOUT_MS = 8000;
-const AUTO_SWITCH_PLAYBACK_TIMEOUT_MS = 14000;
-// Flat list of every concrete fallback step -- a plain source (VidLink,
-// VidKing, 2Embed) is one step, but a source that bundles multiple mirrors
-// behind its own SERVER picker (VidSrc: Pro Multi / Cinesrc / 4K) expands
-// into one step per mirror, so a dead mirror falls through to its siblings
-// instead of jumping straight to a whole different source.
-function allFallbackSteps() {
-  return Object.keys(PLAYER_SOURCES).flatMap((sourceId) => {
-    const source = PLAYER_SOURCES[sourceId];
-    return source.servers?.length
-      ? source.servers.map((s) => ({ sourceId, subId: s.id }))
-      : [{ sourceId, subId: null }];
-  });
-}
-function fallbackStepKey(sourceId, subId) {
-  return subId ? `${sourceId}::${subId}` : sourceId;
-}
-
-let autoSwitchTimers = [];
-let autoSwitchGeneration = 0;
-let sourcesTriedThisPlay = new Set();
-// Set by setupSourceDropdown() to its internal render() so an auto-switch can
-// refresh the source/SERVER pill labels the same way a manual pick does.
-let refreshSourceUI = () => {};
-
-function clearAutoSwitchWatchdog() {
-  autoSwitchTimers.forEach(clearTimeout);
-  autoSwitchTimers = [];
-}
-
-function nextFallbackStep(fromSourceId, fromSubId, tried) {
-  const steps = allFallbackSteps();
-  const fromKey = fallbackStepKey(fromSourceId, fromSubId);
-  const start = Math.max(0, steps.findIndex((s) => fallbackStepKey(s.sourceId, s.subId) === fromKey));
-  for (let i = 1; i <= steps.length; i++) {
-    const candidate = steps[(start + i) % steps.length];
-    if (!tried.has(fallbackStepKey(candidate.sourceId, candidate.subId))) return candidate;
-  }
-  return null;
-}
-
-function scheduleAutoSwitchWatchdog(sourceId, subId, generation) {
-  const source = PLAYER_SOURCES[sourceId];
-  const timeout = source.supportsEvents ? AUTO_SWITCH_PLAYBACK_TIMEOUT_MS : AUTO_SWITCH_LOAD_TIMEOUT_MS;
-  autoSwitchTimers.push(
-    setTimeout(() => {
-      if (generation !== autoSwitchGeneration || !currentPlayer) return;
-      autoSwitchToNextSource(sourceId, subId);
-    }, timeout)
-  );
-}
-
-function labelForFallbackStep(sourceId, subId) {
-  const source = PLAYER_SOURCES[sourceId];
-  const sub = subId ? source.servers?.find((s) => s.id === subId) : null;
-  return sub ? `${source.label} — ${sub.label}` : source.label;
-}
-
-function autoSwitchToNextSource(failedSourceId, failedSubId) {
-  const failedLabel = labelForFallbackStep(failedSourceId, failedSubId);
-  sourcesTriedThisPlay.add(fallbackStepKey(failedSourceId, failedSubId));
-  if (!currentPlayer) return;
-  const next = nextFallbackStep(failedSourceId, failedSubId, sourcesTriedThisPlay);
-  if (!next) {
-    showToast("None of the available servers are responding right now — try again in a bit");
-    return;
-  }
-  setPlayerSourceId(next.sourceId);
-  if (next.subId) setPlayerSubServer(next.sourceId, next.subId);
-  refreshSourceUI();
-  showToast(`"${failedLabel}" isn't responding — switched to ${labelForFallbackStep(next.sourceId, next.subId)}`);
-  const watch = getWatch(currentPlayer.id);
-  injectPlayer(
-    buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t),
-    { auto: true }
-  );
-}
-
-function injectPlayer(url, { auto = false } = {}) {
+function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   // Swapping out an iframe while it's the fullscreen element leaves the
@@ -1414,18 +1329,6 @@ function injectPlayer(url, { auto = false } = {}) {
   realPlaybackPaused = false;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
 
-  // A fresh, user-initiated play (new title, new episode, manual source
-  // switch) gets a clean slate of servers to try; an auto-switch keeps
-  // building on the same attempt so it doesn't loop back to one that just
-  // failed.
-  if (!auto) sourcesTriedThisPlay = new Set();
-  clearAutoSwitchWatchdog();
-  autoSwitchGeneration++;
-  const generation = autoSwitchGeneration;
-  const activeSourceId = getPlayerSourceId();
-  const activeSubId = getPlayerSubServer(activeSourceId)?.id || null;
-  scheduleAutoSwitchWatchdog(activeSourceId, activeSubId, generation);
-
   heroArea.classList.add("is-playing");
   heroArea.style.backgroundImage = "";
   heroArea.innerHTML = `
@@ -1433,22 +1336,6 @@ function injectPlayer(url, { auto = false } = {}) {
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>${fullscreenBtnHTML}`;
   wireFullscreenBtn(heroArea);
-
-  const iframe = heroArea.querySelector(".modal-trailer iframe");
-  iframe?.addEventListener(
-    "load",
-    () => {
-      if (generation === autoSwitchGeneration && !PLAYER_SOURCES[activeSourceId].supportsEvents) clearAutoSwitchWatchdog();
-    },
-    { once: true }
-  );
-  iframe?.addEventListener(
-    "error",
-    () => {
-      if (generation === autoSwitchGeneration) autoSwitchToNextSource(activeSourceId, activeSubId);
-    },
-    { once: true }
-  );
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
@@ -1527,7 +1414,6 @@ function setupSourceDropdown() {
     });
   };
   render();
-  refreshSourceUI = render;
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -4204,13 +4090,6 @@ window.addEventListener("message", function (event) {
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
-    // Any real message from the player counts as alive -- an early ping with
-    // currentTime/duration still 0 is common while the player is buffering
-    // or waiting on a click-to-play gate, and the real first progress update
-    // can legitimately take longer than the watchdog window. Requiring a
-    // positive value here caused false "server not responding" switches on
-    // shows that were actually playing fine, just hadn't reported yet.
-    clearAutoSwitchWatchdog();
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
@@ -4235,7 +4114,6 @@ window.addEventListener("message", function (event) {
   if (msg.type === "MEDIA_DATA") {
     const entry = (msg.data || {})[String(currentPlayer.id)];
     if (!entry || !entry.progress) return;
-    clearAutoSwitchWatchdog();
     const watched = entry.progress.watched || 0;
     const duration = entry.progress.duration || 0;
     const isTv = entry.type === "tv";
