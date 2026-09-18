@@ -4195,12 +4195,13 @@ window.addEventListener("message", function (event) {
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
-    // Only a message that actually carries a real playback position proves
-    // the source is alive -- clearing the watchdog on any message at all
-    // (including e.g. a bare "ready"/init ping some embeds send immediately
-    // on load, before the video itself has started or errored out) let a
-    // dead source slip past the watchdog with nothing left to catch it.
-    clearAutoSwitchWatchdog();
+    // Only a message that actually carries real video metadata proves the
+    // source is alive -- some embeds send a bare "ready"/loadedmetadata ping
+    // immediately on load, before the video itself has started or errored
+    // out, with currentTime and duration both still 0. That numeric 0 used
+    // to satisfy the typeof check above and clear the watchdog on its own,
+    // letting a dead source slip past it with nothing left to catch it.
+    if (d.duration > 0 || d.currentTime > 0) clearAutoSwitchWatchdog();
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
@@ -4225,9 +4226,12 @@ window.addEventListener("message", function (event) {
   if (msg.type === "MEDIA_DATA") {
     const entry = (msg.data || {})[String(currentPlayer.id)];
     if (!entry || !entry.progress) return;
-    clearAutoSwitchWatchdog();
     const watched = entry.progress.watched || 0;
     const duration = entry.progress.duration || 0;
+    // Same reasoning as the PLAYER_EVENT branch above: a snapshot with
+    // watched/duration both still 0 is VidLink's own init state, not proof
+    // the video actually loaded.
+    if (duration > 0 || watched > 0) clearAutoSwitchWatchdog();
     const isTv = entry.type === "tv";
     const season = isTv ? Number(entry.last_season_watched) || currentPlayer.season || 1 : 1;
     const episode = isTv ? Number(entry.last_episode_watched) || currentPlayer.episode || 1 : 1;
