@@ -119,32 +119,40 @@ const PLAYER_SOURCES = {
   },
 };
 
-const LS_PLAYER_SOURCE = "cineverse_player_source";
-const LS_PLAYER_SUBSERVER = "cineverse_player_subserver";
 const DEFAULT_PLAYER_SOURCE = "vidlink";
 
+// A manual/auto server switch only applies to the movie or episode you're
+// currently watching -- kept in memory (not localStorage) and reset to the
+// default whenever the player modal closes, so reopening a title (or a new
+// one) always starts back on VidLink instead of remembering an old pick.
+let playerSourceIdMem = null;
+let playerSubServerMem = {};
+
+function resetPlayerSourceToDefault() {
+  playerSourceIdMem = null;
+  playerSubServerMem = {};
+}
+
 function getPlayerSourceId() {
-  const id = localStorage.getItem(LS_PLAYER_SOURCE);
-  return id && PLAYER_SOURCES[id] ? id : DEFAULT_PLAYER_SOURCE;
+  return playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem] ? playerSourceIdMem : DEFAULT_PLAYER_SOURCE;
 }
 
 function setPlayerSourceId(id) {
-  if (PLAYER_SOURCES[id]) localStorage.setItem(LS_PLAYER_SOURCE, id);
+  if (PLAYER_SOURCES[id]) playerSourceIdMem = id;
 }
 
 // Nested "SERVER" picker for sources that bundle multiple backends
-// (e.g. VidSrc's Pro Multi / Cinesrc / 4K). One choice per source, kept in
-// localStorage and applied on top of the source's URL templates.
+// (e.g. VidSrc's Pro Multi / Cinesrc / 4K).
 function getPlayerSubServer(sourceId = getPlayerSourceId()) {
   const source = PLAYER_SOURCES[sourceId];
   if (!source?.servers?.length) return null;
-  const wanted = localStorage.getItem(`${LS_PLAYER_SUBSERVER}.${sourceId}`);
+  const wanted = playerSubServerMem[sourceId];
   return source.servers.find((s) => s.id === wanted) || source.servers[0];
 }
 
 function setPlayerSubServer(sourceId, subId) {
   const source = PLAYER_SOURCES[sourceId];
-  if (source?.servers?.some((s) => s.id === subId)) localStorage.setItem(`${LS_PLAYER_SUBSERVER}.${sourceId}`, subId);
+  if (source?.servers?.some((s) => s.id === subId)) playerSubServerMem[sourceId] = subId;
 }
 
 function resolvePlayerSource(sourceId = getPlayerSourceId()) {
@@ -2544,6 +2552,7 @@ function syncModalListButton(id) {
 function closeModal() {
   clearInterval(heartbeatTimer);
   $("#modal-overlay")?.remove();
+  resetPlayerSourceToDefault();
   refreshContinueWatchingRow();
   if (currentFilter === "home" && !document.hidden) startHeroRotation();
 }
