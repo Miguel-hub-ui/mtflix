@@ -167,6 +167,11 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#fd79a8,#a4135c)",
   "linear-gradient(135deg,#636e72,#2d3436)",
 ];
+const GUEST_AVATAR_GRADIENT = "linear-gradient(135deg,#00cec9,#006d6a)";
+function avatarGradientFor(p) {
+  if (p.id === "p_main" && p.name === "Guest") return GUEST_AVATAR_GRADIENT;
+  return AVATAR_GRADIENTS[(p.g ?? 0) % AVATAR_GRADIENTS.length];
+}
 let appStarted = false;
 let gateEditing = false;
 let editorState = null;
@@ -461,7 +466,7 @@ function renderAvatarInto(el, p) {
     el.style.background = bg;
   } else {
     el.textContent = (p.name[0] || "?").toUpperCase();
-    el.style.background = AVATAR_GRADIENTS[(p.g ?? 0) % AVATAR_GRADIENTS.length];
+    el.style.background = avatarGradientFor(p);
   }
 }
 
@@ -3344,7 +3349,7 @@ function renderGate(openAddForm) {
       tile.querySelector(".profile-initial").style.display = "none";
       boxEl.style.background = tileBg;
     } else {
-      boxEl.style.background = AVATAR_GRADIENTS[(p.g ?? 0) % AVATAR_GRADIENTS.length];
+      boxEl.style.background = avatarGradientFor(p);
     }
     if (p.pinHash) {
       const lock = document.createElement("span");
