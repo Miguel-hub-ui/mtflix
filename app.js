@@ -1092,7 +1092,7 @@ function wireHeroParallax() {
 function heroTriCardHTML(item, variant) {
   return `
     <button type="button" class="hero-tri-card hero-tri-${variant.replace(/\s+/g, " hero-tri-")}" data-id="${item.id}" data-type="${item.media_type}" data-variant="${variant.split(" ").pop()}">
-      <img class="hero-tri-img" loading="lazy" src="${img(item.backdrop_path, "w780")}" alt="" />
+      <img class="hero-tri-img" loading="lazy" src="${img(item.backdrop_path, "w1280")}" alt="" />
       <span class="hero-tri-shine"></span>
       <span class="hero-tri-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
       <div class="hero-tri-info">
