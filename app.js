@@ -1317,7 +1317,22 @@ function renderPlayOverlay(backdropUrl, onPlay) {
 // all we can observe about them.
 const AUTO_SWITCH_LOAD_TIMEOUT_MS = 8000;
 const AUTO_SWITCH_PLAYBACK_TIMEOUT_MS = 14000;
-const SOURCE_FALLBACK_ORDER = Object.keys(PLAYER_SOURCES);
+// Flat list of every concrete fallback step -- a plain source (VidLink,
+// VidKing, 2Embed) is one step, but a source that bundles multiple mirrors
+// behind its own SERVER picker (VidSrc: Pro Multi / Cinesrc / 4K) expands
+// into one step per mirror, so a dead mirror falls through to its siblings
+// instead of jumping straight to a whole different source.
+function allFallbackSteps() {
+  return Object.keys(PLAYER_SOURCES).flatMap((sourceId) => {
+    const source = PLAYER_SOURCES[sourceId];
+    return source.servers?.length
+      ? source.servers.map((s) => ({ sourceId, subId: s.id }))
+      : [{ sourceId, subId: null }];
+  });
+}
+function fallbackStepKey(sourceId, subId) {
+  return subId ? `${sourceId}::${subId}` : sourceId;
+}
 
 let autoSwitchTimers = [];
 let autoSwitchGeneration = 0;
@@ -1331,37 +1346,47 @@ function clearAutoSwitchWatchdog() {
   autoSwitchTimers = [];
 }
 
-function nextFallbackSourceId(fromId, tried) {
-  const start = SOURCE_FALLBACK_ORDER.indexOf(fromId);
-  for (let i = 1; i <= SOURCE_FALLBACK_ORDER.length; i++) {
-    const candidate = SOURCE_FALLBACK_ORDER[(start + i) % SOURCE_FALLBACK_ORDER.length];
-    if (!tried.has(candidate)) return candidate;
+function nextFallbackStep(fromSourceId, fromSubId, tried) {
+  const steps = allFallbackSteps();
+  const fromKey = fallbackStepKey(fromSourceId, fromSubId);
+  const start = Math.max(0, steps.findIndex((s) => fallbackStepKey(s.sourceId, s.subId) === fromKey));
+  for (let i = 1; i <= steps.length; i++) {
+    const candidate = steps[(start + i) % steps.length];
+    if (!tried.has(fallbackStepKey(candidate.sourceId, candidate.subId))) return candidate;
   }
   return null;
 }
 
-function scheduleAutoSwitchWatchdog(sourceId, generation) {
+function scheduleAutoSwitchWatchdog(sourceId, subId, generation) {
   const source = PLAYER_SOURCES[sourceId];
   const timeout = source.supportsEvents ? AUTO_SWITCH_PLAYBACK_TIMEOUT_MS : AUTO_SWITCH_LOAD_TIMEOUT_MS;
   autoSwitchTimers.push(
     setTimeout(() => {
       if (generation !== autoSwitchGeneration || !currentPlayer) return;
-      autoSwitchToNextSource(sourceId);
+      autoSwitchToNextSource(sourceId, subId);
     }, timeout)
   );
 }
 
-function autoSwitchToNextSource(failedSourceId) {
-  sourcesTriedThisPlay.add(failedSourceId);
+function labelForFallbackStep(sourceId, subId) {
+  const source = PLAYER_SOURCES[sourceId];
+  const sub = subId ? source.servers?.find((s) => s.id === subId) : null;
+  return sub ? `${source.label} — ${sub.label}` : source.label;
+}
+
+function autoSwitchToNextSource(failedSourceId, failedSubId) {
+  const failedLabel = labelForFallbackStep(failedSourceId, failedSubId);
+  sourcesTriedThisPlay.add(fallbackStepKey(failedSourceId, failedSubId));
   if (!currentPlayer) return;
-  const next = nextFallbackSourceId(failedSourceId, sourcesTriedThisPlay);
+  const next = nextFallbackStep(failedSourceId, failedSubId, sourcesTriedThisPlay);
   if (!next) {
     showToast("None of the available servers are responding right now — try again in a bit");
     return;
   }
-  setPlayerSourceId(next);
+  setPlayerSourceId(next.sourceId);
+  if (next.subId) setPlayerSubServer(next.sourceId, next.subId);
   refreshSourceUI();
-  showToast(`"${PLAYER_SOURCES[failedSourceId].label}" isn't responding — switched to ${PLAYER_SOURCES[next].label}`);
+  showToast(`"${failedLabel}" isn't responding — switched to ${labelForFallbackStep(next.sourceId, next.subId)}`);
   const watch = getWatch(currentPlayer.id);
   injectPlayer(
     buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t),
@@ -1390,7 +1415,8 @@ function injectPlayer(url, { auto = false } = {}) {
   autoSwitchGeneration++;
   const generation = autoSwitchGeneration;
   const activeSourceId = getPlayerSourceId();
-  scheduleAutoSwitchWatchdog(activeSourceId, generation);
+  const activeSubId = getPlayerSubServer(activeSourceId)?.id || null;
+  scheduleAutoSwitchWatchdog(activeSourceId, activeSubId, generation);
 
   heroArea.classList.add("is-playing");
   heroArea.style.backgroundImage = "";
@@ -1411,7 +1437,7 @@ function injectPlayer(url, { auto = false } = {}) {
   iframe?.addEventListener(
     "error",
     () => {
-      if (generation === autoSwitchGeneration) autoSwitchToNextSource(activeSourceId);
+      if (generation === autoSwitchGeneration) autoSwitchToNextSource(activeSourceId, activeSubId);
     },
     { once: true }
   );
