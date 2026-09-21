@@ -119,246 +119,20 @@ const PLAYER_SOURCES = {
 
 const DEFAULT_PLAYER_SOURCE = "vidlink";
 
-// A manual/auto server switch only applies to the movie or episode you're
+// A manual server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on VidLink instead of restarting on the server
-// that just failed. A failover switch is remembered separately for the
-// session so the same dead server doesn't get picked again next title.
+// one) always starts back on VidLink instead of remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
-let lastAutoFailedSourceId = null;
-
-// --- Auto server failover -------------------------------------------------
-//
-// Embed iframes are cross-origin, so we can never read an error message
-// rendered inside them ("this title couldn't be loaded" is just pixels to
-// us) -- but failure is still detectable from outside:
-//
-//   1. The iframe's `load` event never fires (server down / DNS dead).
-//   2. The source itself posts an explicit PLAYER_EVENT error
-//      (origin-verified so ad frames inside the embed can't fake it).
-//   3. For sources that report progress (VidLink): playback never actually
-//      moves. This is the case that fooled the first version of this
-//      watchdog -- VidLink renders its own "couldn't load" screen while
-//      still firing a few normal-looking events (a play at 0:00, a
-//      MEDIA_DATA snapshot), so "did we see ANY event" wrongly said
-//      healthy. Progress is the only honest signal: if 30s pass with the
-//      reported position still under 10s, the title is NOT playing.
-//   4. Sources that report nothing at all (MultiEmbed, VidSrc, 2Embed) are
-//      impossible to verify from outside -- for those we surface a manual
-//      one-click "Not playing? Try the next server" chip after the same
-//      window instead of guessing.
-//
-// When a failure is detected, the player re-injects on the next server in
-// PLAYER_SOURCES order, tells the viewer via a toast, and bans the dead one
-// for the rest of the session. If every server has been tried, it stops and
-// says so instead of looping forever.
-
-let failoverState = null; // see armFailoverWatchdog()
-let failoverBannedSources = new Set(); // servers that failed this session
-// Timestamp of the last real (non-estimated) playback signal showing actual
-// progress (position >= 10s) from the active source. Lets the watchdog tell
-// "loaded but stuck" apart from "starting up slowly / buffering". Reset on
-// every player injection so a new server's watchdog is never fooled by the
-// previous server's last events.
-let lastFailoverActivityAt = 0;
-
-const FAILOVER_LOAD_TIMEOUT = 15000; // (1) iframe `load` must fire within this
-const FAILOVER_PLAY_TIMEOUT = 30000; // (4) silent sources: when the chip appears
-const FAILOVER_STUCK_AT = 45000; // (3) event sources: no progress by now -> switch
-
-function orderedFailoverSourceIds() {
-  const preferred = [DEFAULT_PLAYER_SOURCE, ...Object.keys(PLAYER_SOURCES).filter((id) => id !== DEFAULT_PLAYER_SOURCE)];
-  return preferred.filter((id) => !failoverBannedSources.has(id));
-}
-
-function disarmFailoverWatchdog() {
-  if (failoverState) {
-    clearTimeout(failoverState.loadTimer);
-    clearTimeout(failoverState.playTimer);
-    failoverState = null;
-  }
-  hideServerFailoverChip();
-}
-
-function advanceToNextFailoverSource(reason) {
-  const player = currentPlayer;
-  if (!player) return;
-  disarmFailoverWatchdog();
-
-  const failedId = getPlayerSourceId();
-  failoverBannedSources.add(failedId);
-  lastAutoFailedSourceId = failedId;
-
-  const candidates = orderedFailoverSourceIds();
-  if (!candidates.length) {
-    showToast("No working server found — all servers failed for this title. Try again later or check your connection.");
-    failoverBannedSources.clear(); // give everything a fresh chance next title
-    lastAutoFailedSourceId = null;
-    return;
-  }
-
-  const nextId = candidates[0];
-  setPlayerSourceId(nextId);
-  const label = PLAYER_SOURCES[nextId].label;
-  showToast(`${PLAYER_SOURCES[failedId]?.label || "This server"} isn't working — switching to ${label}…`);
-  setupSourceDropdown();
-  injectPlayer(buildPlayerUrl(player.type, player.id, player.season || 1, player.episode || 1, getWatch(player.id).t || 0));
-}
-
-function notifyFailoverPlaybackActivity() {
-  lastFailoverActivityAt = Date.now();
-}
-
-// True when the title currently mounted is genuinely playing, judged by real
-// (non-estimated) progress: either the reported position has cleared the
-// "actually started" threshold, or a real update arrived in the last 20s
-// (covers sources whose event cadence is slow relative to a fresh start).
-function failoverProgressStarted() {
-  if (!currentPlayer) return false;
-  if (Date.now() - lastFailoverActivityAt < 20000) return true;
-  const key = playbackKey(currentPlayer);
-  const anchor = lastKnownPlayback;
-  if (anchor && anchor.key === key && anchor.t >= 10) return true;
-  if (anchor && anchor.key === key && Date.now() - anchor.at < 20000) return true;
-  // Cross-check the persisted store (the same data Continue Watching uses).
-  // For TV it only counts when it points at the same season/episode being
-  // watched right now.
-  const w = getWatch(currentPlayer.id);
-  if (!w || !(w.d > 0) || !(w.t >= 10)) return false;
-  if (currentPlayer.type === "tv") return w.season === currentPlayer.season && w.episode === currentPlayer.episode;
-  return true;
-}
-
-// Sources that report nothing are impossible to verify from outside -- if
-// they're still showing no progress after the start window, offer a manual
-// one-click escape instead of guessing (and never guessing wrong).
-function showServerFailoverChip() {
-  if (document.querySelector("#server-failover-chip")) return;
-  const heroArea = document.querySelector("#modal-hero");
-  if (!heroArea) return;
-  const chip = document.createElement("button");
-  chip.type = "button";
-  chip.id = "server-failover-chip";
-  chip.className = "server-failover-chip";
-  chip.textContent = "Not playing? Try the next server →";
-  chip.addEventListener("click", () => advanceToNextFailoverSource("manual"));
-  heroArea.appendChild(chip);
-}
-
-function hideServerFailoverChip() {
-  document.querySelector("#server-failover-chip")?.remove();
-}
-
-// Arms the detection timers for the iframe currently being injected. Called
-// from injectPlayer() AFTER the new iframe is in the DOM.
-function armFailoverWatchdog() {
-  disarmFailoverWatchdog();
-  if (!currentPlayer) return;
-  const source = PLAYER_SOURCES[getPlayerSourceId()];
-  if (!source) return;
-
-  const iframe = document.querySelector("#modal-hero .modal-trailer iframe");
-  if (!iframe) return;
-
-  const state = { loaded: false, loadedAt: 0, loadTimer: null, playTimer: null };
-  failoverState = state;
-
-  // Timers running while the tab is hidden prove nothing (browsers throttle
-  // background timers, and the user may simply be away mid-click), so while
-  // hidden these checks re-arm every 5s instead of declaring failure.
-  const scheduleCheck = (key, fn, ms) => {
-    clearTimeout(state[key]);
-    state[key] = setTimeout(() => {
-      if (failoverState !== state) return;
-      if (document.hidden) {
-        scheduleCheck(key, fn, 5000);
-        return;
-      }
-      fn();
-    }, ms);
-  };
-
-  iframe.addEventListener(
-    "load",
-    () => {
-      if (failoverState !== state) return; // a newer player took over
-      state.loaded = true;
-      state.loadedAt = Date.now();
-      clearTimeout(state.loadTimer);
-    },
-    { once: true }
-  );
-
-  // First gate (applies to every source): the iframe must LOAD within 15s.
-  // Once loaded, the second gate branches by source type:
-  //   - progress-reporting sources get an auto-switch when playback never
-  //     starts (a deliberate pause in the first window buys more time);
-  //   - silent-by-design sources get the manual chip, re-checked every 4s
-  //     so it disappears on its own if playback starts late.
-  scheduleCheck(
-    "loadTimer",
-    () => {
-      if (!state.loaded) {
-        advanceToNextFailoverSource("load");
-        return;
-      }
-      if (source.supportsEvents) {
-        // Re-checked every 4s: stand down the moment real progress shows,
-        // respect a deliberate pause, otherwise switch once the title has
-        // had a fair window (45s) and STILL hasn't moved off <10s -- that is
-        // the loaded-but-error-screen case (e.g. VidLink on a title it
-        // can't actually serve).
-        const playCheck = () => {
-          if (failoverProgressStarted()) return;
-          if (realPlaybackPaused) {
-            scheduleCheck("playTimer", playCheck, 4000);
-            return;
-          }
-          if (Date.now() - state.loadedAt >= FAILOVER_STUCK_AT) {
-            advanceToNextFailoverSource("stuck");
-            return;
-          }
-          scheduleCheck("playTimer", playCheck, 4000);
-        };
-        scheduleCheck("playTimer", playCheck, 4000);
-      } else {
-        const chipCheck = () => {
-          if (failoverProgressStarted()) {
-            hideServerFailoverChip();
-            return;
-          }
-          showServerFailoverChip();
-          scheduleCheck("playTimer", chipCheck, 4000);
-        };
-        scheduleCheck("playTimer", chipCheck, FAILOVER_PLAY_TIMEOUT);
-      }
-    },
-    FAILOVER_LOAD_TIMEOUT
-  );
-}
-
-function resetFailoverBan() {
-  failoverBannedSources.clear();
-}
 
 function resetPlayerSourceToDefault() {
   playerSourceIdMem = null;
   playerSubServerMem = {};
-  lastAutoFailedSourceId = null;
-  disarmFailoverWatchdog();
-  resetFailoverBan();
 }
 
 function getPlayerSourceId() {
-  if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
-  // After an auto-failover switched away from the default, keep starting new
-  // titles on the server that worked instead of re-trying the dead default —
-  // unless it was the default itself that died, then use the first survivor.
-  if (lastAutoFailedSourceId && !failoverBannedSources.has(DEFAULT_PLAYER_SOURCE)) return DEFAULT_PLAYER_SOURCE;
-  const first = orderedFailoverSourceIds()[0];
-  return first && PLAYER_SOURCES[first] ? first : DEFAULT_PLAYER_SOURCE;
+  return playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem] ? playerSourceIdMem : DEFAULT_PLAYER_SOURCE;
 }
 
 function setPlayerSourceId(id) {
@@ -1569,7 +1343,6 @@ function injectPlayer(url) {
   nextEpisodePromptActive = false;
   outroPromptDismissedKey = null;
   realPlaybackPaused = false;
-  lastFailoverActivityAt = 0;
   if (currentPlayer) startPlaybackHeartbeat(getWatch(currentPlayer.id).t || 0);
 
   heroArea.classList.add("is-playing");
@@ -1579,9 +1352,6 @@ function injectPlayer(url) {
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>${fullscreenBtnHTML}`;
   wireFullscreenBtn(heroArea);
-  // The iframe is in the DOM now -- start watching it for the never-loaded /
-  // silent-player failure modes (see armFailoverWatchdog).
-  armFailoverWatchdog();
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
@@ -2718,7 +2488,6 @@ function syncModalListButton(id) {
 
 function closeModal() {
   clearInterval(heartbeatTimer);
-  disarmFailoverWatchdog();
   $("#modal-overlay")?.remove();
   resetPlayerSourceToDefault();
   refreshContinueWatchingRow();
@@ -4375,18 +4144,6 @@ window.addEventListener("message", function (event) {
   // season/episode included directly.
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
-    // Only messages genuinely posted from the provider's own origin count
-    // for failover -- ad frames inside an embed could otherwise post a fake
-    // "error" and trigger pointless server switches.
-    const trustedOrigin = typeof event.origin === "string" && event.origin.includes("vidlink");
-    // The player itself reporting an error (dead stream, title unavailable
-    // on this source...) is the most reliable failover signal there is.
-    // Handled before the id/currentTime guard because error events don't
-    // always carry playback position.
-    if (d.event === "error" && trustedOrigin) {
-      advanceToNextFailoverSource("error");
-      return;
-    }
     if (!d.id || typeof d.currentTime !== "number") return;
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
@@ -4415,10 +4172,6 @@ window.addEventListener("message", function (event) {
     if (!entry || !entry.progress) return;
     const watched = entry.progress.watched || 0;
     const duration = entry.progress.duration || 0;
-    // A MEDIA_DATA snapshot only counts as playback activity for failover
-    // when it shows real progress -- a title stuck on an error screen also
-    // produces snapshots, but with watched still at 0.
-    if (watched >= 10) notifyFailoverPlaybackActivity();
     const isTv = entry.type === "tv";
     const season = isTv ? Number(entry.last_season_watched) || currentPlayer.season || 1 : 1;
     const episode = isTv ? Number(entry.last_episode_watched) || currentPlayer.episode || 1 : 1;
