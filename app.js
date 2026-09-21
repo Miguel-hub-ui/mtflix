@@ -1290,7 +1290,22 @@ const fullscreenBtnHTML = `
 
 function wireFullscreenBtn(stage) {
   $("#watch-fullscreen-btn")?.addEventListener("click", () => {
-    stage.requestFullscreen?.().catch(() => {});
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch((err) => {
+        console.warn("exitFullscreen failed:", err);
+        showToast("Couldn't exit fullscreen.");
+      });
+      return;
+    }
+    // requestFullscreen() must be called from a real user gesture and throws
+    // a rejection when the browser refuses (permissions policy, iframe
+    // focus quirks); surface that instead of failing silently.
+    const p = stage.requestFullscreen?.();
+    if (p?.catch)
+      p.catch((err) => {
+        console.warn("requestFullscreen failed:", err);
+        showToast("Fullscreen was blocked by the browser.");
+      });
   });
 }
 

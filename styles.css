@@ -1104,7 +1104,10 @@ body.watch-page {
   position: absolute;
   right: 14px;
   bottom: 14px;
-  z-index: 3;
+  /* Must sit ABOVE .modal-trailer (z-index 4): the iframe covers the whole
+     stage, so a lower z-index buries this button underneath it and it can
+     never be clicked once a player is loaded. */
+  z-index: 5;
   width: 38px;
   height: 38px;
   border-radius: 50%;
