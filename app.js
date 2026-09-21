@@ -122,17 +122,162 @@ const DEFAULT_PLAYER_SOURCE = "vidlink";
 // A manual/auto server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on VidLink instead of remembering an old pick.
+// one) always starts back on VidLink instead of restarting on the server
+// that just failed. A failover switch is remembered separately for the
+// session so the same dead server doesn't get picked again next title.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
+let lastAutoFailedSourceId = null;
+
+// --- Auto server failover -------------------------------------------------
+//
+// Embed iframes are cross-origin, so we can never read an error message
+// rendered inside them -- but failure is still detectable from outside:
+//
+//   1. The iframe's `load` event never fires (server down / DNS dead).
+//   2. The source itself posts an explicit "PLAYER_EVENT" with
+//      event === "error" (VidLink does this on playback failure).
+//   3. An event-capable source (VidLink) loads but then stays completely
+//      silent -- no play/timeupdate/pause/ended events at all -- which is
+//      how a loaded-but-broken player behaves. Sources that never emit
+//      events by design (MultiEmbed, VidSrc, 2Embed) can't be judged on
+//      silence; for them only (1) and (2) count.
+//
+// When a failure is detected, the player automatically re-injects on the
+// next server in PLAYER_SOURCES order, tells the viewer via a toast, and
+// marks the dead one so it is skipped for the rest of the session. If every
+// server has been tried, it stops and asks the user to try later.
+
+let failoverState = null; // see armFailoverWatchdog()
+let failoverBannedSources = new Set(); // servers that failed this session
+
+function orderedFailoverSourceIds() {
+  const preferred = [DEFAULT_PLAYER_SOURCE, ...Object.keys(PLAYER_SOURCES).filter((id) => id !== DEFAULT_PLAYER_SOURCE)];
+  return preferred.filter((id) => !failoverBannedSources.has(id));
+}
+
+function advanceToNextFailoverSource(reason) {
+  const player = currentPlayer;
+  if (!player) return;
+  disarmFailoverWatchdog();
+
+  const failedId = getPlayerSourceId();
+  failoverBannedSources.add(failedId);
+  lastAutoFailedSourceId = failedId;
+
+  const candidates = orderedFailoverSourceIds();
+  if (!candidates.length) {
+    showToast("No working server found — all servers failed for this title. Try again later or check your connection.");
+    failoverBannedSources.clear(); // give everything a fresh chance next title
+    return;
+  }
+
+  const nextId = candidates[0];
+  setPlayerSourceId(nextId);
+  const label = PLAYER_SOURCES[nextId].label;
+  showToast(`${PLAYER_SOURCES[failedId]?.label || "This server"} isn't working — switching to ${label}…`);
+  setupSourceDropdown();
+  injectPlayer(buildPlayerUrl(player.type, player.id, player.season || 1, player.episode || 1, getWatch(player.id).t || 0));
+}
+
+function disarmFailoverWatchdog() {
+  if (failoverState) {
+    clearTimeout(failoverState.loadTimer);
+    clearTimeout(failoverState.silenceTimer);
+    failoverState = null;
+  }
+}
+
+// Arms the detection timers for the iframe currently being injected. Called
+// from injectPlayer() AFTER the new iframe is in the DOM.
+function armFailoverWatchdog() {
+  disarmFailoverWatchdog();
+  if (!currentPlayer) return;
+  const source = PLAYER_SOURCES[getPlayerSourceId()];
+  if (!source) return;
+
+  const iframe = document.querySelector("#modal-hero .modal-trailer iframe");
+  if (!iframe) return;
+
+  const state = {
+    key: `${currentPlayer.id}_${getPlayerSourceId()}`,
+    loaded: false,
+    gotRealEvent: false,
+    loadTimer: null,
+    silenceTimer: null,
+  };
+  failoverState = state;
+
+  // Timers running while the tab is hidden prove nothing (browsers throttle
+  // background timers, and the user may simply be away mid-click), so while
+  // hidden these checks re-arm every 5s instead of declaring failure.
+  const scheduleCheck = (key, fn, ms) => {
+    clearTimeout(state[key]);
+    state[key] = setTimeout(() => {
+      if (failoverState !== state) return;
+      if (document.hidden) {
+        scheduleCheck(key, fn, 5000);
+        return;
+      }
+      fn();
+    }, ms);
+  };
+
+  iframe.addEventListener(
+    "load",
+    () => {
+      if (failoverState !== state) return; // a newer player took over
+      state.loaded = true;
+      clearTimeout(state.loadTimer);
+      // Event-capable sources: if nothing real arrives within 20s of the
+      // iframe loading, the player is up but broken -> fail over. Sources
+      // without events are silent by design and get no silence timer; they
+      // only fail via (1) or (2).
+      if (source.supportsEvents && !state.gotRealEvent) {
+        scheduleCheck("silenceTimer", () => {
+          if (state.gotRealEvent || realPlaybackPaused) disarmFailoverWatchdog();
+          else advanceToNextFailoverSource("silent");
+        }, 20000);
+      } else if (!source.supportsEvents) {
+        // Nothing else to watch for on no-event sources -- stand down.
+        disarmFailoverWatchdog();
+      }
+    },
+    { once: true }
+  );
+
+  // (1) Iframe never even loaded within 15s.
+  scheduleCheck("loadTimer", () => {
+    if (!state.loaded) advanceToNextFailoverSource("load");
+  }, 15000);
+}
+
+function notifyFailoverRealEvent() {
+  if (!failoverState) return;
+  failoverState.gotRealEvent = true;
+  clearTimeout(failoverState.silenceTimer);
+}
+
+function resetFailoverBan() {
+  failoverBannedSources.clear();
+}
 
 function resetPlayerSourceToDefault() {
   playerSourceIdMem = null;
   playerSubServerMem = {};
+  lastAutoFailedSourceId = null;
+  disarmFailoverWatchdog();
+  resetFailoverBan();
 }
 
 function getPlayerSourceId() {
-  return playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem] ? playerSourceIdMem : DEFAULT_PLAYER_SOURCE;
+  if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
+  // After an auto-failover switched away from the default, keep starting new
+  // titles on the server that worked instead of re-trying the dead default —
+  // unless it was the default itself that died, then use the first survivor.
+  if (lastAutoFailedSourceId && !failoverBannedSources.has(DEFAULT_PLAYER_SOURCE)) return DEFAULT_PLAYER_SOURCE;
+  const first = orderedFailoverSourceIds()[0];
+  return first && PLAYER_SOURCES[first] ? first : DEFAULT_PLAYER_SOURCE;
 }
 
 function setPlayerSourceId(id) {
@@ -1352,6 +1497,9 @@ function injectPlayer(url) {
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
     </div>${fullscreenBtnHTML}`;
   wireFullscreenBtn(heroArea);
+  // The iframe is in the DOM now -- start watching it for the never-loaded /
+  // silent-player failure modes (see armFailoverWatchdog).
+  armFailoverWatchdog();
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
@@ -2488,6 +2636,7 @@ function syncModalListButton(id) {
 
 function closeModal() {
   clearInterval(heartbeatTimer);
+  disarmFailoverWatchdog();
   $("#modal-overlay")?.remove();
   resetPlayerSourceToDefault();
   refreshContinueWatchingRow();
@@ -4144,7 +4293,22 @@ window.addEventListener("message", function (event) {
   // season/episode included directly.
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
+    // Only messages genuinely posted from the provider's own origin count
+    // for failover -- ad frames inside an embed could otherwise post a fake
+    // "error" and trigger pointless server switches.
+    const trustedOrigin = typeof event.origin === "string" && event.origin.includes("vidlink");
+    // The player itself reporting an error (dead stream, title unavailable
+    // on this source...) is the most reliable failover signal there is.
+    // Handled before the id/currentTime guard because error events don't
+    // always carry playback position.
+    if (d.event === "error" && trustedOrigin) {
+      advanceToNextFailoverSource("error");
+      return;
+    }
     if (!d.id || typeof d.currentTime !== "number") return;
+    // Any real event proves the player is alive -- stand down the
+    // failover silence watchdog before doing anything else.
+    notifyFailoverRealEvent();
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
