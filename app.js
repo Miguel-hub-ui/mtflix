@@ -50,31 +50,24 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SOURCES = {
-  vidlink: {
-    label: "VidLink",
-    movie: "https://vidlink.pro/movie/{id}",
-    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
-    supportsEvents: true,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ primaryColor: "e50914", secondaryColor: "221f1f", iconColor: "ffffff" });
-      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextbutton", "true");
-      if (resumeSeconds > 30) params.set("startAt", String(Math.floor(resumeSeconds)));
-      return params;
+  vidcloud: {
+    label: "VidCloud",
+    movie: "https://vidcloud.co/embed/movie/{id}",
+    tv: "https://vidcloud.co/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
     },
   },
-  vidking: {
-    label: "VidKing",
-    movie: "https://www.vidking.net/embed/movie/{id}",
-    tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: true,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ color: "e50914" });
-      if (type === "tv" && activeProfile()?.autoplay !== false) {
-        params.set("nextEpisode", "true");
-        params.set("episodeSelector", "true");
-      }
-      if (resumeSeconds > 30) params.set("progress", String(Math.floor(resumeSeconds)));
-      return params;
+  multiembed: {
+    label: "MultiEmbed",
+    // MultiEmbed cycles through several of its own backends, so if one is
+    // down reloading usually lands on a different one.
+    movie: "https://multiembed.mov/?video_id={id}",
+    tv: "https://multiembed.mov/?video_id={id}&s={season}&e={episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
     },
   },
   vidsrc: {
@@ -119,12 +112,12 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "vidlink";
+const DEFAULT_PLAYER_SOURCE = "vidcloud";
 
 // A manual/auto server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on VidLink instead of remembering an old pick.
+// one) always starts back on VidCloud instead of remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
 
@@ -1233,7 +1226,7 @@ let outroPromptDismissedKey = null;
 // The most recent REAL (non-estimated) playback position a source has
 // reported for the currently-playing episode, so the heartbeat below can
 // extrapolate from it instead of waiting on that source's own event cadence.
-// Some sources (VidKing) only post a handful of postMessage events over the
+// Some sources only post a handful of postMessage events over the
 // course of an episode, which made the outro prompt land accurately but late
 // -- this lets the 15s heartbeat close that gap once real data exists.
 let lastKnownPlayback = null; // { key, t, d, at }
@@ -4046,7 +4039,7 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
       // startPlaybackHeartbeat) can extrapolate from it instead of waiting
       // on this source's own event cadence, which is what made the outro
       // prompt land late on sources that only post a handful of events
-      // per episode (VidKing).
+      // per episode.
       if (!estimated && resolvedDuration > 0) {
         lastKnownPlayback = { key: epKey, t: currentTime, d: resolvedDuration, at: Date.now() };
       }
@@ -4073,8 +4066,8 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
 
 window.addEventListener("message", function (event) {
   // Different embed providers post messages differently: some send a JSON
-  // string, others (VidLink, confirmed live) send a real structured-clone
-  // object directly. Handle both instead of assuming one shape.
+  // string, others send a real structured-clone object directly. Handle both
+  // instead of assuming one shape.
   let msg = event.data;
   if (typeof msg === "string") {
     try {
@@ -4086,7 +4079,8 @@ window.addEventListener("message", function (event) {
   if (!msg || typeof msg !== "object" || !currentPlayer) return;
   if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
 
-  // VidKing's format: one event per message, with season/episode included directly.
+  // A source that supports events may send one event per message, with
+  // season/episode included directly.
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
@@ -4109,8 +4103,9 @@ window.addEventListener("message", function (event) {
     return;
   }
 
-  // VidLink's format: a snapshot of every title it has ever tracked in this
-  // browser, keyed by TMDB id, with its own watched/duration + last episode.
+  // Another known format: a snapshot of every title the provider has ever
+  // tracked in this browser, keyed by TMDB id, with its own watched/duration
+  // + last episode.
   if (msg.type === "MEDIA_DATA") {
     const entry = (msg.data || {})[String(currentPlayer.id)];
     if (!entry || !entry.progress) return;
