@@ -1220,9 +1220,11 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
 
 let heartbeatTimer = null;
 let nextEpisodePromptActive = false;
-// How long before the estimated/actual end of an episode the "Next Episode"
-// prompt should appear -- roughly the length of a typical end-credits/outro.
-const OUTRO_WINDOW_SEC = 60;
+// Fraction of the episode still remaining at which the "Next Episode" prompt
+// appears, on every source. 3% of a ~40min episode is ~72s -- roughly the
+// end-credits window -- and it scales with episode length instead of being a
+// fixed number of seconds.
+const NEXT_EP_PROMPT_RATIO = 0.03;
 // Episode key (`${id}_s${season}e${episode}`) the user explicitly dismissed
 // the outro prompt for, so a source that keeps reporting progress inside the
 // outro window doesn't just pop it right back up.
@@ -1337,6 +1339,9 @@ function injectPlayer(url) {
   // Fullscreen API stuck in some browsers (fullscreen silently stops working
   // until the page is reloaded) -- always exit cleanly first.
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  // The next-episode poll must die with the player that spawned it, or a
+  // mid-credits server switch would leave it running against the new embed.
+  clearInterval(nextEpEndTimer);
   nextEpisodePromptActive = false;
   outroPromptDismissedKey = null;
   realPlaybackPaused = false;
@@ -1464,15 +1469,30 @@ function maybeShowNextEpisodePrompt(id, season, episode, opts) {
   showNextEpisodeCountdown(season, episode, opts);
 }
 
-// `autoAdvance` is only safe when the trigger came from real playback data
-// (a postMessage event, or the video actually ending). Sources that never
-// report events (VidSrc, 2Embed) only get a wall-clock guess at when the
-// outro starts, which keeps climbing even while paused -- good enough to
-// surface the button, not good enough to silently jump episodes on its own.
-function showNextEpisodeCountdown(season, episode, { autoAdvance = true } = {}) {
+// Seconds left in the current episode, from whichever data is best: real
+// reported progress, or the wall-clock extrapolation for sources that never
+// report anything. Returns null when there's no usable duration to compare
+// against.
+function remainingSecondsOfEpisode() {
+  if (!currentPlayer || currentPlayer.type !== "tv") return null;
+  const key = playbackKey(currentPlayer);
+  const anchor = lastKnownPlayback && lastKnownPlayback.key === key ? lastKnownPlayback : null;
+  const duration = anchor ? anchor.d : currentPlayer.estimatedDurationSec || 0;
+  if (!(duration > 0)) return null;
+  const position = anchor ? anchor.t + (realPlaybackPaused ? 0 : (Date.now() - anchor.at) / 1000) : 0;
+  return Math.max(0, duration - position);
+}
+
+// The prompt itself is source-agnostic -- every server gets the same button
+// at the same 3%-remaining mark. What differs is auto-advance: sources with
+// real events also report "ended", so the countdown only fires there when
+// playback truly finishes (pause-aware); sources that never report anything
+// get a manual-only button rather than a guess-based silent jump.
+function showNextEpisodeCountdown(season, episode, { autoAdvance = false } = {}) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
   heroArea.querySelector("#next-ep-prompt")?.remove();
+  clearInterval(nextEpEndTimer);
 
   const wrap = document.createElement("div");
   wrap.className = autoAdvance ? "next-ep-prompt" : "next-ep-prompt manual";
@@ -1490,7 +1510,7 @@ function showNextEpisodeCountdown(season, episode, { autoAdvance = true } = {}) 
   heroArea.appendChild(wrap);
 
   const stop = () => {
-    clearTimeout(timer);
+    clearInterval(nextEpEndTimer);
     wrap.remove();
     nextEpisodePromptActive = false;
   };
@@ -1499,7 +1519,24 @@ function showNextEpisodeCountdown(season, episode, { autoAdvance = true } = {}) 
     playNextEpisode(season, episode);
   };
 
-  const timer = autoAdvance ? setTimeout(advance, 4000) : null;
+  // For event-capable sources, poll until the reported position actually
+  // crosses the end of the episode (or the credits window closes) instead of
+  // firing a flat 4s after the prompt appeared -- a flat timer either cut off
+  // the ending or advanced way too early while paused.
+  let endChecks = 0;
+  nextEpEndTimer = autoAdvance
+    ? setInterval(() => {
+        endChecks++;
+        const left = remainingSecondsOfEpisode();
+        const hasAnchor = !!(lastKnownPlayback && currentPlayer && lastKnownPlayback.key === playbackKey(currentPlayer));
+        const ended = left !== null && left <= 0.5;
+        // ~4min cap: past the credits window. Only advance on the cap when a
+        // real anchor exists -- with no real data there's nothing to trust,
+        // so just stand down instead of guessing.
+        const gaveUp = endChecks > 240 && hasAnchor;
+        if (ended || gaveUp) advance();
+      }, 1000)
+    : null;
 
   wrap.querySelector("#next-ep-cancel").addEventListener("click", () => {
     if (currentPlayer) outroPromptDismissedKey = `${currentPlayer.id}_s${currentPlayer.season}e${currentPlayer.episode}`;
@@ -1507,6 +1544,9 @@ function showNextEpisodeCountdown(season, episode, { autoAdvance = true } = {}) 
   });
   wrap.querySelector("#next-ep-play").addEventListener("click", advance);
 }
+
+// Ticker for the auto-advance poll inside showNextEpisodeCountdown.
+let nextEpEndTimer = null;
 
 function playNextEpisode(season, episode) {
   if (!currentPlayer) return;
@@ -4030,7 +4070,8 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
           poster_path: prev.poster_path || currentPlayer.poster_path,
           backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
         };
-        maybeShowNextEpisodePrompt(id, next.season, next.episode);
+        const source = PLAYER_SOURCES[getPlayerSourceId()];
+        maybeShowNextEpisodePrompt(id, next.season, next.episode, { autoAdvance: !!source?.supportsEvents });
       } else {
         // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
         delete store[id];
@@ -4063,18 +4104,20 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
       if (!estimated && resolvedDuration > 0) {
         lastKnownPlayback = { key: epKey, t: currentTime, d: resolvedDuration, at: Date.now() };
       }
-      // `estimated` is only true for a heartbeat tick with no real anchor to
-      // extrapolate from -- a pure wall-clock guess, which is enough to
-      // surface the button (VidSrc/2Embed have nothing better) but not
-      // enough to auto-advance on its own.
+      // The "Next Episode" button appears on EVERY source once 3% of the
+      // episode remains. Only sources that send real (non-estimated) events
+      // get auto-advance armed -- estimated ticks keep the prompt visible but
+      // never silently jump on their own.
+      const source = PLAYER_SOURCES[getPlayerSourceId()];
+      const canAutoAdvance = !estimated && !!source?.supportsEvents;
       if (
         resolvedDuration > 0 &&
         currentTime < resolvedDuration &&
         epKey !== outroPromptDismissedKey &&
-        resolvedDuration - currentTime <= OUTRO_WINDOW_SEC
+        resolvedDuration - currentTime <= resolvedDuration * NEXT_EP_PROMPT_RATIO
       ) {
         const next = nextEpisodeOf(currentPlayer, store[id].season, store[id].episode);
-        if (next) maybeShowNextEpisodePrompt(id, next.season, next.episode, { autoAdvance: !estimated });
+        if (next) maybeShowNextEpisodePrompt(id, next.season, next.episode, { autoAdvance: canAutoAdvance });
       }
     }
   } else {
