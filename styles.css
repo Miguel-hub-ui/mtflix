@@ -747,6 +747,11 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 6;
 }
 .card:hover .bookmark-btn { opacity: 1; }
+/* Touch screens have no hover, so the watchlist button would otherwise only
+   show after tapping a card. */
+@media (hover: none), (max-width: 768px) {
+  .bookmark-btn { opacity: 1; }
+}
 .bookmark-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
 .bookmark-btn:hover { background: var(--accent); }
 
