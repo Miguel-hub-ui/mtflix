@@ -50,21 +50,26 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SOURCES = {
-  vidcloud: {
-    label: "VidCloud",
-    movie: "https://vidcloud.co/embed/movie/{id}",
-    tv: "https://vidcloud.co/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
+  vidlink: {
+    label: "VidLink",
+    movie: "https://vidlink.pro/movie/{id}",
+    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+    supportsEvents: true,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams({ primaryColor: "e50914", secondaryColor: "221f1f", iconColor: "ffffff" });
+      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextbutton", "true");
+      if (resumeSeconds > 30) params.set("startAt", String(Math.floor(resumeSeconds)));
+      return params;
     },
   },
   multiembed: {
     label: "MultiEmbed",
     // MultiEmbed cycles through several of its own backends, so if one is
-    // down reloading usually lands on a different one.
-    movie: "https://multiembed.mov/?video_id={id}",
-    tv: "https://multiembed.mov/?video_id={id}&s={season}&e={episode}",
+    // down reloading usually lands on a different one. `tmdb=1` is REQUIRED
+    // for numeric ids: without it the id is looked up as an IMDB id and the
+    // player renders a black "not found" screen.
+    movie: "https://multiembed.mov/?video_id={id}&tmdb=1",
+    tv: "https://multiembed.mov/?video_id={id}&tmdb=1&s={season}&e={episode}",
     supportsEvents: false,
     buildParams() {
       return new URLSearchParams();
@@ -112,12 +117,12 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "vidcloud";
+const DEFAULT_PLAYER_SOURCE = "vidlink";
 
 // A manual/auto server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on VidCloud instead of remembering an old pick.
+// one) always starts back on VidLink instead of remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
 
