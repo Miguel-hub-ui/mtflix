@@ -589,7 +589,6 @@ function bookmarkSvg() {
 }
 
 function cardHTML(item, opts = {}) {
-  const active = inList(item.id) ? " active" : "";
   const epBadge = item.episode ? `<div class="card-ep-badge">S${item.season || 1} · E${item.episode}</div>` : "";
   const menu = opts.removable
     ? `<button class="card-menu-btn" data-remove-continue-id="${item.id}" aria-label="More options" aria-haspopup="true">⋮</button>`
@@ -600,7 +599,6 @@ function cardHTML(item, opts = {}) {
       ${item.progressPct ? `<div class="card-progress"><span style="width:${item.progressPct}%"></span></div>` : ""}
       ${epBadge}
       ${menu}
-      <button class="bookmark-btn${active}" title="Add to My List" aria-label="Toggle watchlist">${bookmarkSvg()}</button>
       <div class="card-info">
         <div class="card-title">${escapeHtml(item.title)}</div>
         <div class="card-sub">
@@ -829,7 +827,7 @@ function renderWatchlistTab(content) {
     content.innerHTML = `
       <div class="empty-state">
         <h2>Your list is empty</h2>
-        <p>Hover any poster and hit the bookmark icon to save it here.</p>
+        <p>Open any title and tap “My List” to save it here.</p>
       </div>`;
     return;
   }
