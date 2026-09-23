@@ -1403,6 +1403,22 @@ window.addEventListener("blur", () => {
   if (document.fullscreenElement && document.activeElement?.tagName === "IFRAME") revealFullscreenBtn();
 });
 
+// A transparent layer sitting directly above the video iframe: the only way
+// to actually see mouse movement over the video, since it can't bubble out
+// of the (cross-origin) iframe itself. It briefly goes click-through the
+// instant a press starts so the underlying player's own controls (play,
+// pause, seek...) still receive that click normally.
+function wireFullscreenMoveCatcher() {
+  const catcher = $("#watch-fs-move-catcher");
+  if (!catcher) return;
+  catcher.addEventListener("mousemove", () => { if (document.fullscreenElement) revealFullscreenBtn(); });
+  catcher.addEventListener("pointerdown", () => {
+    if (document.fullscreenElement) revealFullscreenBtn();
+    catcher.style.pointerEvents = "none";
+    setTimeout(() => { catcher.style.pointerEvents = ""; }, 400);
+  });
+}
+
 // Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
 // iframe once the viewer actually clicks -- avoids autoplaying anything
 // before they've chosen to watch.
@@ -1439,8 +1455,10 @@ function injectPlayer(url) {
   heroArea.innerHTML = `
     <div class="modal-trailer">
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
-    </div>${fullscreenBtnHTML}`;
+    </div>
+    <div class="watch-fs-move-catcher" id="watch-fs-move-catcher"></div>${fullscreenBtnHTML}`;
   wireFullscreenBtn(heroArea);
+  wireFullscreenMoveCatcher();
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
