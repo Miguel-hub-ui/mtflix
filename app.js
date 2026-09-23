@@ -55,7 +55,8 @@ const PLAYER_SOURCES = {
   // (parsed in the window message listener below), so real resume points and
   // auto-advance work on it. `t=` jumps straight to the resume spot
   // (continueprompt=false skips its Continue/Restart dialog) and `color`
-  // matches the MTFlix accent. Kept as a fallback source.
+  // matches the MTFlix accent. It's the default source; every other source
+  // stays available in the dropdown as a fallback.
   cinesrc: {
     label: "CineSrc 4K",
     movie: "https://cinesrc.st/embed/movie/{id}",
@@ -73,8 +74,7 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
-  // VidFast is a 4K/UHD-first embed player. It's the default source; every
-  // other source stays available in the dropdown as a fallback.
+  // VidFast is a 4K/UHD-first embed player, kept as a fallback source.
   vidfast: {
     label: "VidFast 4K",
     movie: "https://vidfast.pro/movie/{id}",
@@ -169,12 +169,12 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "vidfast";
+const DEFAULT_PLAYER_SOURCE = "cinesrc";
 
 // A manual server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on the 4K default (VidFast) instead of remembering an old pick.
+// one) always starts back on the 4K default (CineSrc) instead of remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
 

@@ -104,8 +104,8 @@ Movies and TV shows stream through an embed player inside the detail modal. Six 
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
-| **VidFast 4K** | ✓ main | Up to 4K/UHD | No |
-| CineSrc 4K | | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
+| **CineSrc 4K** | ✓ main | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
+| VidFast 4K | | Up to 4K/UHD | No |
 | VidLink | | Up to 1080p | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
 | MultiEmbed | | Up to 1080p | No |
 | VidSrc | | Up to 1080p | No — confirmed it sends no postMessages at all |
@@ -117,7 +117,7 @@ VidLink's default player has had provider-side outages (522s from `vidlink.pro`)
 
 VidSrc's own player hides a server picker (Pro Multi / Cinesrc / 4K) inside its iframe where it can't be reached, so those are recreated as a **nested SERVER dropdown** that appears on the watch page when VidSrc is the active source. Each name maps to a different live VidSrc-family mirror so switching actually changes the stream: **Pro Multi** → `v2.vidsrc.me`, **Cinesrc** → `vidsrc.su`, **4K** → `vidsrc.to`. Switching sources or mirrors is always manual — if one is down, pick another from the dropdown.
 
-A manual server switch only applies to the title you're currently watching and is kept in memory, not `localStorage`: closing the player (or opening a different title) always starts back on the default (VidFast 4K). To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
+A manual server switch only applies to the title you're currently watching and is kept in memory, not `localStorage`: closing the player (or opening a different title) always starts back on the default (CineSrc 4K). To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
 
 CineSrc auto-advances to the next episode inside its own player, so MTFlix's silent auto-advance is disabled for it (`hasInternalAutoNext`) to keep the two systems from racing — the manual "Next Episode" button still appears.
 
