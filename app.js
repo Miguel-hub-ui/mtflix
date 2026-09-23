@@ -62,6 +62,21 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
+  vidking: {
+    label: "Vidking",
+    // Vidking posts PLAYER_EVENT postMessages (timeupdate/play/pause/ended/
+    // seeked) in the exact shape the shared message listener already parses,
+    // so progress tracking and resume work on it just like VidLink.
+    movie: "https://www.vidking.net/embed/movie/{id}",
+    tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: true,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams({ color: "e50914" });
+      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextEpisode", "true");
+      if (resumeSeconds > 30) params.set("progress", String(Math.floor(resumeSeconds)));
+      return params;
+    },
+  },
   multiembed: {
     label: "MultiEmbed",
     // MultiEmbed cycles through several of its own backends, so if one is
@@ -1313,6 +1328,36 @@ function wireFullscreenBtn(stage) {
       });
   });
 }
+
+// While fullscreen, the button auto-hides after a few seconds of no
+// interaction (like any video player's controls) and reappears on tap.
+let fullscreenBtnHideTimer = null;
+const FULLSCREEN_BTN_HIDE_DELAY = 2500;
+
+function revealFullscreenBtn() {
+  const btn = $("#watch-fullscreen-btn");
+  clearTimeout(fullscreenBtnHideTimer);
+  if (!btn) return;
+  btn.classList.remove("is-hidden");
+  if (document.fullscreenElement) {
+    fullscreenBtnHideTimer = setTimeout(() => btn.classList.add("is-hidden"), FULLSCREEN_BTN_HIDE_DELAY);
+  }
+}
+
+document.addEventListener("fullscreenchange", () => {
+  clearTimeout(fullscreenBtnHideTimer);
+  if (document.fullscreenElement) revealFullscreenBtn();
+  else $("#watch-fullscreen-btn")?.classList.remove("is-hidden");
+});
+
+// Taps that land on the embed iframe itself never bubble to this document
+// (cross-origin), but focus does move into the iframe, which fires a blur
+// on the top window -- use that as a proxy for "the viewer tapped the video".
+document.addEventListener("touchstart", () => { if (document.fullscreenElement) revealFullscreenBtn(); }, { passive: true });
+document.addEventListener("mousemove", () => { if (document.fullscreenElement) revealFullscreenBtn(); });
+window.addEventListener("blur", () => {
+  if (document.fullscreenElement && document.activeElement?.tagName === "IFRAME") revealFullscreenBtn();
+});
 
 // Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
 // iframe once the viewer actually clicks -- avoids autoplaying anything

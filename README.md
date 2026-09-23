@@ -100,12 +100,12 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 
 ## Playback Servers
 
-Movies and TV shows stream through an embed player inside the detail modal. Four sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
+Movies and TV shows stream through an embed player inside the detail modal. Five sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
 | Source | Default | Live progress events |
 |--------|---------|------------------------|
 | **VidLink** | ✓ main | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
-| MultiEmbed | | No — TMDB-id based (`&tmdb=1` required for numeric ids), cycles through several backends so reloading often lands on a different one |
+| Vidking | | Yes — sends `PLAYER_EVENT` postMessages (timeupdate/play/pause/ended/seeked); accepts `color=`, `nextEpisode=` and `progress=` (resume) params |
 | VidSrc | | No — confirmed it sends no postMessages at all |
 | 2Embed | | No — same as VidSrc, confirmed no postMessages |
 
