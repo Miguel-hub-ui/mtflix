@@ -50,24 +50,13 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SOURCES = {
-  // VidFast is a 4K/UHD-first embed player and the default source; the
-  // previous default (VidLink) and every other source stay available in the
-  // dropdown as fallbacks.
-  vidfast: {
-    label: "VidFast 4K",
-    movie: "https://vidfast.pro/movie/{id}",
-    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
   // CineSrc streams up to 4K and rotates its own multi-server fallbacks
   // inside the player. It posts `cinesrc:*` postMessage progress events
   // (parsed in the window message listener below), so real resume points and
   // auto-advance work on it. `t=` jumps straight to the resume spot
   // (continueprompt=false skips its Continue/Restart dialog) and `color`
-  // matches the MTFlix accent.
+  // matches the MTFlix accent. It's the default source; every other source
+  // stays available in the dropdown as a fallback.
   cinesrc: {
     label: "CineSrc 4K",
     movie: "https://cinesrc.st/embed/movie/{id}",
@@ -83,6 +72,16 @@ const PLAYER_SOURCES = {
       if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
       if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
       return params;
+    },
+  },
+  // VidFast is a 4K/UHD-first embed player, kept as a fallback source.
+  vidfast: {
+    label: "VidFast 4K",
+    movie: "https://vidfast.pro/movie/{id}",
+    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
     },
   },
   vidlink: {
@@ -170,7 +169,7 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "vidfast";
+const DEFAULT_PLAYER_SOURCE = "cinesrc";
 
 // A manual server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
