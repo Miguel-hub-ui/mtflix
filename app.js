@@ -50,6 +50,41 @@ const LS_LIST = "cineverse_watchlist";
 const LS_PROGRESS = "cineverse_progress";
 
 const PLAYER_SOURCES = {
+  // VidFast is a 4K/UHD-first embed player and the default source; the
+  // previous default (VidLink) and every other source stay available in the
+  // dropdown as fallbacks.
+  vidfast: {
+    label: "VidFast 4K",
+    movie: "https://vidfast.pro/movie/{id}",
+    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
+  // CineSrc streams up to 4K and rotates its own multi-server fallbacks
+  // inside the player. It posts `cinesrc:*` postMessage progress events
+  // (parsed in the window message listener below), so real resume points and
+  // auto-advance work on it. `t=` jumps straight to the resume spot
+  // (continueprompt=false skips its Continue/Restart dialog) and `color`
+  // matches the MTFlix accent.
+  cinesrc: {
+    label: "CineSrc 4K",
+    movie: "https://cinesrc.st/embed/movie/{id}",
+    tv: "https://cinesrc.st/embed/tv/{id}?s={season}&e={episode}",
+    supportsEvents: true,
+    // CineSrc auto-advances to the next episode inside its own player
+    // (autonext), so MTFlix must not run its own silent auto-advance on top
+    // of it -- the two would race. The manual "Next Episode" button still
+    // appears for it.
+    hasInternalAutoNext: true,
+    buildParams(type, resumeSeconds) {
+      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false" });
+      if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
+      if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
+      return params;
+    },
+  },
   vidlink: {
     label: "VidLink",
     movie: "https://vidlink.pro/movie/{id}",
@@ -132,12 +167,12 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "vidlink";
+const DEFAULT_PLAYER_SOURCE = "vidfast";
 
 // A manual server switch only applies to the movie or episode you're
 // currently watching -- kept in memory (not localStorage) and reset to the
 // default whenever the player modal closes, so reopening a title (or a new
-// one) always starts back on VidLink instead of remembering an old pick.
+// one) always starts back on the 4K default (VidFast) instead of remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
 
@@ -1228,7 +1263,9 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
       : source.movie.replace("{id}", id);
   const params = source.buildParams(type, resumeSeconds || 0);
   const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
+  // Sources whose own template already carries query params (e.g. CineSrc's
+  // `?s=&e=` for episodes) must get `&`, not a second `?`.
+  return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
 }
 
 let heartbeatTimer = null;
@@ -4114,7 +4151,9 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
           backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
         };
         const source = PLAYER_SOURCES[getPlayerSourceId()];
-        maybeShowNextEpisodePrompt(id, next.season, next.episode, { autoAdvance: !!source?.supportsEvents });
+        maybeShowNextEpisodePrompt(id, next.season, next.episode, {
+          autoAdvance: !!source?.supportsEvents && !source?.hasInternalAutoNext,
+        });
       } else {
         // No next episode known (series finale, or episode counts unavailable) — nothing left to continue.
         delete store[id];
@@ -4152,7 +4191,9 @@ function applyPlaybackUpdate({ id, mediaType, season, episode, currentTime, dura
       // get auto-advance armed -- estimated ticks keep the prompt visible but
       // never silently jump on their own.
       const source = PLAYER_SOURCES[getPlayerSourceId()];
-      const canAutoAdvance = !estimated && !!source?.supportsEvents;
+      // Sources whose own player already auto-advances internally (CineSrc)
+      // get a manual-only button here so the two advance systems never race.
+      const canAutoAdvance = !estimated && !!source?.supportsEvents && !source?.hasInternalAutoNext;
       if (
         resolvedDuration > 0 &&
         currentTime < resolvedDuration &&
@@ -4184,6 +4225,54 @@ window.addEventListener("message", function (event) {
   }
   if (!msg || typeof msg !== "object" || !currentPlayer) return;
   if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
+
+  // CineSrc posts `cinesrc:*` events with the playback position at the top
+  // level ({ type: "cinesrc:timeupdate", currentTime, duration }) -- a third
+  // message shape alongside PLAYER_EVENT (Vidking) and MEDIA_DATA (VidLink).
+  if (typeof msg.type === "string" && msg.type.startsWith("cinesrc:")) {
+    // Only trust cinesrc events that actually came from cinesrc.st.
+    if (event.origin !== "https://cinesrc.st") return;
+    const kind = msg.type.slice(8);
+    if (kind === "nextepisode") {
+      // The viewer switched episodes inside the player; keep tracking the
+      // episode it actually moved to so progress lands on the right entry.
+      if (currentPlayer.type === "tv" && msg.season && msg.episode) {
+        currentPlayer.season = Number(msg.season);
+        currentPlayer.episode = Number(msg.episode);
+      }
+      return;
+    }
+    // `ended` carries no currentTime/duration (it's just a type), so handle
+    // it before the numeric checks below.
+    if (kind === "ended") {
+      applyPlaybackUpdate({
+        id: currentPlayer.id,
+        mediaType: currentPlayer.type,
+        season: currentPlayer.season,
+        episode: currentPlayer.episode,
+        finished: true,
+      });
+      return;
+    }
+    if (typeof msg.currentTime !== "number") return;
+    if (kind === "pause") realPlaybackPaused = true;
+    else if (kind === "play" || kind === "timeupdate" || kind === "seeked") realPlaybackPaused = false;
+    applyPlaybackUpdate({
+      id: currentPlayer.id,
+      mediaType: currentPlayer.type,
+      season: currentPlayer.season,
+      episode: currentPlayer.episode,
+      currentTime: msg.currentTime,
+      duration: msg.duration,
+      finished: false,
+    });
+    const chip = document.querySelector("#messageArea");
+    if (chip) {
+      const icons = { play: "▶ ", pause: "⏸ ", ended: "✓ ", seeked: "⏩ ", timeupdate: "" };
+      chip.innerText = (icons[kind] ?? "• ") + fmtTime(msg.currentTime) + (msg.duration ? " / " + fmtTime(msg.duration) : "");
+    }
+    return;
+  }
 
   // A source that supports events may send one event per message, with
   // season/episode included directly.
