@@ -1392,6 +1392,11 @@ document.addEventListener("fullscreenchange", () => {
   clearTimeout(fullscreenBtnHideTimer);
   if (document.fullscreenElement) revealFullscreenBtn();
   else $("#watch-fullscreen-btn")?.classList.remove("is-hidden");
+  // The move-catcher only needs to intercept the cursor while in fullscreen
+  // (that's the only time the button auto-hides) -- keeping it inert the
+  // rest of the time means normal playback clicks/seeking never pass
+  // through it at all.
+  $("#watch-fs-move-catcher")?.classList.toggle("is-live", !!document.fullscreenElement);
 });
 
 // Taps that land on the embed iframe itself never bubble to this document
@@ -1405,17 +1410,22 @@ window.addEventListener("blur", () => {
 
 // A transparent layer sitting directly above the video iframe: the only way
 // to actually see mouse movement over the video, since it can't bubble out
-// of the (cross-origin) iframe itself. It briefly goes click-through the
-// instant a press starts so the underlying player's own controls (play,
-// pause, seek...) still receive that click normally.
+// of the (cross-origin) iframe itself. Stays inert (see the "is-live" toggle
+// on fullscreenchange above) outside fullscreen. It briefly goes
+// click-through the instant a press starts so the underlying player's own
+// controls (play, pause, seek...) still receive that click/drag normally --
+// held long enough to cover a seek-bar drag, not just a tap, since there's
+// no way to observe a cross-origin iframe's own mouseup to know when it's
+// actually done.
 function wireFullscreenMoveCatcher() {
   const catcher = $("#watch-fs-move-catcher");
   if (!catcher) return;
+  catcher.classList.toggle("is-live", !!document.fullscreenElement);
   catcher.addEventListener("mousemove", () => { if (document.fullscreenElement) revealFullscreenBtn(); });
   catcher.addEventListener("pointerdown", () => {
-    if (document.fullscreenElement) revealFullscreenBtn();
+    revealFullscreenBtn();
     catcher.style.pointerEvents = "none";
-    setTimeout(() => { catcher.style.pointerEvents = ""; }, 400);
+    setTimeout(() => { catcher.style.pointerEvents = ""; }, 1500);
   });
 }
 

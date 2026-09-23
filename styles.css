@@ -1129,13 +1129,18 @@ body.watch-page {
 .watch-fullscreen-btn.is-hidden { opacity: 0; pointer-events: none; }
 /* Sits directly above the iframe (which mousemove can't bubble out of --
    it's cross-origin) so real cursor movement over the video can be detected.
-   Made click-through in JS (wireFullscreenMoveCatcher) the instant a press
-   starts, so it never blocks clicks on the actual video player. */
+   Only needed to reveal the fullscreen button while actually in fullscreen
+   (pointer-events stays off otherwise, so it never touches normal playback
+   clicks/seeking); made briefly click-through in JS
+   (wireFullscreenMoveCatcher) the instant a press starts, so it doesn't
+   block clicks on the actual video player controls. */
 .watch-fs-move-catcher {
   position: absolute;
   inset: 0;
   z-index: 4;
+  pointer-events: none;
 }
+.watch-fs-move-catcher.is-live { pointer-events: auto; }
 
 .watch-info {
   max-width: 1100px;
