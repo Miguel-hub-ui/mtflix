@@ -84,36 +84,6 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
-  vidlink: {
-    label: "VidLink",
-    // The default VidLink player runs on VidLink's own infra, which has had
-    // outages (522s). Their docs also offer a JWPlayer variant (player=jw)
-    // served by different infrastructure, so it's exposed as a sub-server
-    // (same nested SERVER picker as VidSrc) to switch to when the default
-    // backend is down. Both variants send the same postMessage progress
-    // events, so tracking/resume work identically on either.
-    servers: [
-      {
-        id: "default",
-        label: "Default",
-        movie: "https://vidlink.pro/movie/{id}",
-        tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
-      },
-      {
-        id: "jw",
-        label: "JW Player",
-        movie: "https://vidlink.pro/movie/{id}?player=jw",
-        tv: "https://vidlink.pro/tv/{id}/{season}/{episode}?player=jw",
-      },
-    ],
-    supportsEvents: true,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ primaryColor: "e50914", secondaryColor: "221f1f", iconColor: "ffffff" });
-      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextbutton", "true");
-      if (resumeSeconds > 30) params.set("startAt", String(Math.floor(resumeSeconds)));
-      return params;
-    },
-  },
   multiembed: {
     label: "MultiEmbed",
     // MultiEmbed cycles through several of its own backends, so if one is
@@ -4262,8 +4232,8 @@ window.addEventListener("message", function (event) {
   if (!PLAYER_SOURCES[getPlayerSourceId()].supportsEvents) return;
 
   // CineSrc posts `cinesrc:*` events with the playback position at the top
-  // level ({ type: "cinesrc:timeupdate", currentTime, duration }) -- a third
-  // message shape alongside PLAYER_EVENT (legacy) and MEDIA_DATA (VidLink).
+  // level ({ type: "cinesrc:timeupdate", currentTime, duration }) -- a
+  // different message shape from PLAYER_EVENT (legacy).
   if (typeof msg.type === "string" && msg.type.startsWith("cinesrc:")) {
     // Only trust cinesrc events that actually came from cinesrc.st.
     if (event.origin !== "https://cinesrc.st") return;
@@ -4331,30 +4301,6 @@ window.addEventListener("message", function (event) {
       chip.innerText = (icons[d.event] ?? "• ") + fmtTime(d.currentTime) + (d.duration ? " / " + fmtTime(d.duration) : "");
     }
     return;
-  }
-
-  // Another known format: a snapshot of every title the provider has ever
-  // tracked in this browser, keyed by TMDB id, with its own watched/duration
-  // + last episode.
-  if (msg.type === "MEDIA_DATA") {
-    const entry = (msg.data || {})[String(currentPlayer.id)];
-    if (!entry || !entry.progress) return;
-    const watched = entry.progress.watched || 0;
-    const duration = entry.progress.duration || 0;
-    const isTv = entry.type === "tv";
-    const season = isTv ? Number(entry.last_season_watched) || currentPlayer.season || 1 : 1;
-    const episode = isTv ? Number(entry.last_episode_watched) || currentPlayer.episode || 1 : 1;
-    applyPlaybackUpdate({
-      id: currentPlayer.id,
-      mediaType: entry.type || currentPlayer.type,
-      season,
-      episode,
-      currentTime: watched,
-      duration,
-      finished: duration > 0 && (watched >= duration - 20 || watched / duration >= 0.95),
-    });
-    const chip = document.querySelector("#messageArea");
-    if (chip) chip.innerText = fmtTime(watched) + (duration ? " / " + fmtTime(duration) : "");
   }
 });
 

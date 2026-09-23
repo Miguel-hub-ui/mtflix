@@ -100,20 +100,17 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 
 ## Playback Servers
 
-Movies and TV shows stream through an embed player inside the detail modal. Six sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
+Movies and TV shows stream through an embed player inside the detail modal. Five sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
 | **CineSrc 4K** | ✓ main | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
 | VidFast 4K | | Up to 4K/UHD | No |
-| VidLink | | Up to 1080p | Yes — sends its own `MEDIA_DATA` postMessages with watched/duration and the current season/episode; passes `startAt=` to resume where you left off |
 | MultiEmbed | | Up to 1080p | No |
 | VidSrc | | Up to 1080p | No — confirmed it sends no postMessages at all |
 | 2Embed | | Up to 1080p | No — same as VidSrc, confirmed no postMessages |
 
-Vidking was removed in September 2026 — the provider was reported to be shutting down.
-
-VidLink's default player has had provider-side outages (522s from `vidlink.pro`). Its documented `player=jw` JWPlayer variant, which runs on different infrastructure, is exposed as a nested **SERVER** picker option (Default / JW Player) alongside the source dropdown, so playback can be switched to a working backend without changing sources. Both variants send the same progress events.
+Vidking was removed in September 2026 — the provider was reported to be shutting down. VidLink was also removed in September 2026.
 
 VidSrc's own player hides a server picker (Pro Multi / Cinesrc / 4K) inside its iframe where it can't be reached, so those are recreated as a **nested SERVER dropdown** that appears on the watch page when VidSrc is the active source. Each name maps to a different live VidSrc-family mirror so switching actually changes the stream: **Pro Multi** → `v2.vidsrc.me`, **Cinesrc** → `vidsrc.su`, **4K** → `vidsrc.to`. Switching sources or mirrors is always manual — if one is down, pick another from the dropdown.
 
@@ -121,7 +118,7 @@ A manual server switch only applies to the title you're currently watching and i
 
 CineSrc auto-advances to the next episode inside its own player, so MTFlix's silent auto-advance is disabled for it (`hasInternalAutoNext`) to keep the two systems from racing — the manual "Next Episode" button still appears.
 
-- **Continue Watching** works on all sources. A 15-second wall-clock heartbeat estimates elapsed watch time (using TMDB's runtime as the target duration) as a baseline that doesn't depend on the player sending anything at all; on CineSrc and VidLink, their real progress events layer on top of that for more accurate resume points and season/episode tracking.
+- **Continue Watching** works on all sources. A 15-second wall-clock heartbeat estimates elapsed watch time (using TMDB's runtime as the target duration) as a baseline that doesn't depend on the player sending anything at all; on CineSrc, its real progress events layer on top of that for more accurate resume points and season/episode tracking.
 - A small status chip (bottom-left) shows live player state (`#messageArea`) when the active source sends progress events.
 
 ## Project Structure
