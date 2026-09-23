@@ -1127,6 +1127,11 @@ body.watch-page {
 .watch-fullscreen-btn svg { width: 18px; height: 18px; }
 .watch-fullscreen-btn:hover { background: var(--accent); }
 .watch-fullscreen-btn.is-hidden { opacity: 0; pointer-events: none; }
+/* Mousemove doesn't bubble out of the cross-origin player iframe, so the
+   JS "reveal on movement" listener never fires while the cursor rests over
+   the video. :hover on the stage is computed from real cursor position by
+   the renderer regardless of the iframe boundary, so it still catches this. */
+#modal-hero:hover .watch-fullscreen-btn.is-hidden { opacity: 1; pointer-events: auto; }
 
 .watch-info {
   max-width: 1100px;

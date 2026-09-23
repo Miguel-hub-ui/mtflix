@@ -1367,6 +1367,11 @@ function wireFullscreenBtn(stage) {
         showToast("Fullscreen was blocked by the browser.");
       });
   });
+  // Re-rendering the stage (e.g. switching servers) replaces this button
+  // with a fresh element that isn't necessarily under the cursor's tracked
+  // hover state yet, and any pending hide timer from the old element would
+  // otherwise fire against it -- force a clean "just shown" state instead.
+  revealFullscreenBtn();
 }
 
 // While fullscreen, the button auto-hides after a few seconds of no
