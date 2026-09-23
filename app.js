@@ -87,28 +87,31 @@ const PLAYER_SOURCES = {
   },
   vidlink: {
     label: "VidLink",
-    movie: "https://vidlink.pro/movie/{id}",
-    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+    // The default VidLink player runs on VidLink's own infra, which has had
+    // outages (522s). Their docs also offer a JWPlayer variant (player=jw)
+    // served by different infrastructure, so it's exposed as a sub-server
+    // (same nested SERVER picker as VidSrc) to switch to when the default
+    // backend is down. Both variants send the same postMessage progress
+    // events, so tracking/resume work identically on either.
+    servers: [
+      {
+        id: "default",
+        label: "Default",
+        movie: "https://vidlink.pro/movie/{id}",
+        tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+      },
+      {
+        id: "jw",
+        label: "JW Player",
+        movie: "https://vidlink.pro/movie/{id}?player=jw",
+        tv: "https://vidlink.pro/tv/{id}/{season}/{episode}?player=jw",
+      },
+    ],
     supportsEvents: true,
     buildParams(type, resumeSeconds) {
       const params = new URLSearchParams({ primaryColor: "e50914", secondaryColor: "221f1f", iconColor: "ffffff" });
       if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextbutton", "true");
       if (resumeSeconds > 30) params.set("startAt", String(Math.floor(resumeSeconds)));
-      return params;
-    },
-  },
-  vidking: {
-    label: "Vidking",
-    // Vidking posts PLAYER_EVENT postMessages (timeupdate/play/pause/ended/
-    // seeked) in the exact shape the shared message listener already parses,
-    // so progress tracking and resume work on it just like VidLink.
-    movie: "https://www.vidking.net/embed/movie/{id}",
-    tv: "https://www.vidking.net/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: true,
-    buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ color: "e50914" });
-      if (type === "tv" && activeProfile()?.autoplay !== false) params.set("nextEpisode", "true");
-      if (resumeSeconds > 30) params.set("progress", String(Math.floor(resumeSeconds)));
       return params;
     },
   },
@@ -4228,7 +4231,7 @@ window.addEventListener("message", function (event) {
 
   // CineSrc posts `cinesrc:*` events with the playback position at the top
   // level ({ type: "cinesrc:timeupdate", currentTime, duration }) -- a third
-  // message shape alongside PLAYER_EVENT (Vidking) and MEDIA_DATA (VidLink).
+  // message shape alongside PLAYER_EVENT (legacy) and MEDIA_DATA (VidLink).
   if (typeof msg.type === "string" && msg.type.startsWith("cinesrc:")) {
     // Only trust cinesrc events that actually came from cinesrc.st.
     if (event.origin !== "https://cinesrc.st") return;
