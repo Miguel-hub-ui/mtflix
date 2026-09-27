@@ -1312,93 +1312,6 @@ function startPlaybackHeartbeat(startSeconds) {
   }, 15000);
 }
 
-const fullscreenBtnHTML = `
-    <button type="button" class="watch-fullscreen-btn" id="watch-fullscreen-btn" aria-label="Fullscreen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
-    </button>`;
-
-function wireFullscreenBtn(stage) {
-  $("#watch-fullscreen-btn")?.addEventListener("click", () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch((err) => {
-        console.warn("exitFullscreen failed:", err);
-        showToast("Couldn't exit fullscreen.");
-      });
-      return;
-    }
-    // requestFullscreen() must be called from a real user gesture and throws
-    // a rejection when the browser refuses (permissions policy, iframe
-    // focus quirks); surface that instead of failing silently.
-    const p = stage.requestFullscreen?.();
-    if (p?.catch)
-      p.catch((err) => {
-        console.warn("requestFullscreen failed:", err);
-        showToast("Fullscreen was blocked by the browser.");
-      });
-  });
-  // Re-rendering the stage (e.g. switching servers) replaces this button
-  // with a fresh element that isn't necessarily under the cursor's tracked
-  // hover state yet, and any pending hide timer from the old element would
-  // otherwise fire against it -- force a clean "just shown" state instead.
-  revealFullscreenBtn();
-}
-
-// While fullscreen, the button auto-hides after a few seconds of no
-// interaction (like any video player's controls) and reappears on tap.
-let fullscreenBtnHideTimer = null;
-const FULLSCREEN_BTN_HIDE_DELAY = 2500;
-
-function revealFullscreenBtn() {
-  const btn = $("#watch-fullscreen-btn");
-  clearTimeout(fullscreenBtnHideTimer);
-  if (!btn) return;
-  btn.classList.remove("is-hidden");
-  if (document.fullscreenElement) {
-    fullscreenBtnHideTimer = setTimeout(() => btn.classList.add("is-hidden"), FULLSCREEN_BTN_HIDE_DELAY);
-  }
-}
-
-document.addEventListener("fullscreenchange", () => {
-  clearTimeout(fullscreenBtnHideTimer);
-  if (document.fullscreenElement) revealFullscreenBtn();
-  else $("#watch-fullscreen-btn")?.classList.remove("is-hidden");
-  // The move-catcher only needs to intercept the cursor while in fullscreen
-  // (that's the only time the button auto-hides) -- keeping it inert the
-  // rest of the time means normal playback clicks/seeking never pass
-  // through it at all.
-  $("#watch-fs-move-catcher")?.classList.toggle("is-live", !!document.fullscreenElement);
-});
-
-// Taps that land on the embed iframe itself never bubble to this document
-// (cross-origin), but focus does move into the iframe, which fires a blur
-// on the top window -- use that as a proxy for "the viewer tapped the video".
-document.addEventListener("touchstart", () => { if (document.fullscreenElement) revealFullscreenBtn(); }, { passive: true });
-document.addEventListener("mousemove", () => { if (document.fullscreenElement) revealFullscreenBtn(); });
-window.addEventListener("blur", () => {
-  if (document.fullscreenElement && document.activeElement?.tagName === "IFRAME") revealFullscreenBtn();
-});
-
-// A transparent layer sitting directly above the video iframe: the only way
-// to actually see mouse movement over the video, since it can't bubble out
-// of the (cross-origin) iframe itself. Stays inert (see the "is-live" toggle
-// on fullscreenchange above) outside fullscreen. It briefly goes
-// click-through the instant a press starts so the underlying player's own
-// controls (play, pause, seek...) still receive that click/drag normally --
-// held long enough to cover a seek-bar drag, not just a tap, since there's
-// no way to observe a cross-origin iframe's own mouseup to know when it's
-// actually done.
-function wireFullscreenMoveCatcher() {
-  const catcher = $("#watch-fs-move-catcher");
-  if (!catcher) return;
-  catcher.classList.toggle("is-live", !!document.fullscreenElement);
-  catcher.addEventListener("mousemove", () => { if (document.fullscreenElement) revealFullscreenBtn(); });
-  catcher.addEventListener("pointerdown", () => {
-    revealFullscreenBtn();
-    catcher.style.pointerEvents = "none";
-    setTimeout(() => { catcher.style.pointerEvents = ""; }, 1500);
-  });
-}
-
 // Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
 // iframe once the viewer actually clicks -- avoids autoplaying anything
 // before they've chosen to watch.
@@ -1410,9 +1323,8 @@ function renderPlayOverlay(backdropUrl, onPlay) {
   stage.innerHTML = `
     <button type="button" class="watch-play-btn" id="watch-play-btn" aria-label="Play">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-    </button>${fullscreenBtnHTML}`;
+    </button>`;
   $("#watch-play-btn")?.addEventListener("click", onPlay, { once: true });
-  wireFullscreenBtn(stage);
 }
 
 function injectPlayer(url) {
@@ -1434,11 +1346,8 @@ function injectPlayer(url) {
   heroArea.style.backgroundImage = "";
   heroArea.innerHTML = `
     <div class="modal-trailer">
-      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
-    </div>
-    <div class="watch-fs-move-catcher" id="watch-fs-move-catcher"></div>${fullscreenBtnHTML}`;
-  wireFullscreenBtn(heroArea);
-  wireFullscreenMoveCatcher();
+      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; display-capture" allowfullscreen></iframe>
+    </div>`;
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
