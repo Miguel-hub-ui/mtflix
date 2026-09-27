@@ -1312,6 +1312,49 @@ function startPlaybackHeartbeat(startSeconds) {
   }, 15000);
 }
 
+// Page-level fullscreen fallback for the player stage. Some embed servers
+// (VidFast, MultiEmbed, 2Embed) play their video through nested cross-origin
+// iframes and their in-player fullscreen buttons silently do nothing from in
+// there -- browsers refuse fullscreen calls the embed can't satisfy. This
+// control lives OUTSIDE the iframe and fullscreens the stage element itself,
+// so it works identically on every server. The stage (#modal-hero) is never
+// replaced -- injectPlayer only rewrites its children -- so the Fullscreen API
+// can't get stranded by switching servers or episodes.
+const stageFsBtnHTML = `
+    <button type="button" class="watch-stage-fs-btn" id="watch-stage-fs-btn" aria-label="Fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+    </button>`;
+
+function toggleStageFullscreen(stage) {
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+    return;
+  }
+  // Safari (desktop) only exposes the prefixed, promise-less API.
+  const req = stage.requestFullscreen?.() || stage.webkitRequestFullscreen?.();
+  if (req?.catch)
+    req.catch(() => showToast("Fullscreen was blocked by the browser."));
+  else if (!stage.requestFullscreen && !stage.webkitRequestFullscreen)
+    showToast("Fullscreen isn't supported in this browser.");
+}
+
+// The stage's innerHTML is rebuilt on every render (play overlay, server
+// switch, episode change), which wipes the button -- so it is (re)inserted and
+// rebound right after each rebuild. It's the same node position every time,
+// and any pending fullscreen state targets the stage itself, never the button.
+function mountStageFsBtn(area) {
+  area.insertAdjacentHTML("beforeend", stageFsBtnHTML);
+  $("#watch-stage-fs-btn")?.addEventListener("click", () => toggleStageFullscreen(area));
+}
+
+document.addEventListener("fullscreenchange", () => {
+  const btn = $("#watch-stage-fs-btn");
+  if (!btn) return;
+  const fs = !!document.fullscreenElement;
+  btn.title = fs ? "Exit fullscreen" : "Fullscreen";
+  btn.setAttribute("aria-label", btn.title);
+});
+
 // Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
 // iframe once the viewer actually clicks -- avoids autoplaying anything
 // before they've chosen to watch.
@@ -1325,6 +1368,7 @@ function renderPlayOverlay(backdropUrl, onPlay) {
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
     </button>`;
   $("#watch-play-btn")?.addEventListener("click", onPlay, { once: true });
+  mountStageFsBtn(stage);
 }
 
 function injectPlayer(url) {
@@ -1348,6 +1392,7 @@ function injectPlayer(url) {
     <div class="modal-trailer">
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
+  mountStageFsBtn(heroArea);
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
