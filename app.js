@@ -1376,13 +1376,14 @@ function injectPlayer(url) {
   heroArea.style.backgroundImage = "";
   heroArea.innerHTML = `
     <div class="modal-trailer">
-      <!-- `fullscreen *` (all origins), NOT bare `fullscreen`: an `allow`
-           attribute takes precedence over allowfullscreen (MDN), and bare
-           `fullscreen` only covers the framed origin itself. MultiEmbed's
-           and VidSrc's videos live in NESTED cross-origin iframes inside
-           their embeds -- with the old value their own fullscreen buttons
-           were silently denied. The wildcard delegates fullscreen down the
-           whole frame tree, so the servers' native buttons work again. -->
+      <!-- Note: the allow attribute uses FULLSET with a wildcard, not bare
+           FULLSET: an allow attribute takes precedence over the
+           allowfullscreen attribute (MDN), and the bare form only covers
+           the framed origin itself. MultiEmbed's and VidSrc's videos live
+           in NESTED cross-origin iframes inside their embeds -- with the
+           bare form their own fullscreen buttons were silently denied. The
+           wildcard delegates fullscreen down the whole frame tree, so the
+           servers' native buttons work again. -->
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
   mountStageFsBtn(heroArea);
