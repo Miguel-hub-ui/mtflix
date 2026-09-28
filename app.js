@@ -118,15 +118,6 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
-  "2embed": {
-    label: "2Embed",
-    movie: "https://2embed.cc/embed/movie/{id}",
-    tv: "https://2embed.cc/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
 };
 
 const DEFAULT_PLAYER_SOURCE = "cinesrc";
@@ -1307,14 +1298,10 @@ function startPlaybackHeartbeat(startSeconds) {
   }, 15000);
 }
 
-// Page-level fullscreen fallback for the player stage. Some embed servers
-// (VidFast, MultiEmbed, 2Embed) play their video through nested cross-origin
-// iframes and their in-player fullscreen buttons silently do nothing from in
-// there -- browsers refuse fullscreen calls the embed can't satisfy. This
-// control lives OUTSIDE the iframe and fullscreens the stage element itself,
-// so it works identically on every server. The stage (#modal-hero) is never
-// replaced -- injectPlayer only rewrites its children -- so the Fullscreen API
-// can't get stranded by switching servers or episodes.
+// Page-level fullscreen fallback for the player stage, DISABLED (see
+// mountStageFsBtn below) since fixing the real cause of embed fullscreen
+// breakage -- the iframe's `allow` policy (see injectPlayer) -- made the
+// servers' own fullscreen buttons work again.
 const stageFsBtnHTML = `
     <button type="button" class="watch-stage-fs-btn" id="watch-stage-fs-btn" aria-label="Fullscreen" title="Fullscreen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
@@ -1389,7 +1376,14 @@ function injectPlayer(url) {
   heroArea.style.backgroundImage = "";
   heroArea.innerHTML = `
     <div class="modal-trailer">
-      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; display-capture" allowfullscreen></iframe>
+      <!-- `fullscreen *` (all origins), NOT bare `fullscreen`: an `allow`
+           attribute takes precedence over allowfullscreen (MDN), and bare
+           `fullscreen` only covers the framed origin itself. MultiEmbed's
+           and VidSrc's videos live in NESTED cross-origin iframes inside
+           their embeds -- with the old value their own fullscreen buttons
+           were silently denied. The wildcard delegates fullscreen down the
+           whole frame tree, so the servers' native buttons work again. -->
+      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
   mountStageFsBtn(heroArea);
 }
@@ -2278,7 +2272,7 @@ async function openDetail(type, id, autoplayTrailer) {
   // TMDB often leaves episode_run_time empty for TV shows -- fall back to a
   // typical episode/movie length so the Continue Watching progress bar still
   // has a duration to show for sources that never send real progress events
-  // (VidSrc, 2Embed), instead of showing nothing.
+  // (VidSrc), instead of showing nothing.
   const estimatedDurationSec =
     type === "tv"
       ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60

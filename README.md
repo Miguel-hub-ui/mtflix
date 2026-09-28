@@ -100,18 +100,19 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 
 ## Playback Servers
 
-Movies and TV shows stream through an embed player inside the detail modal. Four sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
+Movies and TV shows stream through an embed player inside the detail modal. Three sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
 | **CineSrc 4K** | ✓ main | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
 | MultiEmbed | | Up to 1080p | No |
 | VidSrc | | Up to 1080p | No — confirmed it sends no postMessages at all |
-| 2Embed | | Up to 1080p | No — same as VidSrc, confirmed no postMessages |
+
+The player iframe grants fullscreen to all origins (`allow="fullscreen *"`): MultiEmbed's and VidSrc's videos play through nested cross-origin iframes inside their embeds, and a bare `allow="fullscreen"` (which also overrides `allowfullscreen`) silently denies those nested frames — their own fullscreen buttons did nothing. The wildcard delegates the permission down the whole frame tree, so their native buttons work.
 
 CineSrc is the default source — it's the only one that reports live progress events, so resume points, Continue Watching accuracy and auto-advance all work best on it.
 
-Videasy, VidZee, VidSrc Pro and VidFast were added in September 2026 as HD experiments and removed the same month at the owner's request (the old low-quality complaints turned out to be per-title, and CineSrc's feature set — real resume points and auto-advance — mattered more). Vidking was removed in September 2026 — the provider was reported to be shutting down. VidLink was also removed in September 2026.
+2Embed was removed in September 2026 (redundant with the other VidSrc-family sources). Videasy, VidZee, VidSrc Pro and VidFast were added in September 2026 as HD experiments and removed the same month at the owner's request (the old low-quality complaints turned out to be per-title, and CineSrc's feature set — real resume points and auto-advance — mattered more). Vidking was removed in September 2026 — the provider was reported to be shutting down. VidLink was also removed in September 2026.
 
 VidSrc's own player hides a server picker (Pro Multi / Cinesrc / 4K) inside its iframe where it can't be reached, so those are recreated as a **nested SERVER dropdown** that appears on the watch page when VidSrc is the active source. Each name maps to a different live VidSrc-family mirror so switching actually changes the stream: **Pro Multi** → `v2.vidsrc.me`, **Cinesrc** → `vidsrc.su`, **4K** → `vidsrc.to`. Switching sources or mirrors is always manual — if one is down, pick another from the dropdown.
 

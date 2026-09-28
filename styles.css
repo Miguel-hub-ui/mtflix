@@ -1065,10 +1065,9 @@ body.watch-page {
 }
 .watch-play-btn:hover { transform: translate(-50%, -50%) scale(1.08); }
 .watch-play-btn svg { width: 34px; height: 34px; margin-left: 4px; }
-/* Page-level fullscreen control for the player stage. Targets #modal-hero --
-   the one element that is never re-rendered -- so it works on every server,
-   including embeds (VidFast, MultiEmbed, 2Embed) whose own fullscreen buttons
-   are dead inside their nested cross-origin iframes. */
+/* Page-level fullscreen control for the player stage -- currently DISABLED
+   (mountStageFsBtn returns early) because the servers' own fullscreen
+   buttons were fixed at the iframe policy level (see injectPlayer). */
 .watch-stage-fs-btn {
   position: absolute;
   right: 14px;
