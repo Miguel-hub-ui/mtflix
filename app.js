@@ -1019,11 +1019,18 @@ async function buildHero() {
     heroItems = data.results
       .filter((r) => r.backdrop_path && (r.title || r.name))
       .map((r) => normalizeItem(r))
-      .slice(0, 9);
+      // 15 = three full 5-card decks, so the carousel still has slides to
+      // rotate through (the old 3-card layout only needed 9).
+      .slice(0, 15);
     if (!heroItems.length) return;
 
     heroGroups = [];
-    for (let i = 0; i < heroItems.length; i += 3) heroGroups.push(heroItems.slice(i, i + 3));
+    for (let i = 0; i < heroItems.length; i += 5) heroGroups.push(heroItems.slice(i, i + 5));
+    // A partial trailing group (fewer than 5 trending titles) would render
+    // cards with no neighbor to tuck under, breaking the deck composition --
+    // drop it rather than stretch a 2-3 card "deck".
+    heroGroups = heroGroups.filter((g) => g.length === 5);
+    if (!heroGroups.length) return;
 
     hero.innerHTML = `
       <div class="hero-track" id="hero-track">
@@ -1031,14 +1038,9 @@ async function buildHero() {
           .map(
             (group) => `
           <div class="hero-slide">
-            <div class="hero-tri">
-              <div class="hero-tri-glow"></div>
-              <svg class="hero-tri-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polygon points="50,17 15,76 85,72" />
-              </svg>
-              ${heroTriCardHTML(group[0], "main")}
-              ${group[1] ? heroTriCardHTML(group[1], "sub sub-left") : ""}
-              ${group[2] ? heroTriCardHTML(group[2], "sub sub-right") : ""}
+            <div class="hero-deck">
+              <div class="hero-deck-glow"></div>
+              ${group.map((item, idx) => heroDeckCardHTML(item, idx)).join("")}
             </div>
           </div>`
           )
@@ -1071,7 +1073,7 @@ async function buildHero() {
       setHeroSlide((heroIndex + 1) % heroGroups.length);
       startHeroRotation();
     });
-    hero.querySelectorAll(".hero-tri-card").forEach((card) => {
+    hero.querySelectorAll(".hero-deck-card").forEach((card) => {
       card.addEventListener("click", () => openDetail(card.dataset.type, card.dataset.id, false));
     });
     wireHeroParallax();
@@ -1080,11 +1082,11 @@ async function buildHero() {
   }
 }
 
-// Subtly shifts each triangle card opposite the cursor, by a different
-// amount per card, so the composition feels like it has real depth instead
-// of being three flat images pasted on top of each other. Skipped on touch
-// devices (no hover to drive it, and it'd fight the swipe drag).
-const HERO_TRI_DEPTH = { main: 6, "sub-left": 14, "sub-right": 11 };
+// Subtly shifts each deck card opposite the cursor, by a different amount
+// per slot, so the composition feels like it has real depth instead of five
+// flat posters pasted side by side. Skipped on touch devices (no hover to
+// drive it, and it'd fight the swipe drag).
+const HERO_DECK_DEPTH = { 0: 16, 1: 10, 2: 5, 3: 10, 4: 16 };
 
 function wireHeroParallax() {
   const hero = $("#hero");
@@ -1094,29 +1096,30 @@ function wireHeroParallax() {
     const rect = hero.getBoundingClientRect();
     const nx = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
     const ny = (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
-    hero.querySelectorAll(".hero-tri-card").forEach((card) => {
-      const depth = HERO_TRI_DEPTH[card.dataset.variant] || 8;
+    hero.querySelectorAll(".hero-deck-card").forEach((card) => {
+      const depth = HERO_DECK_DEPTH[card.dataset.slot] || 8;
       card.style.translate = `${-nx * depth}px ${-ny * depth}px`;
     });
   });
   hero.addEventListener("mouseleave", () => {
-    hero.querySelectorAll(".hero-tri-card").forEach((card) => (card.style.translate = "0 0"));
+    hero.querySelectorAll(".hero-deck-card").forEach((card) => (card.style.translate = "0 0"));
   });
 }
 
-// One rectangle of the "3 rectangles forming a triangle" hero: a big "main"
-// card up top and two smaller "sub" cards below it, each its own clickable
-// movie rather than one full-bleed backdrop with a separate text block.
-function heroTriCardHTML(item, variant) {
+// One card of the poster-deck hero. Slot 2 is the tall center card; slots
+// 0-1 and 3-4 step down in size and tuck behind their inner neighbor, with
+// only an edge peeking out -- the fanned, curved-corner composition from the
+// owner's sketch. Portrait posters (w342) -- the sketch draws tall rects.
+function heroDeckCardHTML(item, slot) {
   return `
-    <button type="button" class="hero-tri-card hero-tri-${variant.replace(/\s+/g, " hero-tri-")}" data-id="${item.id}" data-type="${item.media_type}" data-variant="${variant.split(" ").pop()}">
-      <img class="hero-tri-img" loading="lazy" src="${img(item.backdrop_path, "w1280")}" alt="" />
-      <span class="hero-tri-shine"></span>
-      <span class="hero-tri-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-      <div class="hero-tri-info">
-        <span class="hero-tri-badge">${item.media_type === "tv" ? "SERIES" : "FILM"}</span>
-        <h3 class="hero-tri-title">${escapeHtml(item.title)}</h3>
-        <span class="hero-tri-rating">★ ${rating(item.vote_average)}</span>
+    <button type="button" class="hero-deck-card hero-deck-slot-${slot}" data-id="${item.id}" data-type="${item.media_type}" data-slot="${slot}">
+      <img class="hero-deck-img" loading="lazy" src="${img(item.poster_path, "w342")}" alt="" />
+      <span class="hero-deck-shine"></span>
+      <span class="hero-deck-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+      <div class="hero-deck-info">
+        <span class="hero-deck-badge">${item.media_type === "tv" ? "SERIES" : "FILM"}</span>
+        <h3 class="hero-deck-title">${escapeHtml(item.title)}</h3>
+        <span class="hero-deck-rating">★ ${rating(item.vote_average)}</span>
       </div>
     </button>`;
 }
@@ -1205,10 +1208,10 @@ function setHeroSlide(i) {
     // active -- removing the class, forcing a reflow, then re-adding it is
     // what makes a CSS animation replay instead of only firing once.
     const activeSlide = track.children[i];
-    const cards = activeSlide?.querySelectorAll(".hero-tri-card");
-    cards?.forEach((c) => c.classList.remove("hero-tri-enter"));
+    const cards = activeSlide?.querySelectorAll(".hero-deck-card");
+    cards?.forEach((c) => c.classList.remove("hero-deck-enter"));
     void activeSlide?.offsetWidth;
-    cards?.forEach((c) => c.classList.add("hero-tri-enter"));
+    cards?.forEach((c) => c.classList.add("hero-deck-enter"));
   }
   document.querySelectorAll(".hero-dot").forEach((d, di) =>
     d.classList.toggle("active", di === i)
