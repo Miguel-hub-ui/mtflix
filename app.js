@@ -1382,7 +1382,11 @@ function toggleStageFullscreen(stage) {
 // switch, episode change), which wipes the button -- so it is (re)inserted and
 // rebound right after each rebuild. It's the same node position every time,
 // and any pending fullscreen state targets the stage itself, never the button.
+// DISABLED at the owner's request (the embeds' own fullscreen controls work
+// with the new HD sources): this early return keeps the button from ever
+// mounting. Delete the return to bring it back.
 function mountStageFsBtn(area) {
+  return;
   area.insertAdjacentHTML("beforeend", stageFsBtnHTML);
   $("#watch-stage-fs-btn")?.addEventListener("click", () => toggleStageFullscreen(area));
 }
