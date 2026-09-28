@@ -55,8 +55,8 @@ const PLAYER_SOURCES = {
   // (parsed in the window message listener below), so real resume points and
   // auto-advance work on it. `t=` jumps straight to the resume spot
   // (continueprompt=false skips its Continue/Restart dialog) and `color`
-  // matches the MTFlix accent. Former default -- now the first fallback
-  // behind Videasy; every other source stays in the dropdown too.
+  // matches the MTFlix accent. It's the default source; every other source
+  // stays available in the dropdown as a fallback.
   cinesrc: {
     label: "CineSrc 4K",
     movie: "https://cinesrc.st/embed/movie/{id}",
@@ -72,53 +72,6 @@ const PLAYER_SOURCES = {
       if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
       if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
       return params;
-    },
-  },
-  // Videasy is a 4K/1080p-first embed player (FMHY "premium" tier, powers
-  // half the top-rated streaming frontends). Streams come from real HD/4K
-  // transcodes behind adaptive-bitrate HLS, so 1080p actually looks like
-  // 1080p instead of the re-encoded ~360p the VidSrc-family embeds serve.
-  // `color` tints its UI to the MTFlix accent (seen on their own player).
-  videasy: {
-    label: "Videasy 4K",
-    movie: "https://player.videasy.net/movie/{id}",
-    tv: "https://player.videasy.net/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams({ color: "e50914" });
-    },
-  },
-  // VidZee is rated 4K with minimal ads (FMHY), serving proper HD
-  // transcodes. Ids are TMDB numeric ids (verified from other integrations).
-  vidzee: {
-    label: "VidZee 4K",
-    movie: "https://player.vidzee.wtf/embed/movie/{id}",
-    tv: "https://player.vidzee.wtf/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  // VidSrc.pro is the 4K/1080p backend behind the top-rated consumer sites
-  // (cineby.gd, xprime.tv, flixer.sh) -- the FMHY "elite tier" all point at
-  // it. Same embed path shape as the older vidsrc mirrors, newer backend.
-  vidsrcpro: {
-    label: "VidSrc Pro 4K",
-    movie: "https://vidsrc.pro/embed/movie/{id}",
-    tv: "https://vidsrc.pro/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  // VidFast is a 4K/UHD-first embed player, kept as a fallback source.
-  vidfast: {
-    label: "VidFast 4K",
-    movie: "https://vidfast.pro/movie/{id}",
-    tv: "https://vidfast.pro/tv/{id}/{season}/{episode}",
-    supportsEvents: false,
-    buildParams() {
-      return new URLSearchParams();
     },
   },
   multiembed: {
@@ -176,15 +129,14 @@ const PLAYER_SOURCES = {
   },
 };
 
-const DEFAULT_PLAYER_SOURCE = "videasy";
+const DEFAULT_PLAYER_SOURCE = "cinesrc";
 
-// Videasy is the default: it's the only source here consistently serving
-// true 1080p/4K bitrates (FMHY premium tier) -- the VidSrc-family embeds
-// advertise HD but re-encode down to ~360p. A manual server switch only
-// applies to the movie or episode you're currently watching -- kept in
-// memory (not localStorage) and reset to the default whenever the player
-// modal closes, so reopening a title (or a new one) always starts back on
-// Videasy instead of remembering an old pick.
+// CineSrc is the default again (the added HD sources were removed at the
+// owner's request). A manual server switch only applies to the movie or
+// episode you're currently watching -- kept in memory (not localStorage)
+// and reset to the default whenever the player modal closes, so reopening
+// a title (or a new one) always starts back on CineSrc instead of
+// remembering an old pick.
 let playerSourceIdMem = null;
 let playerSubServerMem = {};
 

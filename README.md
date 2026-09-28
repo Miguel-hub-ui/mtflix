@@ -100,26 +100,22 @@ The site opens with a **"Who's watching?"** profile picker, just like Netflix:
 
 ## Playback Servers
 
-Movies and TV shows stream through an embed player inside the detail modal. Eight sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
+Movies and TV shows stream through an embed player inside the detail modal. Four sources are configured in `app.js` (`PLAYER_SOURCES`), with a small switcher pinned to the top-left of the player so you can flip between them mid-playback if one is slow or down:
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
-| **Videasy 4K** | ✓ main | Real 1080p/4K transcodes behind adaptive-bitrate HLS — the only source here that consistently delivers true HD bitrates | No |
-| VidZee 4K | | 4K with minimal ads (FMHY-graded), proper HD transcodes | No |
-| VidSrc Pro 4K | | 4K/1080p — the backend behind the top-rated FMHY "elite tier" sites (cineby.gd, xprime.tv, flixer.sh) | No |
-| CineSrc 4K | | Up to 4K, multi-server fallback inside the player (former default) | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
-| VidFast 4K | | Up to 4K/UHD | No |
+| **CineSrc 4K** | ✓ main | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
 | MultiEmbed | | Up to 1080p | No |
 | VidSrc | | Up to 1080p | No — confirmed it sends no postMessages at all |
 | 2Embed | | Up to 1080p | No — same as VidSrc, confirmed no postMessages |
 
-Videasy became the default in September 2026: the VidSrc-family embeds advertise HD but re-encode down to roughly 360p in practice, while Videasy (a FMHY "premium tier" provider) serves genuine 1080p/4K streams. VidZee and VidSrc Pro were added at the same time as HD alternatives. If Videasy is down for a title, CineSrc remains the most feature-complete fallback (real resume points and auto-advance via its postMessage events).
+CineSrc is the default source — it's the only one that reports live progress events, so resume points, Continue Watching accuracy and auto-advance all work best on it.
 
-Vidking was removed in September 2026 — the provider was reported to be shutting down. VidLink was also removed in September 2026.
+Videasy, VidZee, VidSrc Pro and VidFast were added in September 2026 as HD experiments and removed the same month at the owner's request (the old low-quality complaints turned out to be per-title, and CineSrc's feature set — real resume points and auto-advance — mattered more). Vidking was removed in September 2026 — the provider was reported to be shutting down. VidLink was also removed in September 2026.
 
 VidSrc's own player hides a server picker (Pro Multi / Cinesrc / 4K) inside its iframe where it can't be reached, so those are recreated as a **nested SERVER dropdown** that appears on the watch page when VidSrc is the active source. Each name maps to a different live VidSrc-family mirror so switching actually changes the stream: **Pro Multi** → `v2.vidsrc.me`, **Cinesrc** → `vidsrc.su`, **4K** → `vidsrc.to`. Switching sources or mirrors is always manual — if one is down, pick another from the dropdown.
 
-A manual server switch only applies to the title you're currently watching and is kept in memory, not `localStorage`: closing the player (or opening a different title) always starts back on the default (Videasy 4K). To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
+A manual server switch only applies to the title you're currently watching and is kept in memory, not `localStorage`: closing the player (or opening a different title) always starts back on the default (CineSrc 4K). To add another provider, add an entry to `PLAYER_SOURCES` with `movie`/`tv` URL templates (`{id}`/`{season}`/`{episode}` placeholders) and a `buildParams()` function for any query params it needs.
 
 CineSrc auto-advances to the next episode inside its own player, so MTFlix's silent auto-advance is disabled for it (`hasInternalAutoNext`) to keep the two systems from racing — the manual "Next Episode" button still appears.
 
