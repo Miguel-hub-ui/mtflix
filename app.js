@@ -3,6 +3,15 @@
 (function initIntroSplash() {
   const splash = document.getElementById("intro-splash");
   if (!splash) return;
+  // Coming back from the player must not replay the intro: browsers often
+  // fully reload the home page on Back (service-worker-controlled pages are
+  // frequently ineligible for bfcache), and the splash replay is what made
+  // returning from a movie feel like the whole app restarted.
+  if (sessionStorage.getItem("mtflix_returning") === "1") {
+    sessionStorage.removeItem("mtflix_returning");
+    splash.remove();
+    return;
+  }
   document.body.classList.add("intro-active");
   let finished = false;
   const finish = () => {
@@ -14,6 +23,12 @@
   };
   splash.addEventListener("click", finish);
   setTimeout(finish, 2300);
+  // If the home page is restored from bfcache instead, the flag was never
+  // consumed (no fresh boot ran) -- clear it so a later cold start still
+  // gets its intro.
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) sessionStorage.removeItem("mtflix_returning");
+  });
 })();
 
 const firebaseConfig = {
@@ -898,6 +913,14 @@ async function startApp() {
   await loadGenres();
   await Promise.all([buildHero(), renderRows(currentFilter)]);
   appStarted = true;
+  // Returning from the player: the fresh reload lost the browse position
+  // (scrollRestoration is manual, see the back-navigation notes) -- put the
+  // grid back where it was instead of dropping the user at the top.
+  const savedScroll = Number(sessionStorage.getItem("mtflix_scroll") || 0);
+  if (savedScroll > 0) {
+    sessionStorage.removeItem("mtflix_scroll");
+    requestAnimationFrame(() => window.scrollTo(0, savedScroll));
+  }
 }
 
 let currentFilter = "home";
@@ -1603,6 +1626,15 @@ function openWatchTab(type, id, season, episode, { reset = false } = {}) {
     params.set("e", String(episode || 1));
   }
   if (reset) params.set("reset", "1");
+  // Flag the session so the home page's next load (the Back press after
+  // watching) skips the intro splash, and remember the browse scroll so it
+  // can be put back -- together these kill the "went back and the app
+  // restarted" glitch. Watch-page callers (next episode) don't overwrite
+  // the saved scroll: it belongs to the browse page.
+  sessionStorage.setItem("mtflix_returning", "1");
+  if (document.body.dataset.page !== "watch") {
+    sessionStorage.setItem("mtflix_scroll", String(window.scrollY));
+  }
   location.href = `watch.html?${params.toString()}`;
 }
 
@@ -1691,11 +1723,12 @@ async function initWatchPage() {
 
   $("#watch-back")?.addEventListener("click", (e) => {
     e.preventDefault();
-    // watch.html is now reached via a same-tab navigation from index.html
-    // (see openWatchTab), so a real back-navigation lands there and restores
-    // its scroll position/filter via bfcache -- falls back to a fresh load
-    // only when there's no history to go back to (e.g. a bookmarked link).
-    if (history.length > 1) {
+    // watch.html is reached via a same-tab navigation from index.html (see
+    // openWatchTab), so a real back-navigation lands there. Only trust
+    // history.back() when this site really is the referrer: some mobile
+    // browsers report history.length > 1 even when the previous entry is
+    // another site, and backing into THAT reads as the app glitching out.
+    if (document.referrer && new URL(document.referrer, location.href).origin === location.origin) {
       history.back();
       return;
     }

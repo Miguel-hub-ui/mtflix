@@ -2418,34 +2418,35 @@ body.watch-page {
   .bottom-nav a.active svg { color: var(--text); }
   #messageArea { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .rows { margin-top: 0; gap: 32px; padding-top: 30px; }
-  .hero { height: min(72vh, 620px); min-height: 460px; }
+  .hero { height: min(78vh, 660px); min-height: 500px; }
   /* Phones show a 3-card fan instead of the desktop 5: the outer pair is
      hidden and the remaining three are scaled up and sized by WIDTH with a
      2:3 poster aspect ratio -- height percentages would stretch the cards
      skinny on tall phones, since the deck's height tracks vh while its
      width tracks the viewport. Center card biggest and in front, side
      cards tucked behind it -- same composition language as the desktop
-     deck, just three wide. */
-  .hero-deck { padding: 78px 2vw 116px; align-items: center; }
+     deck, just three wide. Bigger than the first pass: taller hero, wider
+     cards, deeper overlap so the side cards read clearly. */
+  .hero-deck { padding: 72px 2vw 100px; align-items: center; }
   .hero-dots { bottom: 12px; }
   .hero-deck-slot-0,
   .hero-deck-slot-4 { display: none; }
   .hero-deck-slot-1,
   .hero-deck-slot-3 {
-    width: 34%;
+    width: 40%;
     height: auto;
     aspect-ratio: 2 / 3;
     max-height: 100%;
-    margin: 0 -7%;
+    margin: 0 -8%;
     border-radius: 16px;
   }
   .hero-deck-slot-2 {
-    width: 46%;
+    width: 54%;
     height: auto;
     aspect-ratio: 2 / 3;
     max-height: 100%;
   }
-  .hero-deck-slot-2 .hero-deck-title { font-size: 1.05rem; }
+  .hero-deck-slot-2 .hero-deck-title { font-size: 1.15rem; }
   .hero-deck-slot-2 .hero-deck-info { padding: 12px 14px 10px; }
   .hero-deck-info { padding: 9px 11px 8px; }
   .hero-deck-rating { display: none; }
