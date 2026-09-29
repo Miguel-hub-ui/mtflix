@@ -369,6 +369,11 @@ button { font-family: inherit; cursor: pointer; }
   position: relative;
   flex: 0 0 100%;
   height: 100%;
+  /* Flex items refuse to shrink below their content's min width by
+     default; on phones the aspect-ratio deck cards would push the slide
+     wider than the viewport and shove the right card off-screen. Allow
+     the shrink. */
+  min-width: 0;
 }
 .hero::after {
   content: "";
@@ -2418,33 +2423,33 @@ body.watch-page {
   .bottom-nav a.active svg { color: var(--text); }
   #messageArea { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .rows { margin-top: 0; gap: 32px; padding-top: 30px; }
-  .hero { height: min(78vh, 660px); min-height: 500px; }
+  .hero { height: min(48vh, 428px); min-height: 380px; }
   /* Phones show a 3-card fan instead of the desktop 5: the outer pair is
-     hidden and the remaining three are scaled up and sized by WIDTH with a
-     2:3 poster aspect ratio -- height percentages would stretch the cards
-     skinny on tall phones, since the deck's height tracks vh while its
-     width tracks the viewport. Center card biggest and in front, side
-     cards tucked behind it -- same composition language as the desktop
-     deck, just three wide. Bigger than the first pass: taller hero, wider
-     cards, deeper overlap so the side cards read clearly. */
-  .hero-deck { padding: 72px 2vw 100px; align-items: center; }
+     hidden and the remaining three are sized by HEIGHT with a tall 9:16
+     aspect -- width percentages would stretch the cards squat when the
+     deck's height caps them, since max-height clamps one axis but not the
+     other. Sizing from the deck's height keeps the ratio exact, and the
+     hero is kept short enough that three 9:16 cards plus their overlap fit
+     the viewport width, so all three movies sit fully on screen instead of
+     bleeding off the edges. Bottom-aligned like a shelf: center card
+     biggest and in front, side cards tucked behind it -- same composition
+     language as the desktop deck, just three wide. */
+  .hero-deck { padding: 60px 4vw 84px; align-items: flex-end; }
   .hero-dots { bottom: 12px; }
   .hero-deck-slot-0,
   .hero-deck-slot-4 { display: none; }
   .hero-deck-slot-1,
   .hero-deck-slot-3 {
-    width: 40%;
-    height: auto;
-    aspect-ratio: 2 / 3;
-    max-height: 100%;
-    margin: 0 -8%;
+    height: 100%;
+    width: auto;
+    aspect-ratio: 9 / 16;
+    margin: 0 -10%;
     border-radius: 16px;
   }
   .hero-deck-slot-2 {
-    width: 54%;
-    height: auto;
-    aspect-ratio: 2 / 3;
-    max-height: 100%;
+    height: 100%;
+    width: auto;
+    aspect-ratio: 9 / 16;
   }
   .hero-deck-slot-2 .hero-deck-title { font-size: 1.15rem; }
   .hero-deck-slot-2 .hero-deck-info { padding: 12px 14px 10px; }
