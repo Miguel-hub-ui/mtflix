@@ -1575,23 +1575,28 @@ async function resolveDynamicSourceUrlAr(type, id, season, episode) {
     yotCacheSet(key, null);
     return null;
   }
-  const isMovie = type === "movie";
-  const q = isMovie ? `${arName} فيلم مدبلج كامل` : `${arName} الحلقة ${episode || 1} مدبلج`;
-  try {
-    const res = await fetch(
-      `https://api.dailymotion.com/videos?search=${encodeURIComponent(q)}&fields=id,title,duration&limit=10`
+  const epNum = Number(episode || 1);
+  // Many Arabic channels subtitle rather than dub; a subbed upload still
+  // beats "nothing". Rank true dubs first, accept subs as a fallback.
+  const q = [`${arName} الحلقة ${epNum} مدبلج`, `${arName} الحلقة ${epNum}`, `${arName} ${epNum}`];
+  const scored = (list) => {
+    const hits = (list || []).filter(
+      (v) =>
+        (v.duration || 0) > 20 * 60 &&
+        (v.duration || 0) < 3 * 60 * 60 &&
+        new RegExp(`الحلقة\\s*${epNum}\\b`).test(v.title || "") &&
+        (v.title || "").includes(arName)
     );
-    if (res.ok) {
-      const data = await res.json();
-      const epNum = Number(episode || 1);
-      const fit = (data.list || []).find(
-        (v) =>
-          (isMovie
-            ? /فيلم|كامل/.test(v.title || "") && (v.duration || 0) > 45 * 60
-            : /مدبلج/.test(v.title || "") &&
-              new RegExp(`الحلقة\\s*${epNum}\\b`).test(v.title || "") &&
-              (v.duration || 0) > 20 * 60) && (v.duration || 0) < 3 * 60 * 60
+    return hits.find((v) => /مدبلج/.test(v.title)) || hits[0] || null;
+  };
+  try {
+    for (const query of q) {
+      const res = await fetch(
+        `https://api.dailymotion.com/videos?search=${encodeURIComponent(query)}&fields=id,title,duration&limit=25`
       );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const fit = scored(data.list);
       if (fit) {
         const url = `https://www.dailymotion.com/embed/video/${fit.id}`;
         yotCacheSet(key, url);
@@ -1615,28 +1620,67 @@ async function resolveDynamicSourceUrlTr(type, id, season, episode) {
     return null;
   }
   const epNum = Number(episode || 1);
+  // Turkish channels number uploads as "{title} N. Bölüm", "{title} - Episode
+  // N", or fold several episodes into "Mega/Tam Bölüm" compilations (title
+  // names the FIRST episode covered). Prefer a video whose number equals the
+  // wanted episode exactly; else a compilation whose range covers it
+  // (compensating for the ~2x runtime ratio those compilation channels use
+  // vs a normal ~45min episode); else any full-length video of the show
+  // (partial match, still watchable). Shortest matching video wins in each
+  // tier -- compilation ranges can't be trusted beyond their start.
+  const norm = (t) => String(t || "").toLowerCase();
+  const isAraftaLike = (t) => norm(t).includes(norm(trName));
+  const numAfterTitle = (t) => {
+    const m = norm(t).match(new RegExp(`${trName.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*-?\\s*(\\d+)`));
+    return m ? Number(m[1]) : null;
+  };
+  const collect = (list) =>
+    (list || []).filter(
+      (v) => (v.duration || 0) > 20 * 60 && (v.duration || 0) < 4 * 60 * 60 && isAraftaLike(v.title)
+    );
+  const exactNum = (v) => {
+    const n = numAfterTitle(v.title);
+    if (n !== null && Math.abs(n - epNum) <= 1) return Math.abs(n - epNum); // direct hit (±1 for regional numbering)
+    const mEp = norm(v.title).match(/episode\s*(\d+)/);
+    if (mEp && Math.abs(Number(mEp[1]) - epNum) <= 1) return Math.abs(Number(mEp[1]) - epNum);
+    return null;
+  };
+  const compileStart = (v) => {
+    const n = numAfterTitle(v.title);
+    return n !== null && n < epNum && /mega|tam|komple/i.test(norm(v.title)) ? n : null;
+  };
+  const pickFrom = (list) => {
+    const pool = collect(list);
+    const exact = pool.map((v) => [exactNum(v), v]).filter(([d]) => d !== null).sort((a, b) => a[0] - b[0] || a[1].duration - b[1].duration);
+    if (exact.length) return exact[0][1];
+    const comp = pool
+      .map((v) => [compileStart(v), v])
+      .filter(([s]) => s !== null && epNum - s <= 8)
+      .sort((a, b) => b[0] - a[0] || a[1].duration - b[1].duration);
+    if (comp.length) return comp[0][1];
+    // Last resort only when the catalog actually reaches the wanted number:
+    // serving episode 90 for a missing episode 1 would be worse than
+    // admitting there's nothing.
+    const nums = pool.map((v) => numAfterTitle(v.title)).filter((n) => n !== null);
+    if (nums.length && Math.min(...nums) <= epNum) {
+      return pool.slice().sort((a, b) => a.duration - b.duration)[0] || null;
+    }
+    return null;
+  };
   const queries = [
     `${trName} ${epNum}. Bölüm`,
-    `${trName} Bölüm ${epNum}`,
-    `${trName}`,
+    `${trName} Episode ${epNum}`,
+    `${trName} Bölüm`,
+    trName,
   ];
-  const fits = (list, requireEp) =>
-    (list || []).find(
-      (v) =>
-        (v.duration || 0) > 20 * 60 &&
-        (v.duration || 0) < 3 * 60 * 60 &&
-        (!requireEp ||
-          new RegExp(`${epNum}\\.?\\s*B[oö]l[uü]m`, "i").test(v.title || "")) &&
-        (!requireEp || new RegExp(`\\b${epNum}\\b`).test(v.title || ""))
-    );
   try {
     for (const q of queries) {
       const res = await fetch(
-        `https://api.dailymotion.com/videos?search=${encodeURIComponent(q)}&fields=id,title,duration&limit=10`
+        `https://api.dailymotion.com/videos?search=${encodeURIComponent(q)}&fields=id,title,duration&limit=100`
       );
       if (!res.ok) continue;
       const data = await res.json();
-      const fit = fits(data.list, true) || (q === queries[queries.length - 1] ? fits(data.list, false) : null);
+      const fit = pickFrom(data.list);
       if (fit) {
         const url = `https://www.dailymotion.com/embed/video/${fit.id}`;
         yotCacheSet(key, url);
@@ -1699,9 +1743,9 @@ async function playDynamic(type, id, season, episode) {
   const target = slug ? `https://yoturkish.to/${slug}-episode-${episode || 1}/` : "https://yoturkish.to/";
   const stage = $("#modal-hero");
   if (stage) {
-    stage.innerHTML = `<div class="empty-state"><h2>Server unavailable</h2><p><a href="${target}" target="_blank" rel="noopener">Tap here to watch on YoTurkish ↗</a></p></div>`;
+    stage.innerHTML = `<div class="empty-state"><h2>Episode not available in-app</h2><p>This episode isn't on the in-app catalog yet.</p><p><a href="${target}" target="_blank" rel="noopener">Tap here to watch it on YoTurkish ↗</a></p></div>`;
   }
-  showToast("In-app server unavailable — tap the link to watch on YoTurkish");
+  showToast("Not available in-app — tap the link on the player to watch on YoTurkish");
 }
 
 // Single funnel for "play this title" actions (Play/Resume/Start Over from
