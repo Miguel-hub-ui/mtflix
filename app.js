@@ -89,22 +89,20 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
-  // Turkish player (added): yoturkish.to's own site. They serve Turkish
-  // dizi with real Turkish audio for free, but they block iframes
-  // (X-Frame-Options: SAMEORIGIN) and their data APIs have no CORS headers,
-  // so no third-party site can embed their player directly. The one reliable
-  // integration is a same-device handoff: opening their episode page in a
-  // new tab picks up right where MTFlix left off (season/episode preserved).
-  // Only Turkish SERIES route here by default; Turkish movies and everything
-  // else keep the normal in-app servers (CineSrc 4K etc.).
+  // Turkish server (added): plays yoturkish.to's OWN player inside the app.
+  // Their per-episode pages embed a player page (engifuosi.com/f/{id}.html)
+  // that streams Turkish-audio HLS with CORS open and allows cross-site
+  // framing, so the stream runs in MTFlix's player stage like any other
+  // server. The player link isn't in an API -- it's inside the episode page
+  // HTML -- so at play time we resolve it once via a CORS proxy (cached for
+  // the session). Only tr SERIES default here; Turkish movies and everything
+  // else keep CineSrc 4K.
   yoturkish: {
-    label: "YoTurkish",
-    // No iframe URL exists (see above) -- openExternal marks this source as
-    // a "leave the app" server, and buildExternalUrl() assembles the link.
+    label: "YoTurkish HD",
     movie: "",
     tv: "",
     supportsEvents: false,
-    external: true,
+    dynamic: true,
     buildParams() {
       return new URLSearchParams();
     },
@@ -1391,9 +1389,6 @@ function hasPlayer() {
 
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   const source = resolvePlayerSource();
-  // External sources (YoTurkish) don't run inside the app: the caller hands
-  // the URL to openExternal() instead of injecting an iframe.
-  if (source.external) return buildExternalUrl(type, id, season, episode);
   const base =
     type === "tv"
       ? source.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
@@ -1405,70 +1400,135 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
 }
 
-// YoTurkish's URL scheme: /{series-slug}-episode-N/ per episode (slug =
-// TMDB title, lowercased, non-alphanumerics dashed). Slugs that 404
-// (punctuation differences) hit their WordPress search page as a graceful
-// fallback.
-function buildExternalUrl(type, id, season, episode) {
-  const slug = String(currentPlayer?.title || "")
+// YoTurkish slugs: lowercase TMDB title, non-alphanumerics dashed.
+function titleSlug(title) {
+  return String(title || "")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  if (type !== "tv" || !slug) return "https://yoturkish.to/";
-  return `https://yoturkish.to/${slug}-episode-${episode || 1}/`;
 }
 
-// External-player handoff: records the episode so Continue Watching stays
-// accurate, then opens the provider page in a new tab (their X-Frame-Options
-// and lack of CORS make in-app embedding impossible -- see PLAYER_SOURCES).
-function openExternal(url, season, episode, { sameTab = false } = {}) {
-  if (currentPlayer) {
-    if (currentPlayer.type === "tv" && season) markEpWatched(currentPlayer.id, season, episode || 1);
-    const store = getWatchStore();
-    const prev = store[String(currentPlayer.id)] || {};
-    store[String(currentPlayer.id)] = {
-      ...prev,
-      t: prev.t || 0,
-      d: prev.d || 0,
-      media_type: currentPlayer.type,
-      season: currentPlayer.type === "tv" ? season || prev.season || 1 : undefined,
-      episode: currentPlayer.type === "tv" ? episode || prev.episode || 1 : undefined,
-      title: currentPlayer.title,
-      poster_path: prev.poster_path || currentPlayer.poster_path,
-      backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
-      upNext: false,
-    };
-    localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
-    scheduleCloudSync();
+// --- YoTurkish in-app playback ----------------------------------------------
+// Their episode pages embed a player (engifuosi.com/f/{id}.html) that streams
+// Turkish-audio HLS with CORS open and no referer lock, and allows cross-site
+// framing -- so it can run inside MTFlix like any other server. The player id
+// only exists inside each episode page's HTML (no API), so at play time the
+// page is fetched once through a public CORS proxy and the id is extracted.
+// Resolutions are cached for the session so a season binge costs one lookup
+// per episode.
+const YT_PROXY_CHAIN = [
+  // r.jina.ai: renders the page and echoes the request Origin in CORS (the
+  // only one verified to do both reliably); its markdown output keeps the
+  // player link intact. The other two are plain CORS proxies with tighter
+  // rate limits -- ordered backups when the first is throttling.
+  (u) => `https://r.jina.ai/${u}`,
+  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+];
+const YT_CACHE_TTL = 1000 * 60 * 60 * 6; // 6h, session-scoped
+
+function yotCacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_yturkish");
+    if (!raw) return undefined;
+    const cache = JSON.parse(raw);
+    const hit = cache[key];
+    if (hit && Date.now() - hit.at < YT_CACHE_TTL) return hit.url;
+    if (hit) delete cache[key];
+  } catch {}
+  return undefined;
+}
+
+function yotCacheSet(key, url) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_yturkish");
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[key] = { at: Date.now(), url };
+    sessionStorage.setItem("mtflix_yturkish", JSON.stringify(cache));
+  } catch {}
+}
+
+// Resolves the embeddable player URL for the current YoTurkish episode, or
+// null if every proxy failed (callers then offer the new-tab fallback).
+async function resolveDynamicSourceUrl(type, id, season, episode) {
+  const slug = titleSlug(currentPlayer?.title);
+  if (type !== "tv" || !slug) return null;
+  const key = `${slug}-episode-${episode || 1}`;
+  const cached = yotCacheGet(key);
+  if (cached !== undefined) return cached;
+  const target = `https://yoturkish.to/${key}/`;
+  for (const proxy of YT_PROXY_CHAIN) {
+    try {
+      const res = await fetch(proxy(target), { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const m = html.match(/engifuosi\.com\/d\/([a-z0-9]+)\.html/);
+      if (m) {
+        const url = `https://engifuosi.com/f/${m[1]}.html`;
+        yotCacheSet(key, url);
+        return url;
+      }
+    } catch {}
   }
-  // The watch page's whole purpose is playback, so it hands off in the same
-  // tab (no tab proliferation while clicking through episodes). The browse
-  // page's Play button opens a new tab instead, preserving the browse state.
-  if (sameTab) location.href = url;
-  else window.open(url, "_blank", "noopener");
-  if (!sameTab) showToast("Opening on YoTurkish — playing in the new tab ↗");
+  yotCacheSet(key, null); // don't hammer a failing chain on every retry
+  return null;
+}
+
+// Keeps Continue Watching accurate for YoTurkish playback (their player
+// doesn't report progress back, so the episode marker is the record).
+function recordDynamicWatch(season, episode) {
+  if (!currentPlayer) return;
+  if (currentPlayer.type === "tv" && season) markEpWatched(currentPlayer.id, season, episode || 1);
+  const store = getWatchStore();
+  const prev = store[String(currentPlayer.id)] || {};
+  store[String(currentPlayer.id)] = {
+    ...prev,
+    t: prev.t || 0,
+    d: prev.d || 0,
+    media_type: currentPlayer.type,
+    season: currentPlayer.type === "tv" ? season || prev.season || 1 : undefined,
+    episode: currentPlayer.type === "tv" ? episode || prev.episode || 1 : undefined,
+    title: currentPlayer.title,
+    poster_path: prev.poster_path || currentPlayer.poster_path,
+    backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+    upNext: false,
+  };
+  localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+  scheduleCloudSync();
+}
+
+// Last-resort fallback when in-app resolution fails: their episode page in
+// a new tab (same handoff as before, just no longer the primary path).
+function openYoturkishFallback(season, episode) {
+  const slug = titleSlug(currentPlayer?.title);
+  const url = slug ? `https://yoturkish.to/${slug}-episode-${episode || 1}/` : "https://yoturkish.to/";
+  window.open(url, "_blank", "noopener");
+  showToast("In-app server unreachable — opened YoTurkish in a new tab ↗");
 }
 
 // Single funnel for "play this title" actions (Play/Resume/Start Over from
-// the detail modal): external sources open the provider in a new tab;
-// everything else navigates to the in-app watch page.
+// the detail modal): dynamic sources still go through the watch page -- the
+// watch page's play overlay does the resolution and mounts the player there,
+// exactly like every other server.
 function startPlayback(type, id, season, episode, opts = {}) {
-  if (resolvePlayerSource().external) {
-    openExternal(buildExternalUrl(type, id, season, episode), season, episode);
-    return;
-  }
   openWatchTab(type, id, season, episode, opts);
 }
 
-// Swaps the active player after a source/sub-server switch: external
-// sources get the new-tab handoff, iframe sources reload in place.
-function resumeCurrentPlayer() {
+// Swaps the active player after a source/sub-server switch: dynamic sources
+// resolve first, iframe sources reload in place.
+async function resumeCurrentPlayer() {
   if (!currentPlayer) return;
+  if (resolvePlayerSource().dynamic) {
+    recordDynamicWatch(currentPlayer.season || 1, currentPlayer.episode || 1);
+    const url = await resolveDynamicSourceUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1);
+    if (url) injectPlayer(url);
+    else openYoturkishFallback(currentPlayer.season || 1, currentPlayer.episode || 1);
+    return;
+  }
   const watch = getWatch(currentPlayer.id);
   const url = buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t);
-  if (resolvePlayerSource().external) openExternal(url, currentPlayer.season || 1, currentPlayer.episode || 1, { sameTab: true });
-  else injectPlayer(url);
+  injectPlayer(url);
 }
 
 let heartbeatTimer = null;
@@ -1820,14 +1880,19 @@ function showNextEpisodeCountdown(season, episode, { autoAdvance = false } = {})
 // Ticker for the auto-advance poll inside showNextEpisodeCountdown.
 let nextEpEndTimer = null;
 
-function playNextEpisode(season, episode) {
+async function playNextEpisode(season, episode) {
   if (!currentPlayer) return;
   currentPlayer.season = season;
   currentPlayer.episode = episode;
   markEpWatched(currentPlayer.id, season, episode);
-  const url = buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0);
-  if (resolvePlayerSource().external) openExternal(url, season, episode, { sameTab: true });
-  else injectPlayer(url);
+  if (resolvePlayerSource().dynamic) {
+    recordDynamicWatch(season, episode);
+    const url = await resolveDynamicSourceUrl(currentPlayer.type, currentPlayer.id, season, episode);
+    if (url) injectPlayer(url);
+    else openYoturkishFallback(season, episode);
+    return;
+  }
+  injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
 // Playback happens in its own full-tab page (watch.html) instead of an
@@ -1945,11 +2010,19 @@ async function initWatchPage() {
   const startAt = !reset && sameProgress ? resumeWatch.t : 0;
 
   setupSourceDropdown();
-  renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", () => {
+  renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", async () => {
     if (type === "tv") markEpWatched(id, season, episode);
-    const url = buildPlayerUrl(type, id, season, episode, startAt);
-    if (resolvePlayerSource().external) openExternal(url, season, episode, { sameTab: true });
-    else injectPlayer(url);
+    // Dynamic sources (YoTurkish) resolve their embeddable player at click
+    // time, then mount it in the stage like every other server.
+    if (resolvePlayerSource().dynamic) {
+      recordDynamicWatch(season, episode);
+      showToast("Loading YoTurkish server…");
+      const url = await resolveDynamicSourceUrl(type, id, season, episode);
+      if (url) injectPlayer(url);
+      else openYoturkishFallback(season, episode);
+      return;
+    }
+    injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
   });
 
   $("#watch-back")?.addEventListener("click", (e) => {
@@ -2005,7 +2078,7 @@ async function loadSeasonEpisodes(data, seasonNumber) {
   );
 }
 
-function playEpisode(data, season, episode) {
+async function playEpisode(data, season, episode) {
   if (currentPlayer) {
     currentPlayer.season = season;
     currentPlayer.episode = episode;
@@ -2036,10 +2109,15 @@ function playEpisode(data, season, episode) {
   // Picking an episode from the watch page's own list should swap the
   // current player in place, not stack another watch tab on top of it.
   // External sources (YoTurkish) always hand off to a new tab instead.
-  if (resolvePlayerSource().external) {
-    openExternal(buildExternalUrl("tv", data.id, season, episode), season, episode, {
-      sameTab: document.body.dataset.page === "watch",
-    });
+  if (resolvePlayerSource().dynamic) {
+    recordDynamicWatch(season, episode);
+    if (document.body.dataset.page === "watch") {
+      const url = await resolveDynamicSourceUrl("tv", data.id, season, episode);
+      if (url) injectPlayer(url);
+      else openYoturkishFallback(season, episode);
+    } else {
+      openWatchTab("tv", data.id, season, episode);
+    }
   } else if (document.body.dataset.page === "watch") {
     injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
   } else {
