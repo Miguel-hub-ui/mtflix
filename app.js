@@ -97,6 +97,22 @@ const PLAYER_SOURCES = {
   // HTML -- so at play time we resolve it once via a CORS proxy (cached for
   // the session). Only tr SERIES default here; Turkish movies and everything
   // else keep CineSrc 4K.
+  // Turkish-audio server (default for Turkish series): Dailymotion hosts
+  // full-length Turkish-audio dizi episodes ("{title} {N}. Bölüm") with an
+  // open CORS API and an official embeddable player. This replaced the old
+  // default (yoturkish.to's own player page), which started rejecting
+  // embeds from foreign referers -- the iframe stayed blank and playback
+  // silently died. DM resolution is two fast API calls, fully in-app.
+  "dailymotion-tr": {
+    label: "Dailymotion TR",
+    movie: "",
+    tv: "",
+    supportsEvents: false,
+    dynamic: true,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   yoturkish: {
     label: "YoTurkish HD",
     movie: "",
@@ -199,9 +215,10 @@ let currentPlayerLang = null;
 let currentPlayerType = null;
 
 function activeDefaultSourceId() {
-  // Turkish SERIES go to YoTurkish (real Turkish streams); Turkish movies
-  // keep CineSrc -- yoturkish.to only catalogs series, not films.
-  if (currentPlayerLang === "tr" && currentPlayerType === "tv") return "yoturkish";
+  // Turkish SERIES default to Dailymotion's Turkish-audio episodes (see
+  // PLAYER_SOURCES note: yoturkish's player now blocks foreign-referer
+  // embeds). Turkish movies keep CineSrc; everything else keeps CineSrc.
+  if (currentPlayerLang === "tr" && currentPlayerType === "tv") return "dailymotion-tr";
   return DEFAULT_PLAYER_SOURCE;
 }
 
@@ -1513,28 +1530,35 @@ function recordDynamicWatch(season, episode) {
   scheduleCloudSync();
 }
 
-// Last-resort fallback when in-app resolution fails: their episode page in
-// a new tab (same handoff as before, just no longer the primary path).
-function openYoturkishFallback(season, episode) {
-  const slug = titleSlug(currentPlayer?.title);
-  const url = slug ? `https://yoturkish.to/${slug}-episode-${episode || 1}/` : "https://yoturkish.to/";
-  window.open(url, "_blank", "noopener");
-  showToast("In-app server unreachable — opened YoTurkish in a new tab ↗");
-}
+
 
 // --- Arabic dub (Dailymotion) for Turkish series ----------------------------
 // TMDB keeps each show's official Arabic title (e.g. Kurulus Osman ->
 // "المؤسس عثمان") in its translations -- that's what the Arab audience knows
 // the show by, and what the dubbed uploads are named after.
 const arNameMemo = {};
-async function getArabicTitle(tvId) {
+async function getArabicTitle(type, tvId) {
   if (arNameMemo[tvId] !== undefined) return arNameMemo[tvId];
   let name = null;
   try {
-    const data = await tmdb(`/tv/${tvId}/translations`, {});
+    const data = await tmdb(`/${type}/${tvId}/translations`, {});
     name = (data.translations || []).find((tr) => tr.iso_639_1 === "ar")?.data?.name || null;
   } catch {}
   arNameMemo[tvId] = name;
+  return name;
+}
+
+// The show's original Turkish title (TMDB's tr-TR localization) -- Turkish-
+// audio Dailymotion uploads are titled after it ("{title} {N}. Bölüm").
+const trNameMemo = {};
+async function getTurkishTitle(type, tvId) {
+  if (trNameMemo[tvId] !== undefined) return trNameMemo[tvId];
+  let name = null;
+  try {
+    const data = await tmdb(`/${type}/${tvId}`, { language: "tr-TR" });
+    name = data.name || data.title || null;
+  } catch {}
+  trNameMemo[tvId] = name;
   return name;
 }
 
@@ -1542,16 +1566,17 @@ async function getArabicTitle(tvId) {
 // N) and picks the first hit whose title actually names that episode and
 // whose runtime is episode-length (filters out shorts, promos, recaps).
 async function resolveDynamicSourceUrlAr(type, id, season, episode) {
-  if (type !== "tv") return null;
-  const key = `ar:${id}_e${episode || 1}`;
+  // Supports both series episodes and full dubbed movies.
+  const key = `ar:${id}_${type}_e${type === "tv" ? episode || 1 : "m"}`;
   const cached = yotCacheGet(key);
   if (cached !== undefined) return cached;
-  const arName = await getArabicTitle(id);
+  const arName = await getArabicTitle(type, id);
   if (!arName) {
     yotCacheSet(key, null);
     return null;
   }
-  const q = `${arName} الحلقة ${episode || 1} مدبلج`;
+  const isMovie = type === "movie";
+  const q = isMovie ? `${arName} فيلم مدبلج كامل` : `${arName} الحلقة ${episode || 1} مدبلج`;
   try {
     const res = await fetch(
       `https://api.dailymotion.com/videos?search=${encodeURIComponent(q)}&fields=id,title,duration&limit=10`
@@ -1561,11 +1586,57 @@ async function resolveDynamicSourceUrlAr(type, id, season, episode) {
       const epNum = Number(episode || 1);
       const fit = (data.list || []).find(
         (v) =>
-          /مدبلج/.test(v.title || "") &&
-          new RegExp(`الحلقة\\s*${epNum}\\b`).test(v.title || "") &&
-          (v.duration || 0) > 20 * 60 &&
-          (v.duration || 0) < 3 * 60 * 60
+          (isMovie
+            ? /فيلم|كامل/.test(v.title || "") && (v.duration || 0) > 45 * 60
+            : /مدبلج/.test(v.title || "") &&
+              new RegExp(`الحلقة\\s*${epNum}\\b`).test(v.title || "") &&
+              (v.duration || 0) > 20 * 60) && (v.duration || 0) < 3 * 60 * 60
       );
+      if (fit) {
+        const url = `https://www.dailymotion.com/embed/video/${fit.id}`;
+        yotCacheSet(key, url);
+        return url;
+      }
+    }
+  } catch {}
+  yotCacheSet(key, null);
+  return null;
+}
+
+// Turkish-audio Dailymotion resolution: "{turkish title} {N}. Bölüm".
+async function resolveDynamicSourceUrlTr(type, id, season, episode) {
+  if (type !== "tv") return null;
+  const key = `tr:${id}_e${episode || 1}`;
+  const cached = yotCacheGet(key);
+  if (cached !== undefined) return cached;
+  const trName = await getTurkishTitle(type, id);
+  if (!trName) {
+    yotCacheSet(key, null);
+    return null;
+  }
+  const epNum = Number(episode || 1);
+  const queries = [
+    `${trName} ${epNum}. Bölüm`,
+    `${trName} Bölüm ${epNum}`,
+    `${trName}`,
+  ];
+  const fits = (list, requireEp) =>
+    (list || []).find(
+      (v) =>
+        (v.duration || 0) > 20 * 60 &&
+        (v.duration || 0) < 3 * 60 * 60 &&
+        (!requireEp ||
+          new RegExp(`${epNum}\\.?\\s*B[oö]l[uü]m`, "i").test(v.title || "")) &&
+        (!requireEp || new RegExp(`\\b${epNum}\\b`).test(v.title || ""))
+    );
+  try {
+    for (const q of queries) {
+      const res = await fetch(
+        `https://api.dailymotion.com/videos?search=${encodeURIComponent(q)}&fields=id,title,duration&limit=10`
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const fit = fits(data.list, true) || (q === queries[queries.length - 1] ? fits(data.list, false) : null);
       if (fit) {
         const url = `https://www.dailymotion.com/embed/video/${fit.id}`;
         yotCacheSet(key, url);
@@ -1580,10 +1651,57 @@ async function resolveDynamicSourceUrlAr(type, id, season, episode) {
 // One dispatcher for dynamic sources: picks the right resolver for whichever
 // Turkish server is active.
 async function resolveSourceUrl(type, id, season, episode) {
-  if (getPlayerSourceId() === "dailymotion-ar") {
-    return resolveDynamicSourceUrlAr(type, id, season, episode);
-  }
+  const src = getPlayerSourceId();
+  if (src === "dailymotion-ar") return resolveDynamicSourceUrlAr(type, id, season, episode);
+  if (src === "dailymotion-tr") return resolveDynamicSourceUrlTr(type, id, season, episode);
   return resolveDynamicSourceUrl(type, id, season, episode);
+}
+
+// Puts a short notice on the player stage (instead of a silent no-op) when
+// a dynamic server can't deliver.
+function stageUnavailableMsg(text) {
+  const stage = $("#modal-hero");
+  if (stage) stage.innerHTML = `<div class="empty-state"><h2>${escapeHtml(text)}</h2></div>`;
+}
+
+// The whole dynamic-play flow with sane fallbacks. Popup blockers kill
+// window.open() calls that happen long after a click, so before opening a
+// new tab a notice is painted on the stage and the user taps the link
+// themselves -- no more "loading… then nothing".
+async function playDynamic(type, id, season, episode) {
+  recordDynamicWatch(season, episode);
+  showToast("Loading server…");
+  let url = await resolveSourceUrl(type, id, season, episode);
+  const src = getPlayerSourceId();
+  // YoTurkish's own player rejects foreign-referer embeds -- fall back to
+  // the Dailymotion Turkish-audio episode automatically.
+  if (!url && src === "yoturkish") {
+    url = await resolveDynamicSourceUrlTr(type, id, season, episode);
+    if (url) showToast("Using Dailymotion TR backup");
+  }
+  if (url) {
+    injectPlayer(url);
+    return;
+  }
+  if (src === "dailymotion-ar") {
+    stageUnavailableMsg("No Arabic dub found for this episode. Try YoTurkish HD for Turkish audio.");
+    showToast("No Arabic dub found for this episode");
+    return;
+  }
+  // Turkish audio couldn't be resolved in-app. Movies have no yoturkish
+  // page at all -- point at the alternatives instead of a dead link.
+  if (type === "movie") {
+    stageUnavailableMsg("No stream found for this movie. Try the Arabic Dub server or CineSrc.");
+    showToast("No stream found for this movie");
+    return;
+  }
+  const slug = titleSlug(currentPlayer?.title);
+  const target = slug ? `https://yoturkish.to/${slug}-episode-${episode || 1}/` : "https://yoturkish.to/";
+  const stage = $("#modal-hero");
+  if (stage) {
+    stage.innerHTML = `<div class="empty-state"><h2>Server unavailable</h2><p><a href="${target}" target="_blank" rel="noopener">Tap here to watch on YoTurkish ↗</a></p></div>`;
+  }
+  showToast("In-app server unavailable — tap the link to watch on YoTurkish");
 }
 
 // Single funnel for "play this title" actions (Play/Resume/Start Over from
@@ -1599,10 +1717,7 @@ function startPlayback(type, id, season, episode, opts = {}) {
 async function resumeCurrentPlayer() {
   if (!currentPlayer) return;
   if (resolvePlayerSource().dynamic) {
-    recordDynamicWatch(currentPlayer.season || 1, currentPlayer.episode || 1);
-    const url = await resolveSourceUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1);
-    if (url) injectPlayer(url);
-    else openYoturkishFallback(currentPlayer.season || 1, currentPlayer.episode || 1);
+    await playDynamic(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1);
     return;
   }
   const watch = getWatch(currentPlayer.id);
@@ -1826,11 +1941,15 @@ function setupSourceDropdown() {
     } else {
       $("#watch-server-dropdown")?.remove();
     }
-    // The Turkish dynamic servers only make sense on Turkish series -- hide
-    // them everywhere else so the dropdown stays clean on movies/other titles.
-    const isTrSeries = currentPlayerLang === "tr" && currentPlayer?.type === "tv";
+    // The Turkish dynamic servers only make sense on Turkish titles -- hide
+    // them everywhere else so the dropdown stays clean on other content.
+    const isTr = currentPlayerLang === "tr";
     menu.innerHTML = Object.entries(PLAYER_SOURCES)
-      .filter(([id, src]) => !src.dynamic || (isTrSeries && (id === "yoturkish" || id === "dailymotion-ar")))
+      .filter(
+        ([id, src]) =>
+          !src.dynamic ||
+          (isTr && (id === "dailymotion-tr" || id === "dailymotion-ar" || (id === "yoturkish" && currentPlayer?.type === "tv")))
+      )
       .map(
         ([id, src]) =>
           `<button type="button" class="watch-source-option${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
@@ -1969,10 +2088,7 @@ async function playNextEpisode(season, episode) {
   currentPlayer.episode = episode;
   markEpWatched(currentPlayer.id, season, episode);
   if (resolvePlayerSource().dynamic) {
-    recordDynamicWatch(season, episode);
-    const url = await resolveSourceUrl(currentPlayer.type, currentPlayer.id, season, episode);
-    if (url) injectPlayer(url);
-    else openYoturkishFallback(season, episode);
+    await playDynamic(currentPlayer.type, currentPlayer.id, season, episode);
     return;
   }
   injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
@@ -2098,11 +2214,7 @@ async function initWatchPage() {
     // Dynamic sources (YoTurkish) resolve their embeddable player at click
     // time, then mount it in the stage like every other server.
     if (resolvePlayerSource().dynamic) {
-      recordDynamicWatch(season, episode);
-      showToast("Loading server…");
-      const url = await resolveSourceUrl(type, id, season, episode);
-      if (url) injectPlayer(url);
-      else openYoturkishFallback(season, episode);
+      await playDynamic(type, id, season, episode);
       return;
     }
     injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
@@ -2193,11 +2305,8 @@ async function playEpisode(data, season, episode) {
   // current player in place, not stack another watch tab on top of it.
   // External sources (YoTurkish) always hand off to a new tab instead.
   if (resolvePlayerSource().dynamic) {
-    recordDynamicWatch(season, episode);
     if (document.body.dataset.page === "watch") {
-      const url = await resolveSourceUrl("tv", data.id, season, episode);
-      if (url) injectPlayer(url);
-      else openYoturkishFallback(season, episode);
+      await playDynamic("tv", data.id, season, episode);
     } else {
       openWatchTab("tv", data.id, season, episode);
     }
