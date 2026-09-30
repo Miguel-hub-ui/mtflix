@@ -89,6 +89,21 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
+  // Turkish server (added): most Western embeds don't index Turkish dizi
+  // and films, so the Turkish Movies/Series rows default to VidFast, the
+  // most widely-used current embed provider (broadest multi-scraper
+  // coverage, including international titles). Only tr titles pick VidFast
+  // as their own default; every other row still opens on CineSrc 4K, and
+  // the dropdown on ANY title still offers all sources manually.
+  vidfast: {
+    label: "VidFast",
+    movie: "https://vidfast.vc/movie/{id}",
+    tv: "https://vidfast.vc/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   multiembed: {
     label: "MultiEmbed",
     // MultiEmbed cycles through several of its own backends, so if one is
@@ -149,10 +164,21 @@ let playerSubServerMem = {};
 function resetPlayerSourceToDefault() {
   playerSourceIdMem = null;
   playerSubServerMem = {};
+  currentPlayerLang = null;
 }
 
 function getPlayerSourceId() {
-  return playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem] ? playerSourceIdMem : DEFAULT_PLAYER_SOURCE;
+  if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
+  return activeDefaultSourceId();
+}
+
+// The currently-playing title's original language ("tr", "ar", ...), set in
+// openDetail()/initWatchPage(). Turkish titles default to the VidFast
+// server; everything else keeps the global default (CineSrc 4K).
+let currentPlayerLang = null;
+
+function activeDefaultSourceId() {
+  return currentPlayerLang === "tr" ? "vidfast" : DEFAULT_PLAYER_SOURCE;
 }
 
 function setPlayerSourceId(id) {
@@ -249,6 +275,8 @@ const I18N = {
     row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
     row_romance: "Romance Night In", row_continue: "Continue Watching",
+    row_tr_movies: "Turkish Movies", row_tr_series: "Turkish Series",
+    row_ar_movies: "Arabic Movies", row_ar_series: "Arabic Series",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
     filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
@@ -281,6 +309,8 @@ const I18N = {
     row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
     row_horror: "Apaga la luz — Terror", row_comedy: "Comedias para relajar", row_animation: "Animación para todos",
     row_romance: "Noche romántica", row_continue: "Seguir viendo",
+    row_tr_movies: "Películas turcas", row_tr_series: "Series turcas",
+    row_ar_movies: "Películas árabes", row_ar_series: "Series árabes",
   },
   fr: {
     nav_home: "Accueil", nav_movies: "Films", nav_tv: "Séries", nav_list: "Ma Liste",
@@ -311,6 +341,8 @@ const I18N = {
     row_action: "Action et aventure", row_scifi: "Univers science-fiction",
     row_horror: "Lumières éteintes — Horreur", row_comedy: "Comédies détente", row_animation: "Animation pour tous",
     row_romance: "Soirée romance", row_continue: "Reprendre",
+    row_tr_movies: "Films turcs", row_tr_series: "Séries turques",
+    row_ar_movies: "Films arabes", row_ar_series: "Séries arabes",
   },
   de: {
     nav_home: "Startseite", nav_movies: "Filme", nav_tv: "Serien", nav_list: "Meine Liste",
@@ -341,6 +373,8 @@ const I18N = {
     row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
     row_horror: "Licht aus — Horror", row_comedy: "Comedys zum Entspannen", row_animation: "Animation für alle",
     row_romance: "Romantischer Abend", row_continue: "Weiterschauen",
+    row_tr_movies: "Türkische Filme", row_tr_series: "Türkische Serien",
+    row_ar_movies: "Arabische Filme", row_ar_series: "Arabische Serien",
   },
   pt: {
     nav_home: "Início", nav_movies: "Filmes", nav_tv: "Séries", nav_list: "Minha Lista",
@@ -371,6 +405,8 @@ const I18N = {
     row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
     row_horror: "Luzes apagadas — Terror", row_comedy: "Comédias para relaxar", row_animation: "Animação para todos",
     row_romance: "Noite romântica", row_continue: "Continuar assistindo",
+    row_tr_movies: "Filmes turcos", row_tr_series: "Séries turcas",
+    row_ar_movies: "Filmes árabes", row_ar_series: "Séries árabes",
   },
   tr: {
     nav_home: "Ana Sayfa", nav_movies: "Filmler", nav_tv: "Diziler", nav_list: "Listem",
@@ -401,6 +437,8 @@ const I18N = {
     row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
     row_horror: "Işıkları Kapat — Korku", row_comedy: "Keyifli Komediler", row_animation: "Herkese Animasyon",
     row_romance: "Romantik Gece", row_continue: "İzlemeye Devam Et",
+    row_tr_movies: "Türk Filmleri", row_tr_series: "Türk Dizileri",
+    row_ar_movies: "Arap Filmleri", row_ar_series: "Arap Dizileri",
   },
 };
 
@@ -544,6 +582,15 @@ const ROWS = [
   { id: "comedy", titleKey: "row_comedy", path: "/discover/movie", params: { with_genres: 35, sort_by: "popularity.desc" } },
   { id: "animation", titleKey: "row_animation", path: "/discover/movie", params: { with_genres: 16, sort_by: "popularity.desc" } },
   { id: "romance", titleKey: "row_romance", path: "/discover/movie", params: { with_genres: 10749, sort_by: "popularity.desc" } },
+  // Turkish & Arabic rows (added): TMDB's discover endpoint filters by
+  // original language, so these surface the existing catalog -- same
+  // posters/details/player as every other row, no extra provider needed.
+  // TV rows set mediaType so normalizeItem tags them "tv" (discover
+  // endpoints don't include media_type in their results).
+  { id: "tr-movies", titleKey: "row_tr_movies", path: "/discover/movie", params: { with_original_language: "tr", sort_by: "popularity.desc" } },
+  { id: "tr-tv", titleKey: "row_tr_series", path: "/discover/tv", params: { with_original_language: "tr", sort_by: "popularity.desc" }, mediaType: "tv" },
+  { id: "ar-movies", titleKey: "row_ar_movies", path: "/discover/movie", params: { with_original_language: "ar", sort_by: "popularity.desc" } },
+  { id: "ar-tv", titleKey: "row_ar_series", path: "/discover/tv", params: { with_original_language: "ar", sort_by: "popularity.desc" }, mediaType: "tv" },
 ];
 
 const $ = (sel) => document.querySelector(sel);
@@ -709,7 +756,7 @@ async function renderRows(filter) {
     try {
       const data = await tmdb(def.path, { language: "en-US", ...def.params });
       const items = data.results
-        .map((r) => normalizeItem(r))
+        .map((r) => normalizeItem(r, def.mediaType))
         .filter((i) => i.poster_path)
         .slice(0, 18);
       fillRow(section, items);
@@ -1690,6 +1737,7 @@ async function initWatchPage() {
     seasonEpisodeCounts,
     estimatedDurationSec,
   };
+  currentPlayerLang = data.original_language || null;
 
   if (reset) removeContinueWatchingCard(id);
 
@@ -2311,6 +2359,7 @@ async function openDetail(type, id, autoplayTrailer) {
     type === "tv"
       ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60
       : (data.runtime || 100) * 60;
+  currentPlayerLang = data.original_language || null;
   currentPlayer = {
     type,
     id,
