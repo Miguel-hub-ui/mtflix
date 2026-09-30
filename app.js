@@ -89,17 +89,22 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
-  // Turkish server (added): most Western embeds don't index Turkish dizi
-  // and films, so the Turkish Movies/Series rows default to VidFast, the
-  // most widely-used current embed provider (broadest multi-scraper
-  // coverage, including international titles). Only tr titles pick VidFast
-  // as their own default; every other row still opens on CineSrc 4K, and
-  // the dropdown on ANY title still offers all sources manually.
-  vidfast: {
-    label: "VidFast",
-    movie: "https://vidfast.vc/movie/{id}",
-    tv: "https://vidfast.vc/tv/{id}/{season}/{episode}",
+  // Turkish player (added): yoturkish.to's own site. They serve Turkish
+  // dizi with real Turkish audio for free, but they block iframes
+  // (X-Frame-Options: SAMEORIGIN) and their data APIs have no CORS headers,
+  // so no third-party site can embed their player directly. The one reliable
+  // integration is a same-device handoff: opening their episode page in a
+  // new tab picks up right where MTFlix left off (season/episode preserved).
+  // Only Turkish SERIES route here by default; Turkish movies and everything
+  // else keep the normal in-app servers (CineSrc 4K etc.).
+  yoturkish: {
+    label: "YoTurkish",
+    // No iframe URL exists (see above) -- openExternal marks this source as
+    // a "leave the app" server, and buildExternalUrl() assembles the link.
+    movie: "",
+    tv: "",
     supportsEvents: false,
+    external: true,
     buildParams() {
       return new URLSearchParams();
     },
@@ -165,6 +170,7 @@ function resetPlayerSourceToDefault() {
   playerSourceIdMem = null;
   playerSubServerMem = {};
   currentPlayerLang = null;
+  currentPlayerType = null;
 }
 
 function getPlayerSourceId() {
@@ -172,13 +178,18 @@ function getPlayerSourceId() {
   return activeDefaultSourceId();
 }
 
-// The currently-playing title's original language ("tr", "ar", ...), set in
-// openDetail()/initWatchPage(). Turkish titles default to the VidFast
-// server; everything else keeps the global default (CineSrc 4K).
+// The currently-playing title's original language ("tr", "ar", ...) and
+// kind, set in openDetail()/initWatchPage(). Turkish series default to the
+// external YoTurkish player; everything else keeps the global default
+// (CineSrc 4K).
 let currentPlayerLang = null;
+let currentPlayerType = null;
 
 function activeDefaultSourceId() {
-  return currentPlayerLang === "tr" ? "vidfast" : DEFAULT_PLAYER_SOURCE;
+  // Turkish SERIES go to YoTurkish (real Turkish streams); Turkish movies
+  // keep CineSrc -- yoturkish.to only catalogs series, not films.
+  if (currentPlayerLang === "tr" && currentPlayerType === "tv") return "yoturkish";
+  return DEFAULT_PLAYER_SOURCE;
 }
 
 function setPlayerSourceId(id) {
@@ -604,7 +615,97 @@ function placeholderImage(label) {
 }
 
 function img(path, size) {
-  return path ? IMG_BASE + size + path : placeholderImage("No Image");
+  if (!path) return placeholderImage("No Image");
+  // "@" prefix = absolute image URL (TVmaze filler for titles TMDB has no
+  // poster for) -- used as-is instead of the TMDB CDN path form.
+  if (String(path).startsWith("@")) return String(path).slice(1);
+  return IMG_BASE + size + path;
+}
+
+// --- TVmaze metadata filler (added) -----------------------------------------
+// TVmaze (tvmaze.com) is a free, open TV database with CORS enabled, and it
+// carries full data for many Turkish and international series that TMDB
+// leaves sparse (missing poster, empty overview). It's queried ONLY to fill
+// gaps -- anything TMDB already has always wins. Results are cached per id
+// in sessionStorage so a row of 18 cards doesn't fire 18 identical lookups.
+const TVMAZE_API = "https://api.tvmaze.com";
+const TVMAZE_TTL = 1000 * 60 * 60 * 12; // 12h, session-scoped
+
+function tvmazeCacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_tvmaze");
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    const hit = cache[key];
+    if (hit && Date.now() - hit.at < TVMAZE_TTL) return hit.data;
+    if (hit) delete cache[key];
+  } catch {}
+  return null;
+}
+
+function tvmazeCacheSet(key, data) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_tvmaze");
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[key] = { at: Date.now(), data };
+    sessionStorage.setItem("mtflix_tvmaze", JSON.stringify(cache));
+  } catch {}
+}
+
+// Best-effort: resolve a TMDB show/movie to a TVmaze record via its IMDb id
+// (strongest match), falling back to a name + year search. Returns null on
+// any failure -- enrichment must never break rendering.
+async function tvmazeLookup(r) {
+  const cacheKey = r.id != null ? `id:${r.id}` : null;
+  if (cacheKey) {
+    const hit = tvmazeCacheGet(cacheKey);
+    if (hit !== null) return hit;
+  }
+  let result = null;
+  try {
+    if (r.external_ids?.imdb_id || r.imdb_id) {
+      const res = await fetch(`${TVMAZE_API}/lookup/shows?imdb=${r.external_ids?.imdb_id || r.imdb_id}`);
+      if (res.ok) result = await res.json();
+    }
+    if (!result && r.title) {
+      const res = await fetch(`${TVMAZE_API}/search/shows?q=${encodeURIComponent(r.title)}`);
+      if (res.ok) {
+        const list = await res.json();
+        const tmdbYear = year(r.date || "");
+        const exact = list.find(
+          (x) => x.show?.name.toLowerCase() === r.title.toLowerCase() && (!tmdbYear || !x.show?.premiered || x.show.premiered.startsWith(tmdbYear))
+        );
+        const loose = list.find((x) => x.show?.name.toLowerCase() === r.title.toLowerCase());
+        result = exact?.show || loose?.show || null;
+      }
+    }
+  } catch {
+    result = null;
+  }
+  if (cacheKey) tvmazeCacheSet(cacheKey, result);
+  return result;
+}
+
+// Fills ONLY what's missing on a TMDB card: blank overview and/or missing
+// poster (TVmaze's original "image" is usually a quality poster).
+async function enrichItem(item) {
+  const needs = item;
+  if (!needs || (needs.overview && needs.poster_path)) return item;
+  const tvm = await tvmazeLookup({ id: item.id, title: item.title, date: item.date });
+  if (!tvm) return item;
+  const fixed = { ...item };
+  if (!fixed.overview && tvm.summary) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = tvm.summary || "";
+    fixed.overview = (tmp.textContent || "").trim();
+  }
+  if (!fixed.poster_path && tvm.image?.original) fixed.poster_path = "@" + tvm.image.original;
+  return fixed;
+}
+
+// Runs enrichment over a batch of normalized items in parallel.
+async function enrichItems(items) {
+  return Promise.all(items.map(enrichItem));
 }
 
 const LANG_REGION = { en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", tr: "tr-TR" };
@@ -755,10 +856,15 @@ async function renderRows(filter) {
     wireRowArrows(section);
     try {
       const data = await tmdb(def.path, { language: "en-US", ...def.params });
-      const items = data.results
+      let items = data.results
         .map((r) => normalizeItem(r, def.mediaType))
         .filter((i) => i.poster_path)
         .slice(0, 18);
+      // TMDB's Turkish/Arabic catalog is often missing posters and
+      // descriptions -- backfill those gaps from TVmaze before rendering.
+      if (def.id === "tr-movies" || def.id === "tr-tv" || def.id === "ar-movies" || def.id === "ar-tv") {
+        items = await enrichItems(items);
+      }
       fillRow(section, items);
     } catch (err) {
       handleFetchError(err, section);
@@ -1285,6 +1391,9 @@ function hasPlayer() {
 
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   const source = resolvePlayerSource();
+  // External sources (YoTurkish) don't run inside the app: the caller hands
+  // the URL to openExternal() instead of injecting an iframe.
+  if (source.external) return buildExternalUrl(type, id, season, episode);
   const base =
     type === "tv"
       ? source.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
@@ -1294,6 +1403,72 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   // Sources whose own template already carries query params (e.g. CineSrc's
   // `?s=&e=` for episodes) must get `&`, not a second `?`.
   return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
+}
+
+// YoTurkish's URL scheme: /{series-slug}-episode-N/ per episode (slug =
+// TMDB title, lowercased, non-alphanumerics dashed). Slugs that 404
+// (punctuation differences) hit their WordPress search page as a graceful
+// fallback.
+function buildExternalUrl(type, id, season, episode) {
+  const slug = String(currentPlayer?.title || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (type !== "tv" || !slug) return "https://yoturkish.to/";
+  return `https://yoturkish.to/${slug}-episode-${episode || 1}/`;
+}
+
+// External-player handoff: records the episode so Continue Watching stays
+// accurate, then opens the provider page in a new tab (their X-Frame-Options
+// and lack of CORS make in-app embedding impossible -- see PLAYER_SOURCES).
+function openExternal(url, season, episode, { sameTab = false } = {}) {
+  if (currentPlayer) {
+    if (currentPlayer.type === "tv" && season) markEpWatched(currentPlayer.id, season, episode || 1);
+    const store = getWatchStore();
+    const prev = store[String(currentPlayer.id)] || {};
+    store[String(currentPlayer.id)] = {
+      ...prev,
+      t: prev.t || 0,
+      d: prev.d || 0,
+      media_type: currentPlayer.type,
+      season: currentPlayer.type === "tv" ? season || prev.season || 1 : undefined,
+      episode: currentPlayer.type === "tv" ? episode || prev.episode || 1 : undefined,
+      title: currentPlayer.title,
+      poster_path: prev.poster_path || currentPlayer.poster_path,
+      backdrop_path: prev.backdrop_path || currentPlayer.backdrop_path,
+      upNext: false,
+    };
+    localStorage.setItem(pKey(LS_PROGRESS), JSON.stringify(store));
+    scheduleCloudSync();
+  }
+  // The watch page's whole purpose is playback, so it hands off in the same
+  // tab (no tab proliferation while clicking through episodes). The browse
+  // page's Play button opens a new tab instead, preserving the browse state.
+  if (sameTab) location.href = url;
+  else window.open(url, "_blank", "noopener");
+  if (!sameTab) showToast("Opening on YoTurkish — playing in the new tab ↗");
+}
+
+// Single funnel for "play this title" actions (Play/Resume/Start Over from
+// the detail modal): external sources open the provider in a new tab;
+// everything else navigates to the in-app watch page.
+function startPlayback(type, id, season, episode, opts = {}) {
+  if (resolvePlayerSource().external) {
+    openExternal(buildExternalUrl(type, id, season, episode), season, episode);
+    return;
+  }
+  openWatchTab(type, id, season, episode, opts);
+}
+
+// Swaps the active player after a source/sub-server switch: external
+// sources get the new-tab handoff, iframe sources reload in place.
+function resumeCurrentPlayer() {
+  if (!currentPlayer) return;
+  const watch = getWatch(currentPlayer.id);
+  const url = buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t);
+  if (resolvePlayerSource().external) openExternal(url, currentPlayer.season || 1, currentPlayer.episode || 1, { sameTab: true });
+  else injectPlayer(url);
 }
 
 let heartbeatTimer = null;
@@ -1506,10 +1681,7 @@ function setupSourceDropdown() {
           setPlayerSubServer(activeId, opt.dataset.subserver);
           render();
           if (!currentPlayer) return; // choice is saved; applies when play starts
-          const watch = getWatch(currentPlayer.id);
-          injectPlayer(
-            buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
-          );
+          resumeCurrentPlayer();
         });
       });
     } else {
@@ -1527,10 +1699,7 @@ function setupSourceDropdown() {
         if (opt.dataset.source === getPlayerSourceId() || !currentPlayer) return;
         setPlayerSourceId(opt.dataset.source);
         render();
-        const watch = getWatch(currentPlayer.id);
-        injectPlayer(
-          buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t)
-        );
+        resumeCurrentPlayer();
       });
     });
   };
@@ -1656,7 +1825,9 @@ function playNextEpisode(season, episode) {
   currentPlayer.season = season;
   currentPlayer.episode = episode;
   markEpWatched(currentPlayer.id, season, episode);
-  injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
+  const url = buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0);
+  if (resolvePlayerSource().external) openExternal(url, season, episode, { sameTab: true });
+  else injectPlayer(url);
 }
 
 // Playback happens in its own full-tab page (watch.html) instead of an
@@ -1705,6 +1876,15 @@ async function initWatchPage() {
   }
 
   const title = data.title || data.name || "Untitled";
+  // TVmaze backfill (added): fill a missing description from TVmaze.
+  if (!data.overview) {
+    const tvm = await tvmazeLookup({ id: data.id, title, date: data.first_air_date || "" });
+    if (tvm?.summary) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = tvm.summary;
+      data.overview = (tmp.textContent || "").trim();
+    }
+  }
   document.title = `${title} — MTFlix`;
 
   if ($("#watch-type-tag")) $("#watch-type-tag").textContent = type === "tv" ? "TV Series" : "Movie";
@@ -1738,6 +1918,7 @@ async function initWatchPage() {
     estimatedDurationSec,
   };
   currentPlayerLang = data.original_language || null;
+  currentPlayerType = type;
 
   if (reset) removeContinueWatchingCard(id);
 
@@ -1766,7 +1947,9 @@ async function initWatchPage() {
   setupSourceDropdown();
   renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", () => {
     if (type === "tv") markEpWatched(id, season, episode);
-    injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
+    const url = buildPlayerUrl(type, id, season, episode, startAt);
+    if (resolvePlayerSource().external) openExternal(url, season, episode, { sameTab: true });
+    else injectPlayer(url);
   });
 
   $("#watch-back")?.addEventListener("click", (e) => {
@@ -1852,7 +2035,12 @@ function playEpisode(data, season, episode) {
 
   // Picking an episode from the watch page's own list should swap the
   // current player in place, not stack another watch tab on top of it.
-  if (document.body.dataset.page === "watch") {
+  // External sources (YoTurkish) always hand off to a new tab instead.
+  if (resolvePlayerSource().external) {
+    openExternal(buildExternalUrl("tv", data.id, season, episode), season, episode, {
+      sameTab: document.body.dataset.page === "watch",
+    });
+  } else if (document.body.dataset.page === "watch") {
     injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
   } else {
     openWatchTab("tv", data.id, season, episode);
@@ -2344,6 +2532,16 @@ async function openDetail(type, id, autoplayTrailer) {
   }
 
   const title = data.title || data.name || "Untitled";
+  // TVmaze backfill (added): TMDB often leaves Turkish/international shows
+  // with an empty overview -- TVmaze nearly always has one.
+  if (!data.overview) {
+    const tvm = await tvmazeLookup({ id: data.id, title, date: data.release_date || data.first_air_date || "" });
+    if (tvm?.summary) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = tvm.summary;
+      data.overview = (tmp.textContent || "").trim();
+    }
+  }
   const resumeWatch = getWatch(data.id);
   const seasonEpisodeCounts = {};
   if (type === "tv") {
@@ -2360,6 +2558,7 @@ async function openDetail(type, id, autoplayTrailer) {
       ? (data.episode_run_time && data.episode_run_time[0] ? data.episode_run_time[0] : 40) * 60
       : (data.runtime || 100) * 60;
   currentPlayerLang = data.original_language || null;
+  currentPlayerType = type;
   currentPlayer = {
     type,
     id,
@@ -2514,7 +2713,7 @@ async function openDetail(type, id, autoplayTrailer) {
   });
 
   const playNow = () => {
-    openWatchTab(type, data.id, currentPlayer.season, currentPlayer.episode);
+    startPlayback(type, data.id, currentPlayer.season, currentPlayer.episode);
   };
 
   $("#play-now")?.addEventListener("click", playNow);
@@ -2525,7 +2724,7 @@ async function openDetail(type, id, autoplayTrailer) {
       currentPlayer.episode = 1;
     }
     showToast(`${t("toast_start_over")} — "${title}"`);
-    openWatchTab(type, data.id, currentPlayer.season, currentPlayer.episode, { reset: true });
+    startPlayback(type, data.id, currentPlayer.season, currentPlayer.episode, { reset: true });
   });
 
   if (type === "tv" && seasonsForPicker.length) {
