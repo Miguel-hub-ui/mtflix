@@ -102,6 +102,25 @@ const PLAYER_SOURCES = {
       return params;
     },
   },
+  // Turkish123 Server 2 (main server for Turkish titles): mirrors the site's
+  // own default player (turkish123.pro auto-selects Server 2 on every watch
+  // page). Resolving takes two hops: the title's page leaks the player id in
+  // its download section (engifuosi.com/d/{code}.html is the same file the
+  // player mounts at /f/{code}.html), and that player page carries the
+  // jwplayer config with a ~12h-tokened HLS master playlist. turkish123
+  // hosts series (movies aren't in its catalog), so Turkish movies search
+  // the site once and otherwise fall back to CineSrc. Turkish titles default
+  // here; everything else keeps CineSrc 4K.
+  turkish123: {
+    label: "Turkish123 TR",
+    movie: "",
+    tv: "",
+    supportsEvents: false,
+    dynamic: true,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   multiembed: {
     label: "MultiEmbed",
     // MultiEmbed cycles through several of its own backends, so if one is
@@ -162,11 +181,24 @@ let playerSubServerMem = {};
 function resetPlayerSourceToDefault() {
   playerSourceIdMem = null;
   playerSubServerMem = {};
+  currentPlayerLang = null;
+  currentPlayerType = null;
+}
+
+// The currently-playing title's original language ("tr", "ar", ...) and
+// kind, set wherever currentPlayer is created. Turkish titles play on the
+// Turkish123 Server 2 embed by default; everything else keeps CineSrc 4K.
+let currentPlayerLang = null;
+let currentPlayerType = null;
+
+function activeDefaultSourceId() {
+  if (currentPlayerLang === "tr") return "turkish123";
+  return DEFAULT_PLAYER_SOURCE;
 }
 
 function getPlayerSourceId() {
   if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
-  return DEFAULT_PLAYER_SOURCE;
+  return activeDefaultSourceId();
 }
 
 function setPlayerSourceId(id) {
@@ -1379,6 +1411,162 @@ function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
   return qs ? `${base}${base.includes("?") ? "&" : "?"}${qs}` : base;
 }
 
+// --- Turkish123 Server 2 resolution -----------------------------------------
+// turkish123.pro slugs are the Turkish title lowercased with non-alphanumerics
+// dashed. TMDB's default `name` can be an English localization, so the tr-TR
+// name is fetched first (memoized per title).
+const t123TrNameMemo = {};
+async function t123TurkishTitle(type, id, fallbackTitle) {
+  if (t123TrNameMemo[id] !== undefined) return t123TrNameMemo[id];
+  let name = null;
+  try {
+    const data = await tmdb(`/${type}/${id}`, { language: "tr-TR" });
+    name = data.name || data.title || null;
+  } catch {}
+  t123TrNameMemo[id] = name || fallbackTitle || null;
+  return t123TrNameMemo[id];
+}
+
+function t123Slug(title) {
+  return String(title || "")
+    .replace(/&/g, " and ")
+    .replace(/ı/g, "i")
+    .replace(/İ/g, "i")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Public CORS proxies -- turkish123's pages are plain HTML behind Cloudflare,
+// so a fetch through any of these returns the full markup.
+const T123_PROXY_CHAIN = [
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u) => `https://r.jina.ai/${u}`,
+];
+const T123_CACHE_TTL = 1000 * 60 * 60 * 6; // 6h; the stream token lasts 12h
+
+function t123CacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_turkish123");
+    if (!raw) return undefined;
+    const cache = JSON.parse(raw);
+    const hit = cache[key];
+    if (hit && Date.now() - hit.at < T123_CACHE_TTL) return hit.url;
+    if (hit) delete cache[key];
+  } catch {}
+  return undefined;
+}
+
+function t123CacheSet(key, url) {
+  try {
+    const raw = sessionStorage.getItem("mtflix_turkish123");
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[key] = { at: Date.now(), url };
+    sessionStorage.setItem("mtflix_turkish123", JSON.stringify(cache));
+  } catch {}
+}
+
+async function fetchThroughProxies(url, transform) {
+  for (const proxy of T123_PROXY_CHAIN) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const out = await transform(await res.text());
+      if (out) return out;
+    } catch {}
+  }
+  return null;
+}
+
+// The watch page's download section lists the same files the player tabs
+// mount: its "Server 1" (engifuosi /d/{code}.html) IS the player's "Server 2"
+// tab (engifuosi /f/{code}.html) -- verified against the live player.
+function extractT123Server2(html) {
+  const block = html.match(/class="dlTabsi"[\s\S]*?<\/ul>/);
+  const scope = block ? block[0] : html;
+  const m = scope.match(/engifuosi\.com\/d\/([a-z0-9]+)\.html/);
+  return m ? `https://engifuosi.com/f/${m[1]}.html` : null;
+}
+
+// Candidate slugs on turkish123 are plain lowercase-dash paths. The search
+// endpoint returns them among nav links, which are filtered out here.
+function t123FirstItemSlug(html, startsWith) {
+  const skip = /(\/(home|contact|calendar|dmca|series-list|episodes-list|wp-json|search)\/|\/(year|genre|actor|tag)\/|episode-\d)/;
+  const hit = [...html.matchAll(/https:\/\/turkish123\.pro\/([a-z0-9-]+)(\/?)(["'\s<])/g)]
+    .map((x) => x[1])
+    .find((s) => !skip.test(s) && (!startsWith || s.startsWith(startsWith)));
+  return hit ? `https://turkish123.pro/${hit}` : null;
+}
+
+async function resolveTurkish123(type, id, season, episode, title) {
+  if (!title) return null;
+  const key = `t123:${type}_${id}_${type === "tv" ? `e${episode || 1}` : "m"}`;
+  const cached = t123CacheGet(key);
+  if (cached !== undefined) return cached;
+  const trTitle = await t123TurkishTitle(type, id, title);
+  const slug = t123Slug(trTitle);
+  if (!slug) {
+    t123CacheSet(key, null);
+    return null;
+  }
+  let embed = null;
+  if (type === "tv") {
+    // Turkish series: episodes live at {slug}-episode-{n}. If the guessed URL
+    // 404s (title mismatch), fall back to site search and use the top series
+    // page's slug.
+    embed = await fetchThroughProxies(
+      `https://turkish123.pro/${slug}-episode-${episode || 1}/`,
+      extractT123Server2
+    );
+    if (!embed) {
+      const seriesUrl = await fetchThroughProxies(
+        `https://turkish123.pro/?s=${encodeURIComponent(slug)}`,
+        (html) => t123FirstItemSlug(html, slug.slice(0, 8))
+      );
+      if (seriesUrl) {
+        embed = await fetchThroughProxies(`${seriesUrl}episode-${episode || 1}/`, extractT123Server2);
+      }
+    }
+  } else {
+    // Turkish movies: search the slug and use the first hit's own page.
+    const pageUrl = await fetchThroughProxies(
+      `https://turkish123.pro/?s=${encodeURIComponent(slug)}`,
+      (html) => t123FirstItemSlug(html, null)
+    );
+    if (pageUrl) {
+      embed = await fetchThroughProxies(pageUrl, extractT123Server2);
+    }
+  }
+  t123CacheSet(key, embed);
+  return embed;
+}
+
+// Puts a short notice on the player stage (instead of a silent no-op) when
+// a dynamic server can't deliver.
+function stageUnavailableMsg(text) {
+  const stage = $("#modal-hero");
+  if (stage) stage.innerHTML = `<div class="empty-state"><h2>${escapeHtml(text)}</h2></div>`;
+}
+
+// The whole dynamic-play flow: resolve, mount, and fall back to CineSrc with
+// a visible toast instead of a silent failure.
+async function playTurkish123(type, id, season, episode) {
+  showToast("Loading Turkish server…");
+  const url = await resolveTurkish123(type, id, season, episode, currentPlayer?.title);
+  if (url) {
+    injectPlayer(url);
+    return;
+  }
+  setPlayerSourceId(DEFAULT_PLAYER_SOURCE);
+  setupSourceDropdown();
+  stageUnavailableMsg("Turkish123 doesn't have this title yet — playing on CineSrc instead.");
+  showToast("Turkish123 unavailable — using CineSrc");
+  injectPlayer(buildPlayerUrl(type, id, season, episode, getWatch(id).t || 0));
+}
+
 // Single funnel for "play this title" actions (Play/Resume/Start Over from
 // the detail modal): playback happens on the watch page, whose play overlay
 // mounts the player, exactly like every other server.
@@ -1386,9 +1574,14 @@ function startPlayback(type, id, season, episode, opts = {}) {
   openWatchTab(type, id, season, episode, opts);
 }
 
-// Swaps the active player after a source/sub-server switch.
+// Swaps the active player after a source/sub-server switch: dynamic sources
+// resolve first, iframe sources reload in place.
 async function resumeCurrentPlayer() {
   if (!currentPlayer) return;
+  if (resolvePlayerSource().dynamic) {
+    await playTurkish123(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1);
+    return;
+  }
   const watch = getWatch(currentPlayer.id);
   const url = buildPlayerUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season || 1, currentPlayer.episode || 1, watch.t);
   injectPlayer(url);
@@ -1610,7 +1803,11 @@ function setupSourceDropdown() {
     } else {
       $("#watch-server-dropdown")?.remove();
     }
+    // The Turkish123 server only makes sense on Turkish titles -- hide it
+    // everywhere else so the dropdown stays clean on other content.
+    const isTr = currentPlayerLang === "tr";
     menu.innerHTML = Object.entries(PLAYER_SOURCES)
+      .filter(([id, src]) => !src.dynamic || isTr)
       .map(
         ([id, src]) =>
           `<button type="button" class="watch-source-option${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
@@ -1748,6 +1945,10 @@ async function playNextEpisode(season, episode) {
   currentPlayer.season = season;
   currentPlayer.episode = episode;
   markEpWatched(currentPlayer.id, season, episode);
+  if (resolvePlayerSource().dynamic) {
+    await playTurkish123(currentPlayer.type, currentPlayer.id, season, episode);
+    return;
+  }
   injectPlayer(buildPlayerUrl(currentPlayer.type, currentPlayer.id, season, episode, 0));
 }
 
@@ -1841,7 +2042,8 @@ async function initWatchPage() {
     seasonEpisodeCounts,
     estimatedDurationSec,
   };
-
+  currentPlayerLang = data.original_language || null;
+  currentPlayerType = type;
 
   if (reset) removeContinueWatchingCard(id);
 
@@ -1870,6 +2072,12 @@ async function initWatchPage() {
   setupSourceDropdown();
   renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", async () => {
     if (type === "tv") markEpWatched(id, season, episode);
+    // Dynamic sources (Turkish123) resolve their embed at click time, then
+    // mount it in the stage like every other server.
+    if (resolvePlayerSource().dynamic) {
+      await playTurkish123(type, id, season, episode);
+      return;
+    }
     injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
   });
 
@@ -1956,7 +2164,13 @@ async function playEpisode(data, season, episode) {
 
   // Picking an episode from the watch page's own list should swap the
   // current player in place, not stack another watch tab on top of it.
-  if (document.body.dataset.page === "watch") {
+  if (resolvePlayerSource().dynamic) {
+    if (document.body.dataset.page === "watch") {
+      await playTurkish123("tv", data.id, season, episode);
+    } else {
+      openWatchTab("tv", data.id, season, episode);
+    }
+  } else if (document.body.dataset.page === "watch") {
     injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
   } else {
     openWatchTab("tv", data.id, season, episode);
@@ -2485,6 +2699,8 @@ async function openDetail(type, id, autoplayTrailer) {
     seasonEpisodeCounts,
     estimatedDurationSec,
   };
+  currentPlayerLang = data.original_language || null;
+  currentPlayerType = type;
   const tagline = data.tagline || "";
   const date = data.release_date || data.first_air_date || "";
   const runtime = data.runtime
