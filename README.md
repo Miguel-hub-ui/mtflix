@@ -104,9 +104,12 @@ Movies and TV shows stream through an embed player inside the detail modal. Thre
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
-| **CineSrc 4K** | ✓ main | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
+| **CineSrc 4K** | ✓ main (non-Turkish) | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params |
+| **Turkish (VidLink)** | ✓ auto for Turkish titles | Up to 1080p | No |
 | MultiEmbed | | Up to 1080p | No |
 | VidSrc | | Up to 1080p | No — confirmed it sends no postMessages at all |
+
+**Turkish movies & series** (`original_language: tr` — the Turkish Series row, Arafta, Yalı Çapkını, Kuruluş Osman, …) automatically start on the **Turkish (VidLink)** server instead of CineSrc. VidLink was the only candidate in October 2026 testing that actually streamed the brand-new dizis: it served Arafta S1E1 as a 1080p DASH stream (2h26m runtime) where CineSrc, MultiEmbed, VidSrc and every other probed provider had no stream for it at all. VidLink's catalog misses some older Turkish titles, so the source dropdown still allows switching any title to another server manually; non-Turkish titles always start on CineSrc as before.
 
 The player iframe grants fullscreen to all origins (`allow="fullscreen *"`): MultiEmbed's and VidSrc's videos play through nested cross-origin iframes inside their embeds, and a bare `allow="fullscreen"` (which also overrides `allowfullscreen`) silently denies those nested frames — their own fullscreen buttons did nothing. The wildcard delegates the permission down the whole frame tree, so their native buttons work.
 

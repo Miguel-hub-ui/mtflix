@@ -115,6 +115,23 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
+  // Turkish-only server. Auto-selected exclusively for titles whose original
+  // language is Turkish (see getPlayerSourceId below) -- it was the only
+  // candidate in testing that actually streamed the new Turkish dizis
+  // (Arafta) that the other servers had no stream for, while CineSrc covers
+  // the older ones. Its catalog is spotty in places, so the source dropdown
+  // still allows manually switching on any title. VidLink posts no usable
+  // progress events, so Continue Watching falls back to the 15s heartbeat
+  // baseline exactly like MultiEmbed/VidSrc.
+  vidlink: {
+    label: "Turkish (VidLink)",
+    movie: "https://vidlink.pro/movie/{id}",
+    tv: "https://vidlink.pro/tv/{id}/{season}/{episode}",
+    supportsEvents: false,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   vidsrc: {
     label: "VidSrc",
     // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)
@@ -149,6 +166,11 @@ const PLAYER_SOURCES = {
 };
 
 const DEFAULT_PLAYER_SOURCE = "cinesrc";
+// Auto-picked for Turkish titles only (original_language === "tr") -- see
+// getPlayerSourceId(). VidLink is the only tested server that streams the
+// newest Turkish dizis (e.g. Arafta) at all; CineSrc stays the default for
+// every other language.
+const TURKISH_PLAYER_SOURCE = "vidlink";
 
 // CineSrc is the default again (the added HD sources were removed at the
 // owner's request). A manual server switch only applies to the movie or
@@ -173,6 +195,11 @@ let currentPlayerType = null;
 
 function getPlayerSourceId() {
   if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
+  // Turkish movies and series start on the Turkish server; everything else
+  // stays on the default. A manual pick (playerSourceIdMem) always wins, so
+  // a viewer can still switch a Turkish title to another server when
+  // VidLink's catalog misses it (e.g. some older dizis).
+  if (currentPlayerLang === "tr" && PLAYER_SOURCES[TURKISH_PLAYER_SOURCE]) return TURKISH_PLAYER_SOURCE;
   return DEFAULT_PLAYER_SOURCE;
 }
 
