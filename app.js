@@ -269,7 +269,7 @@ const I18N = {
     row_trending: "Trending Now", row_popmovies: "Popular Movies", row_toprated: "Top Rated of All Time",
     row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
-    row_continue: "Continue Watching",
+    row_continue: "Continue Watching", row_see_more: "See more",
     row_tr_series: "Turkish Series",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
     filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
@@ -302,7 +302,7 @@ const I18N = {
     row_trending: "Tendencias", row_popmovies: "Películas populares", row_toprated: "Las mejor valoradas",
     row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
     row_horror: "Apaga la luz — Terror", row_comedy: "Comedias para relajar", row_animation: "Animación para todos",
-    row_continue: "Seguir viendo",
+    row_continue: "Seguir viendo", row_see_more: "Ver más",
     row_tr_series: "Series turcas",
   },
   fr: {
@@ -333,7 +333,7 @@ const I18N = {
     row_trending: "Tendances", row_popmovies: "Films populaires", row_toprated: "Les mieux notés",
     row_action: "Action et aventure", row_scifi: "Univers science-fiction",
     row_horror: "Lumières éteintes — Horreur", row_comedy: "Comédies détente", row_animation: "Animation pour tous",
-    row_continue: "Reprendre",
+    row_continue: "Reprendre", row_see_more: "Voir plus",
     row_tr_series: "Séries turques",
   },
   de: {
@@ -364,7 +364,7 @@ const I18N = {
     row_trending: "Im Trend", row_popmovies: "Beliebte Filme", row_toprated: "Beste aller Zeiten",
     row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
     row_horror: "Licht aus — Horror", row_comedy: "Comedys zum Entspannen", row_animation: "Animation für alle",
-    row_continue: "Weiterschauen",
+    row_continue: "Weiterschauen", row_see_more: "Mehr anzeigen",
     row_tr_series: "Türkische Serien",
   },
   pt: {
@@ -395,7 +395,7 @@ const I18N = {
     row_trending: "Em alta", row_popmovies: "Filmes populares", row_toprated: "Melhores de todos os tempos",
     row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
     row_horror: "Luzes apagadas — Terror", row_comedy: "Comédias para relaxar", row_animation: "Animação para todos",
-    row_continue: "Continuar assistindo",
+    row_continue: "Continuar assistindo", row_see_more: "Ver mais",
     row_tr_series: "Séries turcas",
   },
   tr: {
@@ -426,7 +426,7 @@ const I18N = {
     row_trending: "Popüler", row_popmovies: "Popüler Filmler", row_toprated: "Tüm Zamanların En İyileri",
     row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
     row_horror: "Işıkları Kapat — Korku", row_comedy: "Keyifli Komediler", row_animation: "Herkese Animasyon",
-    row_continue: "İzlemeye Devam Et",
+    row_continue: "İzlemeye Devam Et", row_see_more: "Daha fazla",
     row_tr_series: "Türk Dizileri",
   },
 };
@@ -768,26 +768,20 @@ function buildRowSection(rowDef) {
   section.innerHTML = `
     <div class="row-header">
       <h2 class="row-title">${escapeHtml(t(rowDef.titleKey))}</h2>
+      ${rowDef.path ? `<button type="button" class="row-see-more">${escapeHtml(t("row_see_more"))}</button>` : ""}
     </div>
     <div class="row-body">
       <button class="row-nav prev" aria-label="Scroll left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <div class="row-scroller">${skeletonRow()}</div>
       <button class="row-nav next" aria-label="Scroll right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>`;
+  section.querySelector(".row-see-more")?.addEventListener("click", () => openRowAll(rowDef.id));
   return section;
 }
 
 function fillRow(section, items, opts = {}) {
   const scroller = section.querySelector(".row-scroller");
   scroller.innerHTML = items.map((item) => cardHTML(item, opts)).join("");
-  const header = section.querySelector(".row-header");
-  let countEl = header.querySelector(".row-count");
-  if (!countEl) {
-    countEl = document.createElement("span");
-    countEl.className = "row-count";
-    header.appendChild(countEl);
-  }
-  countEl.textContent = `${items.length} titles`;
 }
 
 function wireRowArrows(section) {
@@ -824,6 +818,12 @@ async function renderRows(filter) {
     return;
   }
 
+  if (isRowAllFilter(filter)) {
+    const def = ROWS.find((r) => r.id === filter.slice(ROW_ALL_PREFIX.length));
+    if (def) renderRowAllView(def, container);
+    return;
+  }
+
   for (const def of ROWS) {
     const section = buildRowSection(def);
     container.appendChild(section);
@@ -843,6 +843,107 @@ async function renderRows(filter) {
     } catch (err) {
       handleFetchError(err, section);
     }
+  }
+}
+
+// --- "See more" view ---------------------------------------------------------
+// A home row only shows its first 18 titles. Its "See more" button opens the
+// row's full catalog as a grid: the same TMDB query, paged until it runs out
+// (more pages load as the viewer nears the bottom). It's a filter like
+// Movies / TV Shows ("row:<id>"), so the back button returns to Home.
+const ROW_ALL_PREFIX = "row:";
+let rowAllState = { def: null, page: 1, totalPages: 1, loading: false, seen: new Set() };
+let rowAllObserver = null;
+
+function isRowAllFilter(filter) {
+  return typeof filter === "string" && filter.startsWith(ROW_ALL_PREFIX);
+}
+
+function openRowAll(rowId) {
+  if (currentFilter === "home") pushNav();
+  setFilter(ROW_ALL_PREFIX + rowId);
+  window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+}
+
+function renderRowAllView(def, container) {
+  rowAllState = { def, page: 1, totalPages: 1, loading: false, seen: new Set() };
+  rowAllObserver?.disconnect();
+
+  const section = document.createElement("section");
+  section.className = "discover-view";
+  section.innerHTML = `
+    <div class="row-all-header">
+      <button type="button" class="row-all-back" id="row-all-back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <h2 class="results-title">${escapeHtml(t(def.titleKey))}</h2>
+    </div>
+    <div class="discover-grid" id="row-all-grid">${skeletonRow(12)}</div>
+    <div class="discover-load-wrap">
+      <button class="btn btn-ghost hidden" id="row-all-load-more">${t("filter_load_more")}</button>
+    </div>`;
+  container.appendChild(section);
+
+  $("#row-all-back").addEventListener("click", () => {
+    if (navDepth > 0) history.back();
+    else setFilter("home");
+  });
+  const loadBtn = $("#row-all-load-more");
+  const loadNext = () => {
+    if (rowAllState.loading || rowAllState.page >= rowAllState.totalPages) return;
+    rowAllState.page += 1;
+    loadRowAllPage(false);
+  };
+  loadBtn.addEventListener("click", loadNext);
+  if ("IntersectionObserver" in window) {
+    rowAllObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) loadNext();
+      },
+      { rootMargin: "600px" }
+    );
+    rowAllObserver.observe(loadBtn);
+  }
+
+  loadRowAllPage(true);
+}
+
+async function loadRowAllPage(reset) {
+  if (rowAllState.loading) return;
+  const state = rowAllState;
+  const { def, page } = state;
+  const grid = $("#row-all-grid");
+  const loadBtn = $("#row-all-load-more");
+  if (!grid) return;
+  state.loading = true;
+  loadBtn?.classList.add("hidden");
+
+  try {
+    const data = await tmdb(def.path, { language: "en-US", ...def.params, page });
+    // The viewer left (or opened another row) while this page was loading.
+    if (state !== rowAllState || !grid.isConnected) return;
+    // TMDB caps paging at 500 pages regardless of total_pages.
+    state.totalPages = Math.min(data.total_pages || 1, 500);
+    let items = data.results
+      .map((r) => normalizeItem(r, def.mediaType))
+      .filter((i) => i.poster_path && !state.seen.has(`${i.media_type}_${i.id}`));
+    items.forEach((i) => state.seen.add(`${i.media_type}_${i.id}`));
+    if (def.id === "tr-tv") {
+      items = await enrichItems(items);
+      if (state !== rowAllState || !grid.isConnected) return;
+    }
+
+    if (reset) {
+      grid.innerHTML = items.length
+        ? items.map((item) => cardHTML(item)).join("")
+        : `<div class="empty-state"><h2>${t("filter_no_results")}</h2></div>`;
+    } else {
+      grid.insertAdjacentHTML("beforeend", items.map((item) => cardHTML(item)).join(""));
+    }
+    loadBtn?.classList.toggle("hidden", state.page >= state.totalPages);
+  } catch (err) {
+    if (reset) handleFetchError(err, grid);
+    else loadBtn?.classList.remove("hidden");
+  } finally {
+    state.loading = false;
   }
 }
 
@@ -1145,7 +1246,7 @@ function setFilter(filter) {
   document.querySelectorAll(".nav-links a, .bottom-nav a").forEach((a) =>
     a.classList.toggle("active", a.dataset.filter === filter)
   );
-  const heroHidden = filter === "list" || filter === "movie" || filter === "tv";
+  const heroHidden = filter === "list" || filter === "movie" || filter === "tv" || isRowAllFilter(filter);
   $("#hero").classList.toggle("hidden", heroHidden);
   $("#rows").classList.toggle("no-hero", heroHidden);
   if (heroHidden) stopHeroRotation();
@@ -2286,12 +2387,7 @@ function removeContinueWatchingCard(id) {
   card?.remove();
   if (!section) return;
   const remaining = section.querySelectorAll(".card").length;
-  if (remaining === 0) {
-    section.remove();
-  } else {
-    const countEl = section.querySelector(".row-count");
-    if (countEl) countEl.textContent = `${remaining} titles`;
-  }
+  if (remaining === 0) section.remove();
 }
 
 function getEpWatchStore() {

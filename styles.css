@@ -600,7 +600,34 @@ button { font-family: inherit; cursor: pointer; }
   margin-bottom: 12px;
 }
 .row-title { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.2px; }
-.row-count { color: var(--muted); font-size: 0.8rem; }
+.row-see-more {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.row-see-more:hover, .row-see-more:focus-visible { color: var(--text); }
+.row-all-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.row-all-header .results-title { margin-bottom: 0; }
+.row-all-back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  cursor: pointer;
+}
+.row-all-back svg { width: 18px; height: 18px; }
 
 .row-body { position: relative; }
 .row-scroller {
