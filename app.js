@@ -295,8 +295,7 @@ const I18N = {
     row_action: "Action & Adventure", row_scifi: "Sci-Fi Worlds",
     row_horror: "Lights Off — Horror", row_comedy: "Comedies to Chill With", row_animation: "Animation for Everyone",
     row_romance: "Romance Night In", row_continue: "Continue Watching",
-    row_tr_movies: "Turkish Movies", row_tr_series: "Turkish Series",
-    row_ar_movies: "Arabic Movies", row_ar_series: "Arabic Series",
+    row_tr_series: "Turkish Series",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
     filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
@@ -329,8 +328,7 @@ const I18N = {
     row_action: "Acción y aventura", row_scifi: "Mundos de ciencia ficción",
     row_horror: "Apaga la luz — Terror", row_comedy: "Comedias para relajar", row_animation: "Animación para todos",
     row_romance: "Noche romántica", row_continue: "Seguir viendo",
-    row_tr_movies: "Películas turcas", row_tr_series: "Series turcas",
-    row_ar_movies: "Películas árabes", row_ar_series: "Series árabes",
+    row_tr_series: "Series turcas",
   },
   fr: {
     nav_home: "Accueil", nav_movies: "Films", nav_tv: "Séries", nav_list: "Ma Liste",
@@ -361,8 +359,7 @@ const I18N = {
     row_action: "Action et aventure", row_scifi: "Univers science-fiction",
     row_horror: "Lumières éteintes — Horreur", row_comedy: "Comédies détente", row_animation: "Animation pour tous",
     row_romance: "Soirée romance", row_continue: "Reprendre",
-    row_tr_movies: "Films turcs", row_tr_series: "Séries turques",
-    row_ar_movies: "Films arabes", row_ar_series: "Séries arabes",
+    row_tr_series: "Séries turques",
   },
   de: {
     nav_home: "Startseite", nav_movies: "Filme", nav_tv: "Serien", nav_list: "Meine Liste",
@@ -393,8 +390,7 @@ const I18N = {
     row_action: "Action & Abenteuer", row_scifi: "Sci-Fi-Welten",
     row_horror: "Licht aus — Horror", row_comedy: "Comedys zum Entspannen", row_animation: "Animation für alle",
     row_romance: "Romantischer Abend", row_continue: "Weiterschauen",
-    row_tr_movies: "Türkische Filme", row_tr_series: "Türkische Serien",
-    row_ar_movies: "Arabische Filme", row_ar_series: "Arabische Serien",
+    row_tr_series: "Türkische Serien",
   },
   pt: {
     nav_home: "Início", nav_movies: "Filmes", nav_tv: "Séries", nav_list: "Minha Lista",
@@ -425,8 +421,7 @@ const I18N = {
     row_action: "Ação e aventura", row_scifi: "Mundos de ficção científica",
     row_horror: "Luzes apagadas — Terror", row_comedy: "Comédias para relaxar", row_animation: "Animação para todos",
     row_romance: "Noite romântica", row_continue: "Continuar assistindo",
-    row_tr_movies: "Filmes turcos", row_tr_series: "Séries turcas",
-    row_ar_movies: "Filmes árabes", row_ar_series: "Séries árabes",
+    row_tr_series: "Séries turcas",
   },
   tr: {
     nav_home: "Ana Sayfa", nav_movies: "Filmler", nav_tv: "Diziler", nav_list: "Listem",
@@ -457,8 +452,7 @@ const I18N = {
     row_action: "Aksiyon ve Macera", row_scifi: "Bilim Kurgu Dünyaları",
     row_horror: "Işıkları Kapat — Korku", row_comedy: "Keyifli Komediler", row_animation: "Herkese Animasyon",
     row_romance: "Romantik Gece", row_continue: "İzlemeye Devam Et",
-    row_tr_movies: "Türk Filmleri", row_tr_series: "Türk Dizileri",
-    row_ar_movies: "Arap Filmleri", row_ar_series: "Arap Dizileri",
+    row_tr_series: "Türk Dizileri",
   },
 };
 
@@ -602,15 +596,12 @@ const ROWS = [
   { id: "comedy", titleKey: "row_comedy", path: "/discover/movie", params: { with_genres: 35, sort_by: "popularity.desc" } },
   { id: "animation", titleKey: "row_animation", path: "/discover/movie", params: { with_genres: 16, sort_by: "popularity.desc" } },
   { id: "romance", titleKey: "row_romance", path: "/discover/movie", params: { with_genres: 10749, sort_by: "popularity.desc" } },
-  // Turkish & Arabic rows (added): TMDB's discover endpoint filters by
-  // original language, so these surface the existing catalog -- same
+  // Turkish series row: TMDB's discover endpoint filters by original
+  // language, so this surfaces the existing catalog -- same
   // posters/details/player as every other row, no extra provider needed.
-  // TV rows set mediaType so normalizeItem tags them "tv" (discover
+  // It sets mediaType so normalizeItem tags items "tv" (discover
   // endpoints don't include media_type in their results).
-  { id: "tr-movies", titleKey: "row_tr_movies", path: "/discover/movie", params: { with_original_language: "tr", sort_by: "popularity.desc" } },
   { id: "tr-tv", titleKey: "row_tr_series", path: "/discover/tv", params: { with_original_language: "tr", sort_by: "popularity.desc" }, mediaType: "tv" },
-  { id: "ar-movies", titleKey: "row_ar_movies", path: "/discover/movie", params: { with_original_language: "ar", sort_by: "popularity.desc" } },
-  { id: "ar-tv", titleKey: "row_ar_series", path: "/discover/tv", params: { with_original_language: "ar", sort_by: "popularity.desc" }, mediaType: "tv" },
 ];
 
 const $ = (sel) => document.querySelector(sel);
@@ -869,9 +860,9 @@ async function renderRows(filter) {
         .map((r) => normalizeItem(r, def.mediaType))
         .filter((i) => i.poster_path)
         .slice(0, 18);
-      // TMDB's Turkish/Arabic catalog is often missing posters and
+      // TMDB's Turkish catalog is often missing posters and
       // descriptions -- backfill those gaps from TVmaze before rendering.
-      if (def.id === "tr-movies" || def.id === "tr-tv" || def.id === "ar-movies" || def.id === "ar-tv") {
+      if (def.id === "tr-tv") {
         items = await enrichItems(items);
       }
       fillRow(section, items);
