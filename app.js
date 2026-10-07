@@ -840,6 +840,38 @@ function arabicTitle(type, id, fallback) {
   return TR_ARABIC_TITLES[`${type}:${id}`] || fallback;
 }
 
+// Keys of the Turkish titles whose Arabic name contains the query, ignoring
+// case, spaces and apostrophes ("al madeena", "almadeena", "Ba'eeda").
+function arabicTitleMatches(query) {
+  const fold = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const q = fold(query);
+  if (q.length < 3) return [];
+  return Object.keys(TR_ARABIC_TITLES)
+    .filter((key) => fold(TR_ARABIC_TITLES[key]).includes(q))
+    .slice(0, 8);
+}
+
+// TMDB's search doesn't know the Arabic names, so titles matched by Arabic
+// name are fetched by id and listed ahead of TMDB's own results.
+async function searchMulti(query, params = {}) {
+  const [data, byArabicName] = await Promise.all([
+    tmdb("/search/multi", { query, include_adult: false, ...params }),
+    Promise.all(
+      arabicTitleMatches(query).map(async (key) => {
+        const [type, id] = key.split(":");
+        try {
+          return { ...(await tmdb(`/${type}/${id}`, { ...params })), media_type: type };
+        } catch {
+          return null;
+        }
+      })
+    ),
+  ]);
+  const found = byArabicName.filter(Boolean);
+  const seen = new Set(found.map((r) => `${r.media_type}:${r.id}`));
+  return { ...data, results: [...found, ...data.results.filter((r) => !seen.has(`${r.media_type}:${r.id}`))] };
+}
+
 function normalizeItem(r, forcedType) {
   const type = r.media_type || forcedType || "movie";
   const tmdbTitle = r.title || r.name || "Untitled";
@@ -4274,7 +4306,7 @@ async function runSuggest(query) {
   const myToken = ++suggestToken;
   let data;
   try {
-    data = await tmdb("/search/multi", { query, include_adult: false });
+    data = await searchMulti(query);
   } catch {
     if (myToken !== suggestToken) return;
     box.innerHTML = `<div class="search-suggest-empty">Couldn't load results. Check your connection.</div>`;
@@ -4326,7 +4358,7 @@ async function runSuggest(query) {
 async function runSearch(query) {
   let data;
   try {
-    data = await tmdb("/search/multi", { query, include_adult: false, language: "en-US" });
+    data = await searchMulti(query, { language: "en-US" });
   } catch (err) {
     handleFetchError(err);
     return;
