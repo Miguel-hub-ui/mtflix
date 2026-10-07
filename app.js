@@ -721,7 +721,9 @@ async function tmdb(path, params = {}) {
     if (res.status === 401) throw new Error("INVALID_KEY");
     throw new Error(`TMDB request failed (${res.status})`);
   }
-  return res.json();
+  const data = await res.json();
+  await learnArabicTitles(url, data);
+  return data;
 }
 
 // Turkish titles are shown under the name they're known by in the Arab
@@ -836,18 +838,79 @@ const TR_ARABIC_TITLES = {
   "movie:89584": "Al Fath 1453", // Fetih 1453
 };
 
+// Arabic names for every other Turkish title, learned from TMDB's Arabic
+// translations as lists and details load (see learnArabicTitles). Same keys
+// as the table above; kept in localStorage so saved titles keep their name.
+const LS_AR_TITLES = "mtflix_ar_titles";
+const arTitleCache = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(LS_AR_TITLES)) || {};
+  } catch {
+    return {};
+  }
+})();
+// Turkish titles TMDB has no Arabic name for -- not asked about again this session.
+const arTitleMisses = new Set();
+
 function arabicTitle(type, id, fallback) {
-  return TR_ARABIC_TITLES[`${type}:${id}`] || fallback;
+  const key = `${type}:${id}`;
+  return TR_ARABIC_TITLES[key] || arTitleCache[key] || fallback;
+}
+
+function tmdbItemKey(r) {
+  return `${r.media_type || ("title" in r ? "movie" : "tv")}:${r.id}`;
+}
+
+// Every movie/show object in a TMDB response: the response itself (details),
+// its result lists, and lists appended one level down (similar, credits...).
+function tmdbTitleItems(data) {
+  const out = [];
+  const visit = (o, depth) => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o)) return o.forEach((x) => visit(x, depth));
+    if (o.id && o.original_language) out.push(o);
+    if (depth < 2) Object.values(o).forEach((v) => visit(v, depth + 1));
+  };
+  visit(data, 0);
+  return out;
+}
+
+// When a response contains Turkish titles whose Arabic name isn't known yet,
+// repeats the same request in Arabic and remembers the names. Never throws:
+// a failure just leaves those titles under their TMDB name.
+async function learnArabicTitles(url, data) {
+  const unknown = (r) => {
+    const key = tmdbItemKey(r);
+    return r.original_language === "tr" && !TR_ARABIC_TITLES[key] && !arTitleCache[key] && !arTitleMisses.has(key);
+  };
+  const missing = tmdbTitleItems(data).filter(unknown);
+  if (!missing.length) return;
+  try {
+    const arUrl = new URL(url);
+    arUrl.searchParams.set("language", "ar-SA");
+    const res = await fetch(arUrl);
+    if (!res.ok) return;
+    const names = {};
+    tmdbTitleItems(await res.json()).forEach((r) => (names[tmdbItemKey(r)] = r.title || r.name || ""));
+    missing.forEach((r) => {
+      const key = tmdbItemKey(r);
+      // Untranslated titles come back in English/Turkish -- only keep real Arabic.
+      if (/[\u0600-\u06FF]/.test(names[key] || "")) arTitleCache[key] = names[key];
+      else arTitleMisses.add(key);
+    });
+    localStorage.setItem(LS_AR_TITLES, JSON.stringify(arTitleCache));
+  } catch {}
 }
 
 // Keys of the Turkish titles whose Arabic name contains the query, ignoring
 // case, spaces and apostrophes ("al madeena", "almadeena", "Ba'eeda").
 function arabicTitleMatches(query) {
-  const fold = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const fold = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
   const q = fold(query);
   if (q.length < 3) return [];
-  return Object.keys(TR_ARABIC_TITLES)
-    .filter((key) => fold(TR_ARABIC_TITLES[key]).includes(q))
+  const known = { ...arTitleCache, ...TR_ARABIC_TITLES };
+  return Object.keys(known)
+    .filter((key) => fold(known[key]).includes(q))
     .slice(0, 8);
 }
 
