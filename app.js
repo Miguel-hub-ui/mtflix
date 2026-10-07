@@ -692,7 +692,7 @@ async function tvmazeLookup(r) {
 async function enrichItem(item) {
   const needs = item;
   if (!needs || (needs.overview && needs.poster_path)) return item;
-  const tvm = await tvmazeLookup({ id: item.id, title: item.title, date: item.date });
+  const tvm = await tvmazeLookup({ id: item.id, title: item.tmdb_title || item.title, date: item.date });
   if (!tvm) return item;
   const fixed = { ...item };
   if (!fixed.overview && tvm.summary) {
@@ -724,11 +724,131 @@ async function tmdb(path, params = {}) {
   return res.json();
 }
 
+// Turkish titles are shown under the name they're known by in the Arab
+// world (romanized) instead of TMDB's English title. Keyed by
+// "<media_type>:<tmdb id>"; anything not listed keeps its TMDB title.
+const TR_ARABIC_TITLES = {
+  "tv:274556": "Al Madeena Al Ba'eeda", // Uzak Şehir
+  "tv:82328": "Mararat Al Hobb", // Bir Zamanlar Çukurova
+  "tv:17635": "Al Ishq Al Mamnu'", // Aşk-ı Memnu
+  "tv:34899": "Hareem Al Sultan", // Muhteşem Yüzyıl
+  "tv:60930": "Al Sultana Kosem", // Muhteşem Yüzyıl: Kösem
+  "tv:70926": "Noor", // Gümüş
+  "tv:65555": "Hob Aama", // Kara Sevda
+  "tv:60929": "Al Ishq Al Aswad", // Kara Para Aşk
+  "tv:44807": "Fatima", // Fatmagül'ün Suçu Ne?
+  "tv:34587": "Wadi Al Dhi'ab", // Kurtlar Vadisi
+  "tv:74823": "Al Hufra", // Çukur
+  "tv:66017": "Qiyamat Ertugrul", // Diriliş: Ertuğrul
+  "tv:95603": "Al Mu'assis Othman", // Kuruluş Osman
+  "tv:104877": "Anta Atruq Babi", // Sen Çal Kapımı
+  "tv:80411": "Al Ta'ir Al Mubakkir", // Erkenci Kuş
+  "tv:133490": "Al Qada'", // Yargı
+  "tv:213194": "Sharab Al Toot", // Kızılcık Şerbeti
+  "tv:210865": "Ta'ir Al Rafraf", // Yalı Çapkını
+  "tv:76530": "Hob Abyad Aswad", // Siyah Beyaz Aşk
+  "tv:70798": "Aroos Istanbul", // İstanbullu Gelin
+  "tv:63549": "Hob Lil Ijar", // Kiralık Aşk
+  "tv:68569": "Ommi", // Anne
+  "tv:77532": "Imra'a", // Kadın
+  "tv:82369": "Ibnati", // Kızım
+  "tv:119267": "Ikhwati", // Kardeşlerim
+  "tv:96305": "Ibnat Al Safeer", // Sefirin Kızı
+  "tv:87623": "Zahrat Al Thaluth", // Hercai
+  "tv:100868": "Al Amana", // Emanet
+  "tv:7723": "Al Qasam", // Yemin
+  "tv:61867": "Al Madd Wal Jazr", // Medcezir
+  "tv:62922": "Alf Layla Wa Layla", // Binbir Gece
+  "tv:17915": "Alf Layla Wa Layla", // Binbir Gece
+  "tv:67570": "Al Hob La Yafham Al Kalam", // Aşk Laftan Anlamaz
+  "tv:68388": "Fil Dakhil", // İçerde
+  "tv:71096": "Al Ahd", // Söz
+  "tv:69459": "Anta Watani", // Vatanım Sensin
+  "tv:39014": "Al Awraq Al Mutasaqita", // Yaprak Dökümü
+  "tv:64535": "Qutta' Al Turuq Lan Yahkumu Al Alam", // Eşkıya Dünyaya Hükümdar Olmaz
+  "tv:90302": "Anta Fi Kul Makan", // Her Yerde Sen
+  "tv:73506": "Al Badr", // Dolunay
+  "tv:42099": "Al Shamal Wal Janoub", // Kuzey Güney
+  "tv:69238": "Hutam", // Paramparça
+  "tv:68848": "Jasour Wal Jameela", // Cesur ve Güzel
+  "tv:88024": "Istanbul Al Zalima", // Zalim İstanbul
+  "tv:92967": "Al Tabib Al Mu'jiza", // Mucize Doktor
+  "tv:105052": "Al Sayyid Al Khati'", // Bay Yanlış
+  "tv:70788": "Al Sultan Abdul Hamid", // Payitaht: Abdülhamid
+  "tv:119806": "Al Munazzama", // Teşkilat
+  "tv:219290": "Zuhoor Al Dam", // Kan Çiçekleri
+  "tv:231503": "Al Barri", // Yabani
+  "tv:219446": "Al A'ila", // Aile
+  "tv:121435": "Fatat Al Nafitha", // Camdaki Kız
+  "tv:109905": "Shaqqat Al Abriya'", // Masumlar Apartmanı
+  "tv:110562": "Al Kha'in", // Sadakatsiz
+  "tv:108904": "Al Ghurfa Al Hamra'", // Kırmızı Oda
+  "tv:137713": "Thalathat Quroosh", // Üç Kuruş
+  "tv:136506": "Al Malhama", // Destan
+  "tv:215709": "Al Asira", // Esaret
+  "tv:231100": "Hob Bila Hudood", // Hudutsuz Sevda
+  "tv:241020": "Al Bara'em Al Hamra'", // Kızıl Goncalar
+  "tv:243832": "Habbat Al Lu'lu'", // İnci Taneleri
+  "tv:271014": "Al Qalb Al Aswad", // Siyah Kalp
+  "tv:245841": "Al Aroos", // Gelin
+  "tv:280777": "Itha Khasira Al Malik", // Kral Kaybederse
+  "tv:240335": "Ra'ihat Al Sundooq", // Sandık Kokusu
+  "tv:218265": "Tuyoor Al Nar", // Ateş Kuşları
+  "tv:233314": "Shakhs Akhar", // Bambaşka Biri
+  "tv:228979": "Matha Law Ahbabta Katheeran", // Ya Çok Seversen
+  "tv:221244": "Risalat Wada'", // Veda Mektubu
+  "tv:127588": "Hob Mantiq Intiqam", // Aşk Mantık İntikam
+  "tv:62217": "Mawsim Al Karaz", // Kiraz Mevsimi
+  "tv:64164": "Banat Al Shams", // Güneşin Kızları
+  "tv:80229": "La Tatruk Yadi", // Elimi Bırakma
+  "tv:83584": "Al Istidam", // Çarpışma
+  "tv:88794": "Al Ghurab", // Kuzgun
+  "tv:153515": "Al Sajeen", // Mahkum
+  "tv:152326": "Lu'bat Qadari", // Kaderimin Oyunu
+  "tv:114973": "Al Aqrab", // Akrep
+  "tv:136890": "Al Ghareeba", // Elkızı
+  "tv:134155": "Kul Shay' An Al Zawaj", // Evlilik Hakkında Her Şey
+  "tv:203572": "Ajmal Minka", // Senden Daha Güzel
+  "tv:126248": "Jarh Al Qalb", // Kalp Yarası
+  "tv:94607": "Ismi Malak", // Benim Adım Melek
+  "tv:113570": "Al Kaffara", // Kefaret
+  "tv:50532": "Hayat Jadeeda", // Yeni Hayat
+  "tv:50236": "Al Warda Al Sawda'", // Karagül
+  "tv:66124": "Tilka Hayati", // O Hayat Benim
+  "tv:74660": "Jara'im Sagheera", // Ufak Tefek Cinayetler
+  "tv:76560": "Al Sayyida Fazilet Wa Banatuha", // Fazilet Hanım ve Kızları
+  "tv:73933": "Hikayatuna", // Bizim Hikaye
+  "tv:76500": "Al Muharib", // Savaşçı
+  "tv:52645": "Al Tuffaha Al Muharrama", // Yasak Elma
+  "tv:78058": "Al Fina'", // Avlu
+  "tv:85545": "Al Halaqa", // Halka
+  "tv:246621": "Mehmed: Sultan Al Futuhat", // Mehmed: Fetihler Sultanı
+  "tv:232132": "Salah Al Din Al Ayyubi: Fatih Al Quds", // Kudüs Fatihi: Selahaddin Eyyubi
+  "tv:110655": "Nahdat Al Salajiqa Al Uthma", // Uyanış: Büyük Selçuklu
+  "tv:136125": "Al Nadi", // Kulüp
+  "tv:79026": "Al Hami", // Hakan: Muhafız
+  "tv:100897": "Hob 101", // Aşk 101
+  "tv:214079": "Al Khayyat", // Terzi
+  "tv:157219": "Muntasaf Al Layl Fi Pera Palas", // Pera Palas’ta Gece Yarısı
+  "movie:637920": "Mu'jiza Fil Zinzana 7", // 7. Koğuştaki Mucize
+  "movie:785534": "Hayat Waraqiyya", // Kağıttan Hayatlar
+  "movie:56919": "Al Hob Yuhibb Al Sudaf", // Aşk Tesadüfleri Sever
+  "movie:89584": "Al Fath 1453", // Fetih 1453
+};
+
+function arabicTitle(type, id, fallback) {
+  return TR_ARABIC_TITLES[`${type}:${id}`] || fallback;
+}
+
 function normalizeItem(r, forcedType) {
+  const type = r.media_type || forcedType || "movie";
+  const tmdbTitle = r.title || r.name || "Untitled";
   return {
     id: r.id,
-    media_type: r.media_type || forcedType || "movie",
-    title: r.title || r.name || "Untitled",
+    media_type: type,
+    title: arabicTitle(type, r.id, tmdbTitle),
+    // TMDB's own title, kept for the TVmaze name search.
+    tmdb_title: tmdbTitle,
     poster_path: r.poster_path,
     backdrop_path: r.backdrop_path,
     vote_average: r.vote_average || 0,
@@ -1138,6 +1258,7 @@ function renderTrackingTab(content) {
 }
 
 function trackCardHTML(id, item) {
+  item = { ...item, title: arabicTitle(item.media_type || "movie", id, item.title) };
   const w = getWatch(id);
   const pct = w.d ? Math.min(100, Math.round((w.t / w.d) * 100)) : 0;
   return `
@@ -1925,10 +2046,11 @@ async function initWatchPage() {
     return;
   }
 
-  const title = data.title || data.name || "Untitled";
+  const tmdbTitle = data.title || data.name || "Untitled";
+  const title = arabicTitle(type, data.id, tmdbTitle);
   // TVmaze backfill (added): fill a missing description from TVmaze.
   if (!data.overview) {
-    const tvm = await tvmazeLookup({ id: data.id, title, date: data.first_air_date || "" });
+    const tvm = await tvmazeLookup({ id: data.id, title: tmdbTitle, date: data.first_air_date || "" });
     if (tvm?.summary) {
       const tmp = document.createElement("div");
       tmp.innerHTML = tvm.summary;
@@ -2467,7 +2589,7 @@ function continueItems() {
     .map(([id, w]) => ({
       id: Number(id),
       media_type: w.media_type || "movie",
-      title: w.title,
+      title: arabicTitle(w.media_type || "movie", id, w.title),
       poster_path: w.poster_path,
       backdrop_path: w.backdrop_path,
       vote_average: 0,
@@ -2569,11 +2691,12 @@ async function openDetail(type, id, autoplayTrailer) {
     return;
   }
 
-  const title = data.title || data.name || "Untitled";
+  const tmdbTitle = data.title || data.name || "Untitled";
+  const title = arabicTitle(type, data.id, tmdbTitle);
   // TVmaze backfill (added): TMDB often leaves Turkish/international shows
   // with an empty overview -- TVmaze nearly always has one.
   if (!data.overview) {
-    const tvm = await tvmazeLookup({ id: data.id, title, date: data.release_date || data.first_air_date || "" });
+    const tvm = await tvmazeLookup({ id: data.id, title: tmdbTitle, date: data.release_date || data.first_air_date || "" });
     if (tvm?.summary) {
       const tmp = document.createElement("div");
       tmp.innerHTML = tvm.summary;
@@ -4028,7 +4151,9 @@ function wireProfileGate() {
 
 function getList() {
   try {
-    return JSON.parse(localStorage.getItem(pKey(LS_LIST))) || [];
+    const list = JSON.parse(localStorage.getItem(pKey(LS_LIST))) || [];
+    // Titles saved before the Arabic names existed are renamed on read.
+    return list.map((it) => ({ ...it, title: arabicTitle(it.media_type || "movie", it.id, it.title) }));
   } catch {
     return [];
   }
