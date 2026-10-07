@@ -836,6 +836,569 @@ const TR_ARABIC_TITLES = {
   "movie:785534": "Hayat Waraqiyya", // Kağıttan Hayatlar
   "movie:56919": "Al Hob Yuhibb Al Sudaf", // Aşk Tesadüfleri Sever
   "movie:89584": "Al Fath 1453", // Fetih 1453
+  "tv:256440": "Ali Kara", // Alıkara
+  "tv:300388": "Wurood Wa Dhunoob", // Güller ve Günahlar
+  "tv:302063": "Hatha Al Bahr Sawfa Yafeed", // Taşacak Bu Deniz
+  "tv:283123": "Hulm Ashraf", // Eşref Rüya
+  "tv:317883": "Ma Zilt Fi 17", // Daha 17
+  "tv:320760": "Ana A'rifuk", // Seni Tanıyorum
+  "tv:306215": "Anta Man Uhibb", // Sevdiğim Sensin
+  "tv:309328": "Fi Al Zill", // Yeraltı
+  "tv:49071": "Wadi Al Dhi'ab: Al Kameen", // Kurtlar Vadisi: Pusu
+  "tv:306118": "Al A'raf", // Arafta
+  "tv:298629": "Al Khalifa", // Halef: Köklerin Çağrısı
+  "tv:219826": "Ismi Farah", // Adım Farah
+  "tv:321928": "Istanbul Ra'san Ala Aqib", // Altı Üstü İstanbul
+  "tv:100624": "Al Da'ira", // Çember
+  "tv:242551": "Tall Al Riyah", // Rüzgarlı Tepe
+  "tv:259812": "Layla", // Leyla: Hayat... Aşk... Adalet...
+  "tv:69246": "Al Azhar Al Hazeena", // Kırgın Çiçekler
+  "tv:40417": "Majnoon Layla", // Leyla ile Mecnun
+  "tv:93409": "Al Hob Yaj'aluna Nabki", // Aşk Ağlatır
+  "tv:76755": "Al Bahr Allathi Fi Qalbi", // Kalbimdeki Deniz
+  "tv:85969": "Al Bahr Al Akhdar", // Yeşil Deniz
+  "tv:322499": "Ihtimal Hob", // Muhtemel Aşk
+  "tv:39176": "Behzat C", // Behzat Ç.: Bir Ankara Polisiyesi
+  "tv:32519": "Ezel", // Ezel
+  "tv:245914": "Bahar", // Bahar
+  "tv:306529": "Akhi", // A.B.İ.
+  "tv:214081": "Al Makhlooq", // Yaratılan
+  "tv:206180": "Thatun Ukhra", // Zeytin Ağacı
+  "tv:271548": "Al Musharradoon", // Sahipsizler
+  "tv:131906": "Al Awwal Wal Akheer Anta", // İlk ve Son
+  "tv:39892": "Ala Marr Al Zaman", // Öyle Bir Geçer Zaman Ki
+  "tv:209544": "Al Qaleel Min Daw' Al Nahar", // Bir Küçük Gün Işığı
+  "tv:315179": "Al Qabeeha", // Çirkin
+  "tv:215721": "Awdat Al Rooh", // Çınarın Gölgesinde
+  "tv:47711": "Feriha", // Adını Feriha Koydum
+  "tv:97852": "Ramo", // Ramo
+  "tv:68605": "Ta'm Al Hob", // Hangimiz Sevmedik
+  "tv:89671": "Al Ishq Al Fakhir", // Afili Aşk
+  "tv:322280": "Al Mu'allima Omur", // Ömür Usta
+  "tv:158339": "Thalath Akhawat", // Üç Kız Kardeş
+  "tv:77994": "Al Shakhsiyya", // Şahsiyet
+  "tv:111685": "Jabal Gonul: Hikaya Anadoliyya", // Gönül Dağı
+  "tv:204255": "Al Maqbara", // Mezarlık
+  "tv:288676": "Jirah Al Rooh", // Alaca
+  "tv:251883": "Man Al Tali?", // Kimler Geldi Kimler Geçti
+  "tv:292516": "Tathakkar Al Hob", // Aşkı Hatırla
+  "tv:48037": "Nisa' Ha'irat", // Umutsuz Ev Kadınları
+  "tv:62630": "Al Ishq Mujaddadan", // Aşk Yeniden
+  "tv:115464": "Al Sayf Al Akheer", // Son Yaz
+  "tv:330784": "Al Qahwa Al Maliha", // Tuzlu Kahve
+  "movie:1550338": "Al Mashhad Al Akheer", // Öngörü
+  "tv:285594": "Wafa Sultan", // Vefa Sultan
+  "tv:65163": "Poyraz Karayel", // Poyraz Karayel
+  "tv:301693": "Al Muhtaloon", // Sahtekarlar
+  "tv:77026": "Al Bahr Al Aswad", // Sen Anlat Karadeniz
+  "tv:69322": "Ra'ihat Al Farawla", // Çilek Kokusu
+  "tv:225970": "Jalal Al Din Al Rumi", // Mevlânâ Celâleddîn-i Rûmî
+  "tv:99169": "Awlad Al Shawari'", // Sokağın Çocukları
+  "tv:197188": "Tabib Al Balda", // Kasaba Doktoru
+  "tv:96775": "Manzili", // Doğduğun Ev Kaderindir
+  "tv:126255": "Hikayat Jazeera", // Ada Masalı
+  "tv:220377": "El Turco", // El Turco
+  "tv:284419": "Al Zawja Al Ukhra", // Kuma - The Other Wife
+  "tv:101081": "Yakfi An Tabtasim", // Gülümse Yeter
+  "tv:278009": "Al Mal Al Qadeem", // Enfes Bir Akşam
+  "tv:200680": "Al Teeba", // İyilik
+  "tv:302658": "Al Mu'assis Orhan", // Kuruluş: Orhan
+  "tv:108179": "Ittasil Bi Mudeer A'mali", // Menajerimi Ara
+  "tv:310239": "Mathaf Al Bara'a", // Masumiyet Müzesi
+  "tv:202010": "Al Tumooh Al A'ma", // Kus uçusu
+  "tv:215275": "Rajul Al Asa", // Çöp Adam
+  "movie:1422227": "Al Hob Mujarrad Lahza", // Aşk Sadece Bir An
+  "tv:331693": "Hubbi Huwa Al Bahr Al Aswad", // Sevdam Karadeniz
+  "tv:297751": "Al Khafaqan", // Çarpıntı
+  "tv:278100": "Al Balda Al Sagheera", // Kasaba
+  "tv:202736": "Ma Ba'd Al Qudban", // Kıyma
+  "tv:229095": "Nuqtat Tahawwul", // Dönence
+  "tv:213624": "Waja' Al Qalb", // Yürek Çıkmazı
+  "tv:49489": "Sanawat Al Daya'", // Ihlamurlar Altinda
+  "tv:111414": "Al Laheeb", // Alev Alev
+  "tv:113720": "Janibi Al Aysar", // Sol Yanım
+  "tv:233524": "Rawabit Al Qadar", // Kader Bağları
+  "tv:320296": "Hayat Al Akhareen", // Başkalarının Hayatı
+  "tv:304774": "Al A'ila Al Thamina", // Sekizinci Aile
+  "tv:240798": "Ghaddar", // Gaddar
+  "tv:205588": "Isma'ni", // Duy Beni
+  "tv:256400": "Al Abqari", // Deha
+  "tv:225964": "Al Abqari Al Sagheer: Ibn Sina", // Küçük Dahi: İbn-i Sina
+  "tv:100628": "Al Sadd", // Baraj
+  "tv:49513": "Aziza", // Azize
+  "tv:214078": "Shahmaran", // Şahmaran
+  "tv:69535": "Qalb Al Madeena", // Bu Şehir Arkandan Gelecek
+  "tv:31252": "Asi", // Asi
+  "tv:93216": "Najmat Al Shamal", // Kuzey Yıldızı: İlk Aşk
+  "movie:1556616": "Bayt Sayfi", // Yaz Evi
+  "tv:108382": "Ali Rida", // Arıza
+  "tv:314048": "Al Shuja'", // Delikanlı
+  "tv:98633": "Al Anqa'", // Zümrüdüanka
+  "tv:62553": "Layth Wa Noura", // Kurt Seyit ve Şura
+  "tv:210676": "Hatha Al Alam La Yasa'uni", // Ben Bu Cihana Sığmazam
+  "tv:226032": "Al Jilani", // Hay Sultan
+  "tv:305469": "Wijdan", // Vicdansız
+  "tv:280030": "Ghassal", // Gassal
+  "tv:138171": "Al Sultan Alp Arslan", // Alparslan: Büyük Selçuklu
+  "tv:300926": "Tashreeh Al Fawda", // Kaosun Anatomisi
+  "tv:96663": "Bareeq Al Amal", // Baharı Beklerken
+  "tv:63030": "Filinta", // Filinta: Bir Osmanlı Polisiyesi
+  "movie:1522377": "Alaman, Umniya Wahida", // İki Dünya Bir Dilek
+  "tv:156000": "Indama Ya'shaq Al Rajul", // Erkek Severse
+  "tv:238711": "Matahat Al Hob", // Sakla Beni
+  "tv:253808": "Abwab Al Qadar", // Zamanın Kapıları
+  "tv:73766": "Al Ishq Inadan", // İnadına Aşk
+  "tv:278006": "Rasa'il Ila Al Mustaqbal", // Geleceğe Mektuplar
+  "tv:63858": "Al Harib", // Kaçak
+  "tv:300030": "Neeran Al Hasad", // Kıskanmak
+  "tv:112745": "Tayf Istanbul", // Bir Başkadır
+  "tv:218477": "Al Raya", // Al Sancak
+  "tv:66088": "Ughniyat Al Hayat", // Hayat Şarkısı
+  "tv:231092": "Al Yaqoot", // Safir
+  "tv:79125": "Al Lu'lu'a Al Sawda'", // Siyah İnci
+  "tv:310045": "Al Hob Wal Fuqdan", // Ayrılık da Sevdaya Dahil
+  "tv:305996": "Mithl Al Hulm", // Rüya Gibi
+  "tv:251317": "Al Mawazeen: An Takoon Shakhsan Ma", // Dengeler: Biri Olmak
+  "tv:236215": "Hayati Al Ra'i'a", // Şahane Hayatım
+  "tv:204925": "Asdiqa' Al Umr", // Tozluyaka
+  "tv:303453": "Al Itar Al Akheer", // Son Kare
+  "tv:76835": "Ya Istanbul", // Ulan İstanbul
+  "tv:97293": "Babel", // Babil
+  "tv:48041": "Ishroon Daqeeqa", // 20 Dakika
+  "tv:154610": "Abi", // Baba
+  "tv:49933": "Ameel Al Hob", // Ruhun Duymaz
+  "tv:233492": "Asrar Al Buyoot", // Kirli Sepeti
+  "tv:137840": "Aziz", // Aziz
+  "tv:333894": "Al Ishq Wal Arsh", // Aşk ve Taht
+  "tv:278404": "Zamalat Al Ushaq Al Majhooleen", // Adsız Aşıklar
+  "tv:314172": "Lan Yahduth Lana Shay'", // Bize Bi'Şey Olmaz
+  "tv:120131": "Al Asif Iskender", // Tozkoparan İskender
+  "tv:224054": "Gulcemal", // Gülcemal
+  "tv:278272": "Al Mutadarrib", // Çırak
+  "tv:244812": "Hob Wa Ghuroor", // Aşk ve Gurur
+  "tv:82007": "Dima' Abadiyya Fi Urooq Turkiyya", // Yaşamayanlar
+  "tv:320294": "Tabi'at Al Hob", // Doğanın Kanunu
+  "tv:49767": "Ba'i'at Al Ward", // Gönülçelen
+  "tv:132752": "Barbarossa: Sayf Al Bahr Al Mutawassit", // Barbaroslar: Akdeniz'in Kılıcı
+  "tv:205770": "Lita'ti Al Hayat Kama Tasha'", // Gelsin Hayat Bildiği Gibi
+  "tv:48619": "Nabd Al Hayat", // Doktorlar
+  "tv:49503": "Lughz Al Madi", // Son
+  "tv:72893": "Siraj Al Layl", // Ateşböceği
+  "tv:301213": "Ana Leman", // Ben Leman
+  "tv:65566": "Tareeq Al Hob", // Kördüğüm
+  "tv:49482": "Ishq Wa Jaza'", // Aşk ve Ceza
+  "tv:110069": "Al Ughniya Allati La Tantahi", // Bitmeyen Şarkı
+  "tv:84949": "Al Asif", // Tozkoparan
+  "tv:85544": "Al Wisal", // Vuslat
+  "tv:139705": "Influencer", // #Etkileyici
+  "tv:67144": "Yunus Emre", // Yunus Emre: Aşkın Yolculuğu
+  "tv:329662": "Al Zawaj Jameel", // Evlilik Güzeldir
+  "tv:198189": "Al Huroob", // Kaçış
+  "tv:111980": "Marasli", // Maraşlı
+  "tv:238883": "Al Hob Wal Amal", // Aşk ve Umut
+  "tv:75365": "Al Dhi'b", // Börü
+  "tv:70929": "Lu'bat Al Qadar", // Kaderimin Yazıldığı Gün
+  "tv:212799": "Al Fakh", // Tuzak
+  "tv:306355": "Al Yasmeen", // Jasmine
+  "tv:204990": "Layth The King", // Kral Şakir
+  "tv:299847": "Atfal Al Janna", // Cennetin Çocukları
+  "tv:312939": "Aisha", // Ayşe
+  "tv:69786": "Tilka Al Layla", // Masum
+  "tv:76661": "Kut Al Amara", // Mehmetçik: Kut'ül-Amare
+  "tv:332679": "Hubbuka Nar", // Sevdan Bir Ateş
+  "tv:96342": "Hekimoglu", // Hekimoğlu
+  "tv:125527": "Lu'bat Al Hazz", // Baht Oyunu
+  "movie:1495723": "Amali Al Akheer", // Metruk Adam
+  "tv:51586": "Lu'bat Al Hob", // Unutulmaz
+  "tv:225989": "Hala Ijtima'iyya", // Aşkımız Yeter
+  "tv:67643": "Shams Al Shita'", // Kış Güneşi
+  "tv:158809": "A'ilat Uysal", // Uysallar
+  "tv:243959": "Madrasat Al Hurriyya", // Kurtulus Lisesi
+  "tv:246614": "Malhamat Al Shajara Al Sawda'", // Kara Ağaç Destanı
+  "tv:49378": "Tabbakh Al Sultan", // Yamak Ahmet
+  "tv:319994": "Al Shita' Al Aswad", // Kara Kış
+  "tv:48296": "Al Farashat Al Zarqa'", // Mavi Kelebekler
+  "tv:203699": "Fi Al Sirr Wal Khafa'", // Gizli Saklı
+  "tv:226675": "Al Bahth", // Arayış
+  "tv:69270": "Ismuhu Al Sa'ada", // Adı Mutluluk
+  "tv:71591": "Al Aroos Al Jadeeda", // Yeni Gelin
+  "tv:212818": "Al Ra's Al Mahmoom", // Sıcak Kafa
+  "tv:107415": "Sharikat Al A'ila", // Aile Şirketi
+  "tv:78203": "Mehmed Al Fatih", // Mehmed: Bir Cihan Fatihi
+  "tv:50528": "Qasr Al Usfoora", // Serçe Sarayı
+  "tv:200761": "Ibtasim Li Qadarik", // Gülümse Kaderine
+  "tv:84346": "Fi Qalbi Lil Abad", // Dayan Yüreğim
+  "tv:296502": "Al Wareeth", // Veliaht
+  "tv:126251": "Wasfat Al Hob", // Aşkın Tarifi
+  "tv:304413": "Gupi", // Gupi
+  "tv:82345": "Sarkhat Al Umm", // Gülperi
+  "tv:47669": "Intiqam", // İntikam
+  "tv:226084": "Ma'rakat Watan", // Mahsusa
+  "tv:320916": "Qasr Al Marjan", // Mercan Köşk
+  "tv:273940": "Intiqam Al Mafia", // Marnalı
+  "tv:278004": "Mawsoo'at Istanbul", // İstanbul Ansiklopedisi
+  "tv:110068": "Tatar Ramazan", // Tatar Ramazan: Ben Bu Oyunu Bozarım
+  "tv:67611": "Al Tabaqa Al Mukhmaliyya", // Yüksek Sosyete
+  "tv:332614": "Al Karama", // Haysiyet
+  "tv:90210": "La Ahad Ya'lam", // Kimse Bilmez
+  "tv:109917": "Al Anbar", // Kehribar
+  "tv:138072": "Al Mu'jaba", // Fandom
+  "tv:277590": "A'ilat Shakir Pasha", // Şakir Paşa Ailesi: Mucizeler ve Skandallar
+  "tv:80164": "Sultan Qalbi", // Kalbimin Sultanı
+  "tv:218052": "Ameera Bila Taj", // Taçsız Prenses
+  "tv:66071": "Al Intiqam Al Hulw", // Tatlı İntikam
+  "tv:228980": "Hikayat Zawaj", // Kendi Düşen Ağlamaz
+  "tv:219064": "Mimman Kunna Nahrub Ya Ummi", // Biz Kimden Kaçıyorduk Anne?
+  "tv:252791": "Al Kithba", // Yalan
+  "tv:222799": "Al Malika", // Kraliçe
+  "tv:112167": "Ihtiram", // Saygı
+  "tv:233558": "Hajar Al Umniyat", // Dilek Taşı
+  "tv:123138": "Fatma", // Fatma
+  "tv:134840": "Aradi Bila Qawaneen", // Kanunsuz Topraklar
+  "tv:50541": "Al Hayat Ahyanan Hulwa", // Hayat Bazen Tatlıdır
+  "tv:93505": "Al Batal", // Şampiyon
+  "tv:322554": "Ahwal Layla", // Leyla Hâli
+  "tv:274955": "Assaf", // Asaf
+  "tv:246701": "Hajara Waraqa Miqass", // Taş Kağıt Makas
+  "tv:115661": "Al Mighwar", // Akıncı
+  "tv:201694": "Berna Wa Belgin", // Aslında Özgürsün
+  "tv:103357": "Wajh Akhar", // Yarım Kalan Aşklar
+  "tv:278011": "Al Hob Al Aflatooni", // Platonik
+  "tv:104857": "Ya Asafi Ala Shababi", // Gençliğim Eyvah
+  "movie:1248795": "Fann Al Hob", // Romantik Hırsız
+  "tv:120810": "Abi Al Batal", // Kahraman Babam
+  "tv:211144": "Hikaya Khayaliyya", // Bir Peri Masalı
+  "tv:270538": "Ard Al Hob Al Jameel", // Güzel Aşklar Diyarı
+  "tv:87572": "Aroosat Haribat", // Kaçak Gelinler
+  "tv:300322": "Al Aradi Al Mubaraka", // Bereketli Topraklar
+  "tv:204553": "Tahweedat Al Balqan", // Balkan Ninnisi
+  "tv:51410": "Al Ard Al Tayyiba", // Tek Türkiye
+  "tv:210742": "Ahlam Zeynep", // O Kız
+  "tv:281280": "Qatarat Al Thalj", // Kardelenler
+  "tv:225968": "Al Bahr Al Akhdar: Awdat Al Asdiqa'", // Yeşil Deniz: Milenyum
+  "tv:123725": "Yesilcam", // Yeşilçam
+  "tv:305505": "Al Mudarrib", // Antrenör
+  "tv:242692": "Ma Qablak", // Senden Önce
+  "tv:117829": "Al Bara'a", // Masumiyet
+  "tv:325358": "Sumood", // Sumud
+  "tv:298652": "Khuyoot Al Hayat", // Can Bağı
+  "tv:275228": "Al Fata Al Asasi", // Esas Oğlan
+  "tv:301373": "Ghareeb Fi Al Mir'at", // Aynadaki Yabancı
+  "tv:297058": "Aynaka Kal Bahr Al Aswad", // Gözleri Karadeniz
+  "tv:288472": "Funduq Al Ahlam", // Çift Kişilik Oda
+  "tv:209144": "Al Musta'jir Al Mithali", // Kusursuz Kiracı
+  "tv:310430": "Al Tabib: Fi Hayat Ukhra", // Doktor: Başka Hayatta
+  "tv:126416": "Museebat Ra'si", // Baş Belası
+  "tv:320578": "Ghaseel Amwal", // Temiz Para
+  "tv:274482": "Ummi Ankara", // Annem Ankara
+  "tv:228632": "Zawjat Al Ab", // Üvey Anne
+  "tv:80664": "Al Hob Al Awwal", // 4N1K İlk Aşk
+  "tv:78028": "Maral", // Maral: En Güzel Hikayem
+  "tv:304024": "Aqni'a", // Persona
+  "tv:205149": "Akhfaytuka Fi Qalbi", // Seni Kalbime Sakladım
+  "tv:118888": "Al Dhi'b 2039", // Börü 2039
+  "tv:137659": "Hayati Ana", // Benim Hayatım
+  "tv:125262": "Asquf Zujajiyya", // Cam Tavanlar
+  "tv:271596": "Al Tahqeeq", // Sorgu
+  "tv:240800": "Al Azhar Al Barriyya", // Yaban Çiçekleri
+  "tv:323385": "Shu'la", // Şule: Senin Hikâyen
+  "tv:333438": "Haythu Tushriq Al Shams", // Güneşin Doğduğu Yer
+  "tv:47746": "Dumoo' Al Ward", // Aci hayat
+  "tv:213059": "Al Jeel Al Thalith", // Darmaduman
+  "tv:77474": "Ismuha Zahra", // Adı: Zehra
+  "tv:85606": "Abna' Al Ikhwa", // Kardeş Çocukları
+  "tv:294338": "Al Mar'a Al Asriyya", // Modern Kadın
+  "movie:1044302": "Al Nida' Al Akheer Ila Istanbul", // İstanbul İçin Son Çağrı
+  "tv:157438": "Rihlat Al Hob: Haji Bayram Wali", // Aşkın Yolculuğu: Hacı Bayram-ı Veli
+  "tv:256401": "Al Dam Al Fasid", // Kötü Kan
+  "tv:216199": "Sipahi", // Sipahi
+  "movie:468261": "Tayf La Yagheeb", // Sonsuz Aşk
+  "movie:32926": "Recep Ivedik 3", // Recep İvedik 3
+  "tv:82972": "Al Intiqam", // Can Kırıkları
+  "tv:248557": "Al Ghurfa Al Mujawira", // Yan Oda
+  "tv:209475": "Behzat C: Mitraqa Wa Warda", // Çekiç ve Gül: Bir Behzat Ç. Hikayesi
+  "tv:157297": "Ibni", // Oğlum
+  "tv:118918": "Jalal Al Din Al Khawarizmi", // Bozkır Arslanı Celaleddin
+  "movie:1006911": "Ij'alni Usaddiq", // Sen İnandır
+  "movie:11818": "Wadi Al Dhi'ab: Al Iraq", // Kurtlar Vadisi: Irak
+  "tv:316474": "Mira: Al Hayat Ba'd Al Talaq", // Mira: Her Şey Yolundaymış Gibi
+  "tv:213664": "Toprak Wa Fidan", // Toprak ile Fidan
+  "tv:66494": "Ala Ajnihat Tuyoor Al Hob", // Sevda Kuşun Kanadında
+  "tv:216396": "Khayr Al Din Barbarossa: Marsoom Al Sultan", // Barbaros Hayreddin: Sultanın Fermanı
+  "tv:111317": "Al Tufoola", // Çocukluk
+  "tv:281746": "Kan Ya Makan Fi Istanbul", // Bir Zamanlar İstanbul
+  "tv:112369": "Al Mamnoo'", // Yasak
+  "movie:1362101": "Al Kahf Al Azraq", // Mavi Mağara
+  "tv:298792": "Mira Wa Selim", // Aşk ve Gözyaşı
+  "tv:121772": "Waqt Al Mawt", // Ölüm Zamanı
+  "tv:285397": "Al Sada: Al Yad Al Khafiyya", // Yankı: Görünmez El
+  "tv:240799": "Al Mutasharrid", // Kopuk
+  "tv:291671": "Al Qubba'a Al Sawda'", // Siyah Bere
+  "tv:99616": "Al Mu'allim", // Öğretmen
+  "tv:244842": "Tasfeeq Harr", // Kuvvetli Bir Alkış
+  "tv:238522": "Ta'irat Al Sunoonu", // Kod Adı: Kırlangıç
+  "tv:209793": "Rajul Ma'a Waqf Al Tanfeeth", // Andropoz
+  "tv:112534": "Al Riyah Al Shamaliyya", // Kuzey Rüzgarı
+  "tv:280541": "Zembilli", // Zembilli
+  "movie:75317": "Al Jathoom", // Dabbe
+  "tv:324695": "Ismi Aylamaz", // Benim Adım Aylamaz
+  "tv:282141": "Al Ghazal", // Sustalı Ceylan
+  "tv:157858": "Al Haqeeqa Wal Khayal", // Hayaller ve Hayatlar
+  "tv:303450": "Fera", // FER
+  "tv:234669": "Awraq Al Nisyan", // Sarmaşık Zamanı
+  "movie:265169": "Al Bayat Al Shatawi", // Kış Uykusu
+  "tv:63841": "Ishq", // A.Ş.K.
+  "tv:278693": "Duyoon Al Hayat", // Can Borcu
+  "movie:1230550": "Fi Aydin Ameena 2", // Sen Büyümeye Bak
+  "tv:226090": "Hurr", // Hür
+  "tv:67112": "Al Hayat Jameela Bil Hob", // Hayat Sevince Güzel
+  "tv:231254": "Ard Al Dam", // Magarsus
+  "tv:216913": "Yawm Al Hasm", // Sıfırıncı Gün
+  "tv:137320": "Al Mutakhaffi", // Saklı
+  "tv:78759": "Hal Yuhibbuni", // Seviyor Sevmiyor
+  "tv:92630": "Sa U'teeka Sirran", // Sana Bir Sır Vereceğim
+  "tv:112665": "Alwan", // Rengarenk
+  "tv:131814": "Hayat Muhattama", // Kırık Hayatlar
+  "tv:156416": "Al Dhi'b Al Waheed", // Yalnız Kurt
+  "tv:80331": "Hob Al Mala'ika", // Meleklerin Aşkı
+  "tv:240282": "Kam Min Al Sufun Ahraqt", // Ne Gemiler Yaktım
+  "tv:152500": "Al Hob Al Khafi", // Annemizi Saklarken
+  "tv:333821": "Nisf Al Umm", // Anne Yarısı
+  "tv:226053": "Akif", // Akif
+  "tv:203205": "Al Faqeera Wal Ameer", // Seversin
+  "tv:123187": "Mavera", // Mavera: Hace Ahmed Yesevi
+  "movie:1285660": "Al Mudallal", // Şımarık
+  "movie:1230085": "Al Ramad", // Kül
+  "tv:226086": "Al Bab", // Kapı
+  "tv:247219": "Al Uqda", // Düğüm
+  "tv:312053": "Tahta Nafs Al Matar", // Aynı Yağmur Altında
+  "tv:248029": "La Takhaf Ana Bi Janibik", // Korkma Ben Yanındayım
+  "tv:111982": "Qissa Qadeema", // Eski Hikaye
+  "tv:88521": "Al Latkha", // Leke
+  "tv:109914": "Waqt Al Hijra", // Göç Zamanı
+  "movie:952062": "Recep Ivedik 7", // Recep İvedik 7
+  "tv:277856": "La Tabki Istanbul", // Sen Ağlama İstanbul
+  "tv:111531": "Wa'd Sharaf", // Şeref Sözü
+  "tv:262936": "Al Muhtal", // Kalpazan
+  "tv:120812": "Kan Ya Makan Fi Qubrus", // Bir Zamanlar Kıbrıs
+  "tv:117578": "Laqad Intazartuka Katheeran", // Seni Çok Bekledim
+  "tv:226035": "Qasr Ramazan Bey", // Eyvah! Ramazan Bey
+  "tv:283483": "Al Murahana Ala Al Shabah", // Bir İhtimal Daha Var
+  "movie:1387198": "Taqatu' Turuq", // 39 Derecede Aşk
+  "tv:282224": "Yawm Akhar", // Başka Bir Gün
+  "tv:71562": "Al I'sar Allathi Bi Dakhili", // İçimdeki Fırtına
+  "tv:120756": "Al Wakala", // Acans
+  "tv:126300": "Hob Bil Sudfa", // Kazara Aşk
+  "tv:226054": "Al Sitar", // Şebeke
+  "tv:222899": "Mu'jizat Al Qarn", // Yüz Yıllık Mucize
+  "tv:319473": "Fi Al Zill", // في الظل
+  "tv:105749": "Hob Fi Al Illiyya", // Çatı Katı Aşk
+  "movie:1386792": "Lefter: Qissa Ghayr Adiyya", // Lefter: Bir Ordinaryüs Hikayesi
+  "movie:1074262": "10 Ayyam Min Hayat Rajul Sayyi'", // Kötü Adamın 10 Günü
+  "tv:228995": "Ughniyat Al Sayf", // Yaz Şarkısı
+  "tv:82621": "Litr Dumoo'", // Bir Litre Gözyaşı
+  "tv:49835": "Al Sa'ada Al A'iliyya", // Aile Saadeti
+  "tv:284640": "Al Sooq", // Piyasa
+  "tv:80543": "Al Ummahat Wal Walidat", // Analar ve Anneler
+  "movie:254712": "Al Jathoom: Rooh Mal'oona", // Dabbe: Cin Çarpması
+  "tv:278180": "Al Sharika", // Holding
+  "tv:48732": "Al Yateema", // Eve Düşen Yıldırım
+  "tv:225965": "Al Fath Al Atheem", // Kızılelma: Bir Fetih Öyküsü
+  "movie:292828": "Al Jathoom: Bi Dakhili Shabah", // Dabbe: Zehr-i Cin
+  "tv:238876": "Aduww Al Hob", // Aşka Düşman
+  "tv:226039": "Yawmiyyat Al Jami'a", // Üniversdeli
+  "tv:302928": "Marfood", // Sakıncalı
+  "tv:76532": "Gulizar", // Gülizar
+  "tv:82377": "Riyah Majnoona", // Bir Deli Rüzgar
+  "tv:111839": "Al Amana", // Emanet
+  "tv:261942": "Al Nuqta Al Amya'", // Kör Nokta
+  "movie:994751": "Ah Belinda", // Aaahh Belinda
+  "tv:225971": "Ayyam Al Nar", // Yangın Günleri: Independenta
+  "movie:1315706": "Sijjin 8", // Siccîn 8
+  "tv:252766": "Arjen", // Arjen: Azap Yolu
+  "tv:212796": "Lu'bat Al Hayat", // Hayat Bugün
+  "movie:133666": "Al Jathoom 2", // Dabbe 2
+  "movie:443486": "Istanbul Al Hamra'", // İstanbul Kırmızısı
+  "tv:82606": "Amal Wahid Yakfi", // Bir Umut Yeter
+  "tv:119259": "La Shay'", // Hiç
+  "movie:629583": "Hakatha Hiya Al Dunya", // Dünya Hali
+  "movie:1169361": "10 Ayyam Min Hayat Rajul Katheer Al Tasa'ul", // Meraklı Adamın 10 Günü
+  "movie:944152": "Daqa Al Khinaq", // Boğa Boğa
+  "tv:49778": "Sanawat Fi Mahabb Al Reeh", // Doludizgin Yıllar
+  "tv:92620": "Asdiqa' Jayyidoon", // Arkadaşlar İyidir
+  "movie:566067": "Mughamarat Khabeer Al Kofta", // Hedefim Sensin
+  "tv:239492": "Bahar: Al'ab Al Qadar", // Kader Oyunları
+  "tv:86628": "Al Qanoon", // Racon: Ailem İçin
+  "tv:227099": "Al Manfa Al Azraq", // Maviye Sürgün
+  "tv:84151": "Al Malhama Al Akheera", // Son Destan
+  "tv:270775": "Al Toot Al Aswad", // Karadut
+  "tv:115597": "10 Alaf Khutwa", // 10 Bin Adım
+  "movie:577990": "Tijara Munazzama 2", // Organize İşler: Sazan Sarmalı
+  "tv:109919": "Al Amal La Yumkin Taqyeeduh", // Umuda Kelepçe Vurulmaz
+  "movie:140485": "Hayy Yurzaq", // Sağ Salim
+  "tv:228523": "Lan U'teeki Lil Ghareeb", // Vermem Seni Ellere
+  "movie:1289004": "Sijjin 7", // Siccîn 7
+  "tv:111940": "Katabtu Ismaka Fi Qalbi", // Adını Kalbime Yazdım
+  "tv:321223": "Al Hissa", // P.A.Y.
+  "movie:603566": "Sirr Al Mutanazzah Al Khafi", // Can Dostlar
+  "movie:568490": "Dhi'b", // Börü
+  "movie:456669": "In Adat Fa Hiya Lak", // Dönerse Senindir
+  "tv:138071": "Hatman Yawman Ma", // Elbet Bir Gün
+  "tv:288820": "10 A'wam Fi Jazeerat Al Shaytan", // Şeytan Adası'nda Esir Türk: Polis Cemil
+  "movie:321050": "Araka Bi Qalbi", // Mucize
+  "movie:522828": "Zawj Ummi", // Cici Babam
+  "movie:327301": "Al Sooq", // Çarşı Pazar
+  "tv:241209": "Al Nahb", // Kara
+  "tv:273506": "Al Hadeeqa Al Sirriyya", // Gizli Bahçe
+  "tv:78178": "Al Hayat Al Masrooqa", // Çalınmış Hayatlar
+  "movie:414827": "Sijjin 3: Al Ishq Al Mal'oon", // Siccîn 3: Cürmü Aşk
+  "movie:31061": "Recep Ivedik 2", // Recep İvedik 2
+  "tv:205204": "Ah Ayn", // Ah Nerede
+  "movie:236317": "Dunyaya", // Benim Dünyam
+  "movie:706085": "Al Mulahaqa", // AV The Hunt
+  "tv:104529": "Waqt Al Ishq", // Aşk Zamanı
+  "movie:391649": "Sani' Al Aqfal", // Küçük Esnaf
+  "tv:301899": "Ana Ummuha", // Ben Onun Annesiyim
+  "movie:505544": "Qa'at Al Zafaf", // Düğüm Salonu
+  "movie:1314169": "Al Tawila", // Tezgah
+  "movie:528372": "Muslum", // Müslüm
+  "tv:156751": "Hal Satakoon Minna?", // Bizden Olur Mu?
+  "movie:388192": "Sijjin 2", // Siccîn 2
+  "movie:334175": "Sijjin", // Siccîn
+  "tv:245238": "Wa Matha Ba'd?", // Yarın Yokmuş Gibi
+  "movie:946726": "Bayna Aydin Ameena", // Sen Yaşamaya Bak
+  "movie:38614": "Comedia Romansiyya", // Romantik Komedi
+  "movie:376050": "Hikayatuna", // Bizim Hikaye
+  "movie:211505": "Al Jathoom: Istihwath Al Jinn", // Dabbe: Bir Cin Vakası
+  "movie:657247": "Meerath Abi", // Baba Parası
+  "tv:49921": "Jurh Al Firaq", // Hicran Yarası
+  "tv:244340": "Dumoo' Al Aroos", // Bir Sevdadır
+  "movie:474698": "Sijjin 4", // Siccîn 4
+  "movie:1001692": "Ughniyat Al Quloob", // Gönül
+  "movie:1210338": "Ba'd Al Wilada", // Lohusa
+  "tv:240801": "Al Nujoom Ba'eeda Anni", // Yıldızlar Bana Uzak
+  "movie:615982": "Sijjin 6", // Siccîn 6
+  "movie:438703": "Recep Ivedik 5", // Recep İvedik 5
+  "movie:1575732": "Al Utla Al Akheera", // Son Bayram
+  "movie:52667": "Al Hayat Al Asliyya", // Neşeli Hayat
+  "movie:385194": "Ibta'id Anni!", // Git Başımdan
+  "movie:171160": "Hulm Al Farasha", // Kelebeğin Rüyası
+  "movie:683809": "Zengo", // Zengo
+  "movie:210408": "Al Ishq Ahmar", // Aşk Kırmızı
+  "tv:277303": "Laqad Aqsamt", // Bir Yemin Ettim
+  "movie:474720": "Murr Hulw Hamid", // Acı Tatlı Ekşi
+  "movie:1737364": "Al Intiqam: Australia", // Revenge: Australia
+  "tv:236079": "Al Ghamam Al Aswad", // Kuzgun: Dipsiz Karanlık
+  "tv:109101": "Sayyidat Al Qarya", // Hanım Köylü
+  "tv:195021": "Ismuhu Al Hob", // Adı Sevgi
+  "movie:674349": "Mu'tamar Al Tujjar", // Bayi Toplantısı
+  "movie:429235": "Ukht Zawji", // Görümce
+  "tv:49614": "Hurqat Al Hob", // Aşk Yakar
+  "movie:257343": "Recep Ivedik 4", // Recep İvedik 4
+  "tv:225967": "Al Mun'ataf", // Şanzelize Düğün Salonu
+  "movie:606413": "Al Sihr", // Aykut Enişte
+  "movie:271910": "Hayy Yurzaq 2: Al Awda Ila Nuqtat Al Bidaya", // Sağ Salim 2: Sil Baştan
+  "tv:204164": "Ismi Gultepe", // Benim Adım Gültepe
+  "movie:171179": "Wada'an Lil Uzoobiyya", // Romantik Komedi 2: Bekarlığa Veda
+  "movie:1026822": "Hulwati", // Cici
+  "movie:52148": "Al Dameer", // Vicdan
+  "tv:195368": "Rihlati Ila Al Shuhra", // Nasıl Fenomen Oldum
+  "tv:277580": "Al Hob, Al Zawaj, Al Talaq", // Aşk Evlilik Boşanma
+  "tv:201881": "Nisfi Al Akhar", // Diğer Yarım
+  "movie:58637": "Wadi Al Dhi'ab: Filasteen", // Kurtlar Vadisi: Filistin
+  "tv:225972": "Da'ha Li", // Organizasyon Bizim İşimiz
+  "tv:298614": "Sajeen Al Hob", // Aşka Mahkum
+  "movie:453498": "Ma Thanb Fatmagul?", // Fatmagül'ün Suçu Ne
+  "tv:310774": "Al Tareeq Ila Al Manzil", // Eve Giden Yol
+  "movie:562280": "Umoor Mutashabika", // Kafalar Karışık
+  "movie:477297": "Madrasat Al Raqs", // Sen Kiminle Dans Ediyorsun?
+  "movie:529488": "Kul Shay' Ma'ak Jameel", // Her Şey Seninle Güzel
+  "movie:546507": "Sijjin 5", // Siccîn 5
+  "tv:230091": "Al Madar", // Dönence
+  "movie:879080": "Mahrajan Al Troubadour", // Âşıklar Bayramı
+  "movie:657229": "Hob Bila Wa'y", // Şuursuz Aşk
+  "movie:474718": "Badlat Al Arees", // Damat Takımı
+  "movie:499639": "Kayhan", // Kayhan
+  "movie:549650": "Asdiqa' Al Tareeq 2", // Yol Arkadaşım 2
+  "movie:1501698": "Al Rihla Al Akheera", // Son Sefer
+  "movie:361411": "Al Ghool", // Gulyabani
+  "movie:710277": "Hayat", // Hayat
+  "movie:1415670": "Al Abtal", // Şampiyonlar
+  "movie:859546": "Saff Al Mushaghibeen Mujaddadan", // Hababam Sınıfı: Yaz Oyunları
+  "movie:477300": "Akhi Ana 2", // Kardeşim Benim 2
+  "movie:445650": "Anti Kul Shay'", // Sen Benim Her Şeyimsin
+  "movie:745514": "Al Muhtal", // Gelincik
+  "movie:256546": "Mushkilat Aylool Al Sagheera", // Bi Küçük Eylül Meselesi
+  "movie:539186": "Al Akhawat", // Kız Kardeşler
+  "tv:238882": "Al Qafas Al Thahabi", // Altın Kafes
+  "movie:665090": "Al Comedia Al Sawda' 2: Majaneen", // Karakomik Filmler 2: Deli
+  "tv:226028": "Jareemat Qatl Fi Funduq Biltmore Am 1973", // 1973 Biltmore Oteli Cinayeti
+  "movie:631475": "Manahil Al Asal", // Kovan
+  "movie:665089": "Al Comedia Al Sawda' 2: Al Meerath", // Karakomik Filmler 2: Emanet
+  "movie:334613": "Yusuf Yusuf", // Yusuf & Yusuf
+  "tv:69336": "Al Arees Al Ra'i'", // Şahane Damat
+  "movie:1625084": "Al Awda Ila Al Bayt", // Dönmek İçin Eve
+  "movie:459914": "4N1K", // 4N1K
+  "movie:817889": "Qiyamat Al Hob", // Aşkın Kıyameti
+  "movie:386591": "Jurh Ummi", // Annemin Yarası
+  "movie:187976": "Al Raqs Ma'a Al Wuhoosh 2: Nuhibb Thalik Ya Jaddi", // Çakallarla Dans 2: Hastasıyız Dede!
+  "movie:665766": "Al Atrak Qadimoon: Sayf Al Adala", // Türkler Geliyor: Adaletin Kılıcı
+  "movie:496748": "Deliha 2", // Deliha 2
+  "movie:381938": "Akhi Ana", // Kardeşim Benim
+  "tv:335720": "Al Madeena Al Ba'eeda - Mudablaj", // المدينة البعيدة - مدبلج
+  "movie:585969": "Uqtulni Ya Habibi", // Öldür Beni Sevgilim
+  "movie:474715": "Waqt Al Sa'ada", // Mutluluk Zamanı
+  "movie:1237081": "Thikraka Takfi", // Hatıran Yeter
+  "movie:54269": "Al Uthmani Al Akheer", // Son Osmanlı: Yandım Ali
+  "movie:502127": "Heena Yaghfu Al Hob", // Aşk Uykusu
+  "tv:238079": "Asateer Al Tareekh", // Tarihin Efsaneleri
+  "movie:546511": "Gurbuz: Kun Hathiran", // Gürbüz: Hadi Allah'a Emanet
+  "movie:625489": "Recep Ivedik 6", // Recep İvedik 6
+  "movie:332971": "Al Risala Al Akheera", // Son Mektup
+  "movie:493614": "Gharam Fi Istanbul", // İstanbul'da Randevu
+  "movie:419530": "Ab Hindu-Turki", // Bir Baba Hindu
+  "movie:940124": "Majmoo'a Bila Hadaf", // Amacı Olmayan Grup
+  "movie:30634": "Tijara Munazzama", // Organize İşler
+  "movie:433138": "Hooriyya Ala Qaribi", // Olanlar Oldu
+  "movie:231030": "Al Awda Lil Watan", // Eve Dönüş: Sarıkamış 1915
+  "tv:124125": "Al Khatt Al Fasil", // Bizi Ayıran Çizgi
+  "movie:597066": "Shaytan Al Bosphorus", // Vahşi Bir Erkek Sevdim
+  "movie:77862": "Fi Sama' Al Watan", // Anadolu Kartalları
+  "movie:422991": "Al Tuffah Al Hamid", // Ekşi Elmalar
+  "movie:447447": "Al Habib", // Tatlım Tatlım
+  "movie:1084293": "Khass Bil Nisa'", // Kadınlara Mahsus
+  "movie:411785": "Isabat Al Nisa'", // Beş Ateşli Kadın
+  "movie:625462": "Qal'at Al Hikayat", // Masal Şatosu: Sihirli Davet
+  "movie:578796": "Ghubar Al Madi", // Toz
+  "movie:67077": "Shajarat Al Dulb", // Çınar Ağacı
+  "movie:511912": "Azraq Azraq", // Mavi Mavi
+  "movie:356159": "Omer Sa'ih Fi Al Jazeera Al Arabiyya", // Turist Ömer Arabistan'da
+  "movie:1368165": "Al Qadar", // Mukadderat
+  "movie:435792": "Zawaj Ala Al Waraq", // El Değmemiş Aşk
+  "movie:751696": "Al Mathar 5 (Maryam)", // Araf 4: Meryem
+  "movie:699395": "Malazgirt 1071", // Malazgirt 1071
+  "movie:278317": "Risala Min Al Janna", // Kendime İyi Bak
+  "movie:629500": "Zakhrafat Al Qatl", // Cinayet Süsü
+  "movie:66574": "Mahattat Tahseel Al Rusoom", // Gişe Memuru
+  "movie:1502089": "Khareef Al Umr", // Bir Ömrün Sonbaharı
+  "movie:584556": "Madrasat Al Mawahib", // Aslı Gibidir
+  "movie:752973": "Masroor Bima Anjazt", // İyi ki Yapmışım
+  "movie:668427": "Zal Al Ba's", // Geçmiş Olsun
+  "tv:332366": "Nisf Al Umm", // Anne Yarısı
+  "movie:49834": "Al Alamiyya", // Beynelmilel
+  "movie:658788": "Layla Qadima", // Gece Gelen: Cin Bebek
+  "movie:436824": "Hob Fi Al Hisab", // Hesapta Aşk
+  "movie:35963": "Ejder Kapani", // Ejder Kapanı
+  "movie:595171": "Al Bab", // Kapı
+  "movie:1042633": "Bi Tareeqati Al Khassa", // Kendi Yolumda
+  "movie:473181": "Al Haris Murad", // Fatih'in Fedaisi Kara Murat
+  "movie:1101377": "Lusoos Ala Maw'id", // Boğaziçi Soygunu
+  "movie:418515": "Thata Marra Tifl", // Bir Gün Bir Çocuk
+  "movie:602908": "Shiryan Al Hayat: Suriya", // Hayat Çizgisi: Suriye
+  "tv:72939": "Tuyoor Bila Ajniha", // Kanatsız Kuşlar
+  "tv:33935": "Lu'bat Al Hayat", // لعبة الحياة
+  "tv:121461": "Al Tuffaha Al Muharrama", // التفاحة المحرمة
+  "tv:337372": "Ashraf Tek", // Eşref Tek
 };
 
 // Arabic names for every other Turkish title, learned from TMDB's Arabic
@@ -852,9 +1415,50 @@ const arTitleCache = (() => {
 // Turkish titles TMDB has no Arabic name for -- not asked about again this session.
 const arTitleMisses = new Set();
 
+// Rough letter-by-letter romanization, used only for Turkish titles whose
+// Arabic name isn't in the table above (new releases). Arabic doesn't write
+// short vowels, so the result is approximate ("Halm" for "Hulm") -- adding
+// the title to the table is the real fix.
+const AR_LETTERS = {
+  "ا": "a", "أ": "a", "إ": "i", "آ": "a", "ى": "a", "ة": "a", "ع": "a", "ء": "", "ؤ": "u", "ئ": "i",
+  "ب": "b", "ت": "t", "ث": "th", "ج": "j", "ح": "h", "خ": "kh", "د": "d", "ذ": "dh", "ر": "r", "ز": "z",
+  "س": "s", "ش": "sh", "ص": "s", "ض": "d", "ط": "t", "ظ": "z", "غ": "gh", "ف": "f", "ق": "q", "ك": "k",
+  "ل": "l", "م": "m", "ن": "n", "ه": "h", "و": "w", "ي": "y", "،": ",", "؟": "?",
+};
+
+function romanizeArabic(text) {
+  if (!/[؀-ۿ]/.test(text)) return text;
+  const isConsonant = (c) => c !== undefined && /^[b-df-hj-np-tv-z]+$/.test(AR_LETTERS[c] || "");
+  const word = (w) => {
+    if (w === "و") return "Wa";
+    let prefix = "";
+    if (w.length > 4 && w.startsWith("وال")) [prefix, w] = ["Wal ", w.slice(3)];
+    else if (w.length > 3 && w.startsWith("ال")) [prefix, w] = ["Al ", w.slice(2)];
+    const chars = [...w];
+    let out = "";
+    chars.forEach((c, i) => {
+      let r = c in AR_LETTERS ? AR_LETTERS[c] : c;
+      // و / ي read as long vowels after a consonant, unless a vowel follows.
+      if ((c === "و" || c === "ي") && isConsonant(chars[i - 1]) && (i === chars.length - 1 || isConsonant(chars[i + 1]))) {
+        r = c === "و" ? "oo" : i === chars.length - 1 ? "i" : "ee";
+      } else if (isConsonant(c) && isConsonant(chars[i + 1]) && chars[i + 1] !== "و" && chars[i + 1] !== "ي") {
+        // Break up clusters the unwritten short vowels would have separated.
+        if (i === 0 || isConsonant(chars[i + 2])) r += "a";
+      }
+      out += r;
+    });
+    return prefix + out.charAt(0).toUpperCase() + out.slice(1);
+  };
+  return text
+    .replace(/[ً-ْـ]/g, "")
+    .split(/\s+/)
+    .map(word)
+    .join(" ");
+}
+
 function arabicTitle(type, id, fallback) {
   const key = `${type}:${id}`;
-  return TR_ARABIC_TITLES[key] || arTitleCache[key] || fallback;
+  return TR_ARABIC_TITLES[key] || (arTitleCache[key] && romanizeArabic(arTitleCache[key])) || fallback;
 }
 
 function tmdbItemKey(r) {
@@ -908,9 +1512,10 @@ function arabicTitleMatches(query) {
   const fold = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
   const q = fold(query);
   if (q.length < 3) return [];
-  const known = { ...arTitleCache, ...TR_ARABIC_TITLES };
-  return Object.keys(known)
-    .filter((key) => fold(known[key]).includes(q))
+  // Learned names match in either spelling: Arabic letters or romanized.
+  const names = (key) => [TR_ARABIC_TITLES[key], arTitleCache[key], arTitleCache[key] && romanizeArabic(arTitleCache[key])];
+  return [...new Set([...Object.keys(TR_ARABIC_TITLES), ...Object.keys(arTitleCache)])]
+    .filter((key) => names(key).some((name) => name && fold(name).includes(q)))
     .slice(0, 8);
 }
 
