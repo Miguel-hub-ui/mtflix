@@ -135,6 +135,19 @@ const PLAYER_SOURCES = {
       return new URLSearchParams({ autoplay: "true", theme: "e50914", nextbutton: "false" });
     },
   },
+  // Manual alternative to the Turkish server: in testing VidZee played the
+  // same Turkish titles VidRock did (Arafta, Aşk Sadece Bir An, Uzak Şehir),
+  // so it's the one to try when VidRock itself is having a bad day. It posts
+  // the same PLAYER_EVENT progress messages.
+  vidzee: {
+    label: "VidZee",
+    movie: "https://player.vidzee.wtf/embed/movie/{id}",
+    tv: "https://player.vidzee.wtf/embed/tv/{id}/{season}/{episode}",
+    supportsEvents: true,
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   vidsrc: {
     label: "VidSrc",
     // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)
@@ -5409,13 +5422,13 @@ window.addEventListener("message", function (event) {
     return;
   }
 
-  // VidRock (Turkish server) also posts PLAYER_EVENT, but the TMDB id rides
-  // along as `tmdbId` instead of the legacy shape's `id`. Scope it to its
-  // origin so other providers sending PLAYER_EVENT-shaped messages can't be
-  // misread as VidRock progress.
-  if (msg.type === "PLAYER_EVENT" && event.origin === "https://vidrock.net") {
+  // VidRock (Turkish server) and VidZee also post PLAYER_EVENT, but VidRock
+  // carries the TMDB id as `tmdbId` instead of the legacy shape's `id`.
+  // Scoped to their origins, so the id can safely default to the title
+  // that's playing.
+  if (msg.type === "PLAYER_EVENT" && (event.origin === "https://vidrock.net" || event.origin === "https://player.vidzee.wtf")) {
     const d = msg.data || {};
-    if (!d.tmdbId || typeof d.currentTime !== "number") return;
+    if (typeof d.currentTime !== "number") return;
     // Real playback traffic -- disarms the source-health watchdog. Only
     // moving time (or the end of it) counts; a lone play event can precede
     // an endless stall.
@@ -5424,7 +5437,7 @@ window.addEventListener("message", function (event) {
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     const isTv = currentPlayer.type === "tv";
     applyPlaybackUpdate({
-      id: d.tmdbId,
+      id: d.tmdbId ?? d.id ?? currentPlayer.id,
       mediaType: d.mediaType || currentPlayer.type,
       season: isTv ? d.season : undefined,
       episode: isTv ? d.episode : undefined,
