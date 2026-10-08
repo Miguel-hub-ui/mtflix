@@ -402,51 +402,108 @@ async function prepareQissa(player, data) {
 }
 
 const LS_DUB_EPISODE = "mtflix_dub_episode";
+const LS_VOICE_TURKISH = "mtflix_voice_turkish";
 
-// "Arabic dubbed" row under the player: pick a dubbed episode and play it.
-// Only shown for series the site has a dub of.
+function readLsMap(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLsMap(key, id, value) {
+  const map = readLsMap(key);
+  if (value == null) delete map[id];
+  else map[id] = value;
+  localStorage.setItem(key, JSON.stringify(map));
+}
+
+// A series with an Arabic dub plays in Arabic unless the viewer switched
+// that series to Turkish (remembered per series).
+function arabicVoiceWanted() {
+  return !!currentPlayer?.qissa?.dubCount && !readLsMap(LS_VOICE_TURKISH)[currentPlayer.id];
+}
+
+// Points the "Arabic dubbed" server at one dubbed episode. False when the
+// site doesn't have that episode.
+async function selectDubEpisode(number) {
+  const q = currentPlayer?.qissa;
+  if (!q) return false;
+  const url = await qissaEpisodeUrl(q.name, number, true).catch(() => null);
+  if (!url) return false;
+  q.dubUrl = url;
+  q.dubEpisode = number;
+  writeLsMap(LS_DUB_EPISODE, currentPlayer.id, number);
+  setPlayerSourceId("qissadub");
+  return true;
+}
+
+function showSourceLabel() {
+  const label = $("#watch-source-label");
+  if (!label) return;
+  const id = getPlayerSourceId();
+  label.textContent = PLAYER_SOURCES[id].label + (id === "qissadub" ? ` · Ep ${currentPlayer.qissa.dubEpisode}` : "");
+}
+
+// Voice row under the player, only for series the site has a dub of. In
+// Arabic (the default) it picks the dubbed episode -- the dub is cut and
+// numbered differently, so the Turkish episode list is hidden meanwhile --
+// and offers the switch to Turkish; in Turkish it offers the way back.
 function setupDubRow() {
   $("#watch-dub-row")?.remove();
   const q = currentPlayer?.qissa;
   const info = $(".watch-info");
   if (!q?.dubCount || !info) return;
-  let saved = {};
-  try {
-    saved = JSON.parse(localStorage.getItem(LS_DUB_EPISODE) || "{}");
-  } catch {
-    saved = {};
-  }
+  const arabic = getPlayerSourceId() === "qissadub";
+  $("#watch-episodes")?.classList.toggle("hidden", arabic);
   const row = document.createElement("div");
   row.className = "episodes-season-row";
   row.id = "watch-dub-row";
-  row.innerHTML = `
-    <span>Arabic dubbed · Episode</span>
-    <select id="watch-dub-select">${Array.from({ length: q.dubCount }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select>
-    <button type="button" class="watch-source-btn" id="watch-dub-play">Play in Arabic</button>
-    <button type="button" class="watch-source-btn" id="watch-dub-next">Next</button>`;
+  const options = Array.from({ length: q.dubCount }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  row.innerHTML = arabic
+    ? `<span>Arabic dubbed · Episode</span>
+       <select id="watch-dub-select">${options}</select>
+       <button type="button" class="watch-source-btn" id="watch-dub-next">Next</button>
+       <button type="button" class="watch-source-btn" id="watch-voice-turkish">Switch to Turkish</button>`
+    : `<span>Voice: Turkish</span>
+       <button type="button" class="watch-source-btn" id="watch-voice-arabic">Switch to Arabic</button>`;
   info.appendChild(row);
-  const select = $("#watch-dub-select");
-  select.value = String(Math.min(saved[currentPlayer.id] || 1, q.dubCount));
-  const play = async () => {
-    const number = Number(select.value);
-    const url = await qissaEpisodeUrl(q.name, number, true).catch(() => null);
-    if (!url) {
+
+  const playDub = async (number) => {
+    if (!(await selectDubEpisode(number))) {
       showToast(`Arabic dubbed episode ${number} isn't available`);
-      return;
+      return false;
     }
-    q.dubUrl = url;
-    saved[currentPlayer.id] = number;
-    localStorage.setItem(LS_DUB_EPISODE, JSON.stringify(saved));
-    setPlayerSourceId("qissadub");
-    const label = $("#watch-source-label");
-    if (label) label.textContent = `${PLAYER_SOURCES.qissadub.label} · Ep ${number}`;
-    injectPlayer(url);
+    showSourceLabel();
+    injectPlayer(q.dubUrl);
+    return true;
   };
-  $("#watch-dub-play").addEventListener("click", play);
+
+  if (!arabic) {
+    $("#watch-voice-arabic").addEventListener("click", async () => {
+      const number = Math.min(readLsMap(LS_DUB_EPISODE)[currentPlayer.id] || 1, q.dubCount);
+      if (!(await playDub(number))) return;
+      writeLsMap(LS_VOICE_TURKISH, currentPlayer.id, null);
+      setupDubRow();
+    });
+    return;
+  }
+
+  const select = $("#watch-dub-select");
+  select.value = String(q.dubEpisode || 1);
+  select.addEventListener("change", () => playDub(Number(select.value)));
   $("#watch-dub-next").addEventListener("click", () => {
     if (Number(select.value) >= q.dubCount) return;
     select.value = String(Number(select.value) + 1);
-    play();
+    playDub(Number(select.value));
+  });
+  $("#watch-voice-turkish").addEventListener("click", () => {
+    writeLsMap(LS_VOICE_TURKISH, currentPlayer.id, 1);
+    playerSourceIdMem = null;
+    showSourceLabel();
+    setupDubRow();
+    resumeCurrentPlayer();
   });
 }
 
@@ -2809,6 +2866,7 @@ function setupSourceDropdown() {
         }
         setPlayerSourceId(opt.dataset.source);
         render();
+        setupDubRow();
         resumeCurrentPlayer();
       });
     });
@@ -3035,7 +3093,9 @@ async function initWatchPage() {
   // Turkish (Full) has this series.
   if (type === "tv" && currentPlayerLang === "tr") {
     await Promise.all([prepareTurkishFull(currentPlayer, data), prepareQissa(currentPlayer, data)]);
-    setupDubRow();
+    if (arabicVoiceWanted()) {
+      await selectDubEpisode(Math.min(readLsMap(LS_DUB_EPISODE)[id] || 1, currentPlayer.qissa.dubCount));
+    }
   }
 
   if (reset) removeContinueWatchingCard(id);
@@ -3063,8 +3123,11 @@ async function initWatchPage() {
   const startAt = !reset && sameProgress ? resumeWatch.t : 0;
 
   setupSourceDropdown();
+  setupDubRow();
+  showSourceLabel();
   renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", async () => {
-    if (type === "tv") markEpWatched(id, season, episode);
+    // A dubbed episode isn't the Turkish episode this page was opened on.
+    if (type === "tv" && getPlayerSourceId() !== "qissadub") markEpWatched(id, season, episode);
     injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
   });
 
