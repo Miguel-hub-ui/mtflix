@@ -148,6 +148,22 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
+  // Turkish SERIES only. The id-based servers above miss most current-season
+  // episodes of Turkish shows (tested: Uzak Şehir season 3, Arafta season 2),
+  // so this one plays the VoE-hosted copies indexed in turkish-full.json
+  // (built by tools/build_turkish_index.py). It has no URL template: an
+  // episode resolves through that index (see turkishFullUrl below). VoE
+  // posts no progress events and carries English subtitles.
+  turkishfull: {
+    label: "Turkish (Full)",
+    supportsEvents: false,
+    buildUrl(type, id, season, episode) {
+      return type === "tv" ? turkishFullUrl(season, episode) : null;
+    },
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   vidsrc: {
     label: "VidSrc",
     // VidSrc's own player hides its server picker (Pro Multi / Cinesrc / 4K)
@@ -242,6 +258,50 @@ function resolvePlayerSource(sourceId = getPlayerSourceId()) {
 }
 
 let currentPlayer = null;
+
+// turkish-full.json: { "<series-slug>": { "<absolute episode>": "<voe code>" } }
+let turkishFullIndexPromise = null;
+
+function loadTurkishFullIndex() {
+  turkishFullIndexPromise ||= fetch("turkish-full.json")
+    .then((res) => (res.ok ? res.json() : {}))
+    .catch(() => ({}));
+  return turkishFullIndexPromise;
+}
+
+// "Uzak Şehir" -> "uzak-sehir", the slug the index is keyed by.
+function turkishSlug(name) {
+  return String(name || "")
+    .replace(/[İIı]/g, "i")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Looks the playing series up in the index and remembers its episode map on
+// currentPlayer, so turkishFullUrl can answer synchronously afterwards.
+async function prepareTurkishFull(player, data) {
+  const index = await loadTurkishFullIndex();
+  const slug = [data.original_name, data.name].map(turkishSlug).find((sl) => sl && index[sl]);
+  if (slug) player.turkishEpisodes = index[slug];
+}
+
+// The index numbers episodes straight through the whole series, so a
+// season/episode pair is turned into that absolute number first.
+function turkishFullUrl(season, episode) {
+  const eps = currentPlayer?.turkishEpisodes;
+  if (!eps) return null;
+  const counts = currentPlayer.seasonEpisodeCounts || {};
+  let absolute = Number(episode) || 1;
+  for (let sn = 1; sn < (Number(season) || 1); sn++) {
+    if (!counts[sn]) return null;
+    absolute += counts[sn];
+  }
+  const code = eps[absolute];
+  return code ? `https://voe.sx/e/${code}` : null;
+}
 
 const LS_PROFILES = "cineverse_profiles";
 const LS_SESSION = "cineverse_session";
@@ -2327,7 +2387,13 @@ function hasPlayer() {
 }
 
 function buildPlayerUrl(type, id, season, episode, resumeSeconds) {
-  const source = resolvePlayerSource();
+  let source = resolvePlayerSource();
+  if (source.buildUrl) {
+    const url = source.buildUrl(type, id, season, episode);
+    if (url) return url;
+    // Not in the index after all -- play it on the default server instead.
+    source = resolvePlayerSource(DEFAULT_PLAYER_SOURCE);
+  }
   const base =
     type === "tv"
       ? source.tv.replace("{id}", id).replace("{season}", season || 1).replace("{episode}", episode || 1)
@@ -2363,14 +2429,21 @@ let nextEpisodePromptActive = false;
 // on an empty player -- nothing to detect from outside the frame. So
 // the watchdog arms on every injectPlayer and is cancelled by real playback
 // (a PLAYER_EVENT whose position moves). If none arrives in time, the player
-// swaps itself to CineSrc for the same title, in place.
+// swaps itself, in place, to Turkish (Full) when that has the episode and to
+// CineSrc otherwise. The wait is shorter when Turkish (Full) is standing by:
+// VidRock starts within a few seconds when it has a stream at all.
 let sourceHealthTimer = null;
 let sourceGotRealEvent = false;
 const SOURCE_HEALTH_TIMEOUT_MS = 25000;
+const SOURCE_HEALTH_TIMEOUT_WITH_FULL_MS = 15000;
 
 function cancelSourceWatchdog() {
   clearTimeout(sourceHealthTimer);
   sourceHealthTimer = null;
+}
+
+function hasTurkishFullNow() {
+  return currentPlayer?.type === "tv" && !!turkishFullUrl(currentPlayer.season, currentPlayer.episode);
 }
 
 function armSourceWatchdog() {
@@ -2384,10 +2457,13 @@ function armSourceWatchdog() {
     // A manual source pick by the viewer in the meantime means the watchdog
     // must stand down.
     if (getPlayerSourceId() !== TURKISH_PLAYER_SOURCE) return;
-    setPlayerSourceId(DEFAULT_PLAYER_SOURCE);
-    showToast("Turkish server didn't respond — switched to CineSrc");
+    const hasFull = hasTurkishFullNow();
+    setPlayerSourceId(hasFull ? "turkishfull" : DEFAULT_PLAYER_SOURCE);
+    showToast(`Turkish server didn't respond — switched to ${hasFull ? "Turkish (Full)" : "CineSrc"}`);
+    const sourceLabel = $("#watch-source-label");
+    if (sourceLabel) sourceLabel.textContent = PLAYER_SOURCES[getPlayerSourceId()].label;
     resumeCurrentPlayer();
-  }, SOURCE_HEALTH_TIMEOUT_MS);
+  }, hasTurkishFullNow() ? SOURCE_HEALTH_TIMEOUT_WITH_FULL_MS : SOURCE_HEALTH_TIMEOUT_MS);
 }
 // Fraction of the episode still remaining at which the "Next Episode" prompt
 // appears, on every source. 3% of a ~40min episode is ~72s -- roughly the
@@ -2614,6 +2690,10 @@ function setupSourceDropdown() {
       opt.addEventListener("click", () => {
         dropdown.classList.remove("open");
         if (opt.dataset.source === getPlayerSourceId() || !currentPlayer) return;
+        if (opt.dataset.source === "turkishfull" && !hasTurkishFullNow()) {
+          showToast("Turkish (Full) doesn't have this episode");
+          return;
+        }
         setPlayerSourceId(opt.dataset.source);
         render();
         resumeCurrentPlayer();
@@ -2838,6 +2918,7 @@ async function initWatchPage() {
   };
   currentPlayerLang = data.original_language || null;
   currentPlayerType = type;
+  if (type === "tv" && currentPlayerLang === "tr") prepareTurkishFull(currentPlayer, data);
 
   if (reset) removeContinueWatchingCard(id);
 
