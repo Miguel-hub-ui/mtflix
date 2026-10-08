@@ -385,7 +385,8 @@ async function prepareQissa(player, data) {
     const isArabic = (t) => /[\u0600-\u06ff]/.test(t || "");
     const names = [ar.name, ...(ar.alternative_titles?.results || []).map((t) => t.title)].filter(isArabic);
     const number = absoluteEpisode(player, player.season, player.episode);
-    for (const name of [...new Set(names.map((n) => n.trim()))].slice(0, 4)) {
+    player.qissaNames = [...new Set(names.map((n) => n.trim()))].slice(0, 4);
+    for (const name of player.qissaNames) {
       const [subUrl, dub] = await Promise.all([
         number ? qissaEpisodeUrl(name, number, false) : null,
         qissaPosts(`${name} مدبلجة`, 1),
@@ -399,6 +400,25 @@ async function prepareQissa(player, data) {
   } catch {
     // Site unreachable or TMDB has no Arabic name -- the other servers apply.
   }
+}
+
+// Re-points the Arabic-subtitled server at another episode of the playing
+// series (an episode picked from the list swaps the player in place).
+async function refreshQissaEpisode(season, episode) {
+  const player = currentPlayer;
+  if (!player?.qissaNames?.length) return;
+  const number = absoluteEpisode(player, season, episode);
+  let name = player.qissa?.name;
+  let subUrl = null;
+  for (const candidate of name ? [name] : player.qissaNames) {
+    subUrl = number ? await qissaEpisodeUrl(candidate, number, false).catch(() => null) : null;
+    if (subUrl) {
+      name = candidate;
+      break;
+    }
+  }
+  if (player.qissa) Object.assign(player.qissa, { subUrl, season, episode });
+  else if (subUrl) player.qissa = { name, subUrl, dubCount: 0, dubUrl: null, season, episode };
 }
 
 const LS_DUB_EPISODE = "mtflix_dub_episode";
@@ -448,15 +468,15 @@ function showSourceLabel() {
 
 // Voice row under the player, only for series the site has a dub of. In
 // Arabic (the default) it picks the dubbed episode -- the dub is cut and
-// numbered differently, so the Turkish episode list is hidden meanwhile --
-// and offers the switch to Turkish; in Turkish it offers the way back.
+// numbered differently from the season/episode list below, which stays for
+// the Turkish original -- and offers the switch to Turkish; in Turkish it
+// offers the way back.
 function setupDubRow() {
   $("#watch-dub-row")?.remove();
   const q = currentPlayer?.qissa;
   const info = $(".watch-info");
   if (!q?.dubCount || !info) return;
   const arabic = getPlayerSourceId() === "qissadub";
-  $("#watch-episodes")?.classList.toggle("hidden", arabic);
   const row = document.createElement("div");
   row.className = "episodes-season-row";
   row.id = "watch-dub-row";
@@ -3215,6 +3235,14 @@ async function playEpisode(data, season, episode) {
   // Picking an episode from the watch page's own list should swap the
   // current player in place, not stack another watch tab on top of it.
   if (document.body.dataset.page === "watch") {
+    // The list holds the Turkish broadcast's episodes, so a pick from it
+    // plays the original: the dub steps aside for now (the series' default
+    // voice isn't changed) and the Arabic-subtitled server is pointed at
+    // the picked episode before a server is chosen.
+    if (playerSourceIdMem === "qissadub") playerSourceIdMem = null;
+    await refreshQissaEpisode(season, episode);
+    setupDubRow();
+    showSourceLabel();
     injectPlayer(buildPlayerUrl("tv", data.id, season, episode, resumeSeconds));
   } else {
     openWatchTab("tv", data.id, season, episode);
