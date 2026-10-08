@@ -115,40 +115,7 @@ const PLAYER_SOURCES = {
       return new URLSearchParams();
     },
   },
-  // Turkish-only server. Auto-selected exclusively for titles whose original
-  // language is Turkish (see getPlayerSourceId below). In side-by-side
-  // testing VidRock streamed the Turkish titles CineSrc has no stream for
-  // (Arafta, Aşk Sadece Bir An) as well as the ones CineSrc does carry. It
-  // still has gaps (Kuruluş Osman, later Arafta episodes), so the
-  // source-health watchdog below hands those over to CineSrc in place.
-  // Its player posts PLAYER_EVENT progress messages (see the message
-  // listener below), so real resume points and auto-advance work on it too.
-  vidrock: {
-    label: "Turkish (VidRock)",
-    movie: "https://vidrock.net/movie/{id}",
-    tv: "https://vidrock.net/tv/{id}/{season}/{episode}",
-    supportsEvents: true,
-    buildParams() {
-      // VidRock sits paused on its poster unless autoplay is asked for. It
-      // has no resume parameter -- it remembers the position itself. Its own
-      // next-episode notice is hidden because MTFlix shows its own prompt.
-      return new URLSearchParams({ autoplay: "true", theme: "e50914", nextbutton: "false" });
-    },
-  },
-  // Manual alternative to the Turkish server: in testing VidZee played the
-  // same Turkish titles VidRock did (Arafta, Aşk Sadece Bir An, Uzak Şehir),
-  // so it's the one to try when VidRock itself is having a bad day. It posts
-  // the same PLAYER_EVENT progress messages.
-  vidzee: {
-    label: "VidZee",
-    movie: "https://player.vidzee.wtf/embed/movie/{id}",
-    tv: "https://player.vidzee.wtf/embed/tv/{id}/{season}/{episode}",
-    supportsEvents: true,
-    buildParams() {
-      return new URLSearchParams();
-    },
-  },
-  // Turkish SERIES only. The id-based servers above miss most current-season
+  // Turkish SERIES only. The id-based servers here miss most current-season
   // episodes of Turkish shows (tested: Uzak Şehir season 3, Arafta season 2),
   // so this one plays the VoE-hosted copies indexed in turkish-full.json
   // (built by tools/build_turkish_index.py). It has no URL template: an
@@ -198,10 +165,6 @@ const PLAYER_SOURCES = {
 };
 
 const DEFAULT_PLAYER_SOURCE = "cinesrc";
-// Auto-picked for Turkish titles only (original_language === "tr") -- see
-// getPlayerSourceId(). CineSrc stays the default for every other language.
-const TURKISH_PLAYER_SOURCE = "vidrock";
-
 // CineSrc is the default again (the added HD sources were removed at the
 // owner's request). A manual server switch only applies to the movie or
 // episode you're currently watching -- kept in memory (not localStorage)
@@ -216,7 +179,6 @@ function resetPlayerSourceToDefault() {
   playerSubServerMem = {};
   currentPlayerLang = null;
   currentPlayerType = null;
-  cancelSourceWatchdog();
 }
 
 // The currently-playing title's original language ("tr", "ar", ...) and
@@ -226,10 +188,10 @@ let currentPlayerType = null;
 
 function getPlayerSourceId() {
   if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
-  // Turkish movies and series start on the Turkish server; everything else
-  // stays on the default. A manual pick (playerSourceIdMem) always wins, so
-  // a viewer can still switch a Turkish title to another server.
-  if (currentPlayerLang === "tr" && PLAYER_SOURCES[TURKISH_PLAYER_SOURCE]) return TURKISH_PLAYER_SOURCE;
+  // A Turkish episode that Turkish (Full) has in its index starts there;
+  // everything else stays on the default. A manual pick (playerSourceIdMem)
+  // always wins.
+  if (currentPlayerLang === "tr" && hasTurkishFullNow()) return "turkishfull";
   return DEFAULT_PLAYER_SOURCE;
 }
 
@@ -2424,47 +2386,10 @@ async function resumeCurrentPlayer() {
 let heartbeatTimer = null;
 let nextEpisodePromptActive = false;
 
-// Source-health watchdog (Turkish server): VidRock has no stream for some
-// Turkish titles (tested: Kuruluş Osman, Arafta S2E40) and then just sits
-// on an empty player -- nothing to detect from outside the frame. So
-// the watchdog arms on every injectPlayer and is cancelled by real playback
-// (a PLAYER_EVENT whose position moves). If none arrives in time, the player
-// swaps itself, in place, to Turkish (Full) when that has the episode and to
-// CineSrc otherwise. The wait is shorter when Turkish (Full) is standing by:
-// VidRock starts within a few seconds when it has a stream at all.
-let sourceHealthTimer = null;
-let sourceGotRealEvent = false;
-const SOURCE_HEALTH_TIMEOUT_MS = 25000;
-const SOURCE_HEALTH_TIMEOUT_WITH_FULL_MS = 15000;
-
-function cancelSourceWatchdog() {
-  clearTimeout(sourceHealthTimer);
-  sourceHealthTimer = null;
-}
-
 function hasTurkishFullNow() {
   return currentPlayer?.type === "tv" && !!turkishFullUrl(currentPlayer.season, currentPlayer.episode);
 }
 
-function armSourceWatchdog() {
-  cancelSourceWatchdog();
-  sourceGotRealEvent = false;
-  // Only the Turkish server is watched; CineSrc never needed this.
-  if (getPlayerSourceId() !== TURKISH_PLAYER_SOURCE) return;
-  sourceHealthTimer = setTimeout(() => {
-    sourceHealthTimer = null;
-    if (!currentPlayer || sourceGotRealEvent) return;
-    // A manual source pick by the viewer in the meantime means the watchdog
-    // must stand down.
-    if (getPlayerSourceId() !== TURKISH_PLAYER_SOURCE) return;
-    const hasFull = hasTurkishFullNow();
-    setPlayerSourceId(hasFull ? "turkishfull" : DEFAULT_PLAYER_SOURCE);
-    showToast(`Turkish server didn't respond — switched to ${hasFull ? "Turkish (Full)" : "CineSrc"}`);
-    const sourceLabel = $("#watch-source-label");
-    if (sourceLabel) sourceLabel.textContent = PLAYER_SOURCES[getPlayerSourceId()].label;
-    resumeCurrentPlayer();
-  }, hasTurkishFullNow() ? SOURCE_HEALTH_TIMEOUT_WITH_FULL_MS : SOURCE_HEALTH_TIMEOUT_MS);
-}
 // Fraction of the episode still remaining at which the "Next Episode" prompt
 // appears, on every source. 3% of a ~40min episode is ~72s -- roughly the
 // end-credits window -- and it scales with episode length instead of being a
@@ -2624,7 +2549,6 @@ function injectPlayer(url) {
       <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
   mountStageFsBtn(heroArea);
-  armSourceWatchdog();
 }
 
 // Populates the top-bar source dropdown and, when the chosen source bundles
@@ -2918,7 +2842,9 @@ async function initWatchPage() {
   };
   currentPlayerLang = data.original_language || null;
   currentPlayerType = type;
-  if (type === "tv" && currentPlayerLang === "tr") prepareTurkishFull(currentPlayer, data);
+  // Awaited so the source dropdown and the first play already know whether
+  // Turkish (Full) has this series.
+  if (type === "tv" && currentPlayerLang === "tr") await prepareTurkishFull(currentPlayer, data);
 
   if (reset) removeContinueWatchingCard(id);
 
@@ -5468,9 +5394,6 @@ window.addEventListener("message", function (event) {
       }
       return;
     }
-    // Only a POSITION that actually moves (timeupdate) or a genuine end
-    // proves real playback.
-    if (kind === "timeupdate" || kind === "ended") sourceGotRealEvent = true;
     // `ended` carries no currentTime/duration (it's just a type), so handle
     // it before the numeric checks below.
     if (kind === "ended") {
@@ -5503,43 +5426,11 @@ window.addEventListener("message", function (event) {
     return;
   }
 
-  // VidRock (Turkish server) and VidZee also post PLAYER_EVENT, but VidRock
-  // carries the TMDB id as `tmdbId` instead of the legacy shape's `id`.
-  // Scoped to their origins, so the id can safely default to the title
-  // that's playing.
-  if (msg.type === "PLAYER_EVENT" && (event.origin === "https://vidrock.net" || event.origin === "https://player.vidzee.wtf")) {
-    const d = msg.data || {};
-    if (typeof d.currentTime !== "number") return;
-    // Real playback traffic -- disarms the source-health watchdog. Only
-    // moving time (or the end of it) counts; a lone play event can precede
-    // an endless stall.
-    if (d.event === "timeupdate" || d.event === "ended") sourceGotRealEvent = true;
-    if (d.event === "pause") realPlaybackPaused = true;
-    else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
-    const isTv = currentPlayer.type === "tv";
-    applyPlaybackUpdate({
-      id: d.tmdbId ?? d.id ?? currentPlayer.id,
-      mediaType: d.mediaType || currentPlayer.type,
-      season: isTv ? d.season : undefined,
-      episode: isTv ? d.episode : undefined,
-      currentTime: d.currentTime,
-      duration: d.duration,
-      finished: d.event === "ended",
-    });
-    const chip = document.querySelector("#messageArea");
-    if (chip) {
-      const icons = { play: "▶ ", pause: "⏸ ", ended: "✓ ", seeked: "⏩ ", timeupdate: "" };
-      chip.innerText = (icons[d.event] ?? "• ") + fmtTime(d.currentTime) + (d.duration ? " / " + fmtTime(d.duration) : "");
-    }
-    return;
-  }
-
   // A source that supports events may send one event per message, with
   // season/episode included directly.
   if (msg.type === "PLAYER_EVENT") {
     const d = msg.data || {};
     if (!d.id || typeof d.currentTime !== "number") return;
-    if (d.event === "timeupdate" || d.event === "ended") sourceGotRealEvent = true;
     if (d.event === "pause") realPlaybackPaused = true;
     else if (d.event === "play" || d.event === "timeupdate" || d.event === "seeked") realPlaybackPaused = false;
     applyPlaybackUpdate({
