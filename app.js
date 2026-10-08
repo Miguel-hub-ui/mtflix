@@ -307,7 +307,39 @@ function turkishFullUrl(season, episode) {
 // Qissat Ishq titles every episode "مسلسل <Arabic name> الحلقة <n> مترجمة"
 // (subtitled) or "... مدبلجة" (dubbed), and its WordPress posts API can be
 // searched from the browser.
-const QISSA_API = "https://new.eishq.net/wp-json/wp/v2/posts";
+const QISSA_SITE = "https://new.eishq.net/";
+const QISSA_API = `${QISSA_SITE}wp-json/wp/v2/posts`;
+
+// The site's whole watch page is what gets framed, but only its video player
+// should be seen. So the frame is laid out at a fixed width, where the
+// player's place on the page is known (measured on the live page), then
+// scaled and shifted until that player alone fills the stage. Everything
+// else on the page is clipped away and the frame can't be scrolled.
+const QISSA_FRAME = { width: 1000, playerLeft: 12, playerTop: 176, playerWidth: 976, playerHeight: 539 };
+
+function cropQissaFrame(stage) {
+  const holder = stage.querySelector(".modal-trailer");
+  const frame = holder?.querySelector("iframe");
+  if (!frame) return;
+  const { width, playerLeft, playerTop, playerWidth, playerHeight } = QISSA_FRAME;
+  holder.style.overflow = "hidden";
+  Object.assign(frame.style, {
+    position: "absolute",
+    left: "0",
+    top: "0",
+    width: `${width}px`,
+    height: `${playerTop + playerHeight}px`,
+    transformOrigin: "0 0",
+  });
+  const fit = () => {
+    const k = Math.min(holder.clientWidth / playerWidth, holder.clientHeight / playerHeight);
+    const x = (holder.clientWidth - k * playerWidth) / 2 - k * playerLeft;
+    const y = (holder.clientHeight - k * playerHeight) / 2 - k * playerTop;
+    frame.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
+  };
+  fit();
+  new ResizeObserver(fit).observe(holder);
+}
 
 // Spelling variants that differ between TMDB and the site (أ/ا, ة/ه, ى/ي,
 // diacritics) are folded away before comparing names.
@@ -2689,6 +2721,7 @@ function injectPlayer(url) {
 
   heroArea.classList.add("is-playing");
   heroArea.style.backgroundImage = "";
+  const cropped = url.startsWith(QISSA_SITE);
   heroArea.innerHTML = `
     <div class="modal-trailer">
       <!-- Note: the allow attribute uses FULLSET with a wildcard, not bare
@@ -2699,8 +2732,9 @@ function injectPlayer(url) {
            bare form their own fullscreen buttons were silently denied. The
            wildcard delegates fullscreen down the whole frame tree, so the
            servers' native buttons work again. -->
-      <iframe src="${url}" frameborder="0" allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
+      <iframe src="${url}" frameborder="0"${cropped ? ' scrolling="no"' : ""} allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
+  if (cropped) cropQissaFrame(heroArea);
   mountStageFsBtn(heroArea);
 }
 
