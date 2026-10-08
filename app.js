@@ -121,6 +121,38 @@ const PLAYER_SOURCES = {
   // (built by tools/build_turkish_index.py). It has no URL template: an
   // episode resolves through that index (see turkishFullUrl below). VoE
   // posts no progress events and carries English subtitles.
+  // Turkish SERIES in the original Turkish with Arabic subtitles, from the
+  // Qissat Ishq site. Nothing is indexed: the episode is looked up live
+  // through that site's public posts API (see prepareQissa below) and its
+  // own watch page is framed. It lists episodes by absolute number, covers
+  // far more of each series than the id-based servers, and posts no
+  // progress events.
+  qissa: {
+    label: "Turkish (Arabic subs)",
+    supportsEvents: false,
+    buildUrl(type, id, season, episode) {
+      const q = currentPlayer?.qissa;
+      return q && q.subUrl && q.season === season && q.episode === episode ? q.subUrl : null;
+    },
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
+  // The Arabic-DUBBED release from the same site. Dubbed episodes are cut and
+  // numbered differently from the Turkish broadcast, so they are never picked
+  // from the normal episode list: the "Arabic dubbed" row under the player
+  // (see setupDubRow) chooses the episode, and this entry just plays it.
+  qissadub: {
+    label: "Arabic dubbed",
+    supportsEvents: false,
+    menuHidden: true,
+    buildUrl() {
+      return currentPlayer?.qissa?.dubUrl || null;
+    },
+    buildParams() {
+      return new URLSearchParams();
+    },
+  },
   turkishfull: {
     label: "Turkish (Full)",
     supportsEvents: false,
@@ -188,10 +220,13 @@ let currentPlayerType = null;
 
 function getPlayerSourceId() {
   if (playerSourceIdMem && PLAYER_SOURCES[playerSourceIdMem]) return playerSourceIdMem;
-  // A Turkish episode that Turkish (Full) has in its index starts there;
-  // everything else stays on the default. A manual pick (playerSourceIdMem)
-  // always wins.
-  if (currentPlayerLang === "tr" && hasTurkishFullNow()) return "turkishfull";
+  // A Turkish episode starts on the Arabic-subtitled server when that has
+  // it, else on Turkish (Full) when its index does; everything else stays on
+  // the default. A manual pick (playerSourceIdMem) always wins.
+  if (currentPlayerLang === "tr" && currentPlayer) {
+    if (PLAYER_SOURCES.qissa.buildUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season, currentPlayer.episode)) return "qissa";
+    if (hasTurkishFullNow()) return "turkishfull";
+  }
   return DEFAULT_PLAYER_SOURCE;
 }
 
@@ -250,19 +285,137 @@ async function prepareTurkishFull(player, data) {
   if (slug) player.turkishEpisodes = index[slug];
 }
 
-// The index numbers episodes straight through the whole series, so a
-// season/episode pair is turned into that absolute number first.
-function turkishFullUrl(season, episode) {
-  const eps = currentPlayer?.turkishEpisodes;
-  if (!eps) return null;
-  const counts = currentPlayer.seasonEpisodeCounts || {};
+// Turkish sources number episodes straight through the whole series, so a
+// season/episode pair is turned into that absolute number. Null when an
+// earlier season's length is unknown.
+function absoluteEpisode(player, season, episode) {
+  const counts = player?.seasonEpisodeCounts || {};
   let absolute = Number(episode) || 1;
   for (let sn = 1; sn < (Number(season) || 1); sn++) {
     if (!counts[sn]) return null;
     absolute += counts[sn];
   }
-  const code = eps[absolute];
+  return absolute;
+}
+
+function turkishFullUrl(season, episode) {
+  const eps = currentPlayer?.turkishEpisodes;
+  const code = eps && eps[absoluteEpisode(currentPlayer, season, episode)];
   return code ? `https://voe.sx/e/${code}` : null;
+}
+
+// Qissat Ishq titles every episode "مسلسل <Arabic name> الحلقة <n> مترجمة"
+// (subtitled) or "... مدبلجة" (dubbed), and its WordPress posts API can be
+// searched from the browser.
+const QISSA_API = "https://new.eishq.net/wp-json/wp/v2/posts";
+
+// Spelling variants that differ between TMDB and the site (أ/ا, ة/ه, ى/ي,
+// diacritics) are folded away before comparing names.
+function foldArabic(text) {
+  return String(text || "")
+    .replace(/[\u064b-\u0652\u0640]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function qissaPosts(search, perPage) {
+  const url = `${QISSA_API}?search=${encodeURIComponent(search)}&per_page=${perPage}&_fields=link,title`;
+  const res = await fetch(url);
+  if (!res.ok) return { posts: [], total: 0 };
+  return { posts: await res.json(), total: Number(res.headers.get("X-WP-Total")) || 0 };
+}
+
+// Watch-page URL of one episode, or null. `dubbed` picks the Arabic-dubbed
+// release (its own numbering) over the subtitled original.
+async function qissaEpisodeUrl(name, number, dubbed) {
+  const kind = dubbed ? "مدبلج" : "مترجم";
+  // The quoted phrase matches the usual title exactly; the loose search
+  // catches the odd ones ("الحلقة 11 والاخيرة مترجمة").
+  let { posts } = await qissaPosts(`"${name} الحلقة ${number} ${kind}ة"`, 5);
+  if (!posts.length) ({ posts } = await qissaPosts(`${name} الحلقة ${number}`, 100));
+  const wanted = new RegExp(`^مسلسل ${foldArabic(name)} الحلقه 0*${number}(?!\\d)`);
+  const hit = posts.find((post) => {
+    const title = foldArabic(post.title?.rendered);
+    return wanted.test(title) && title.includes(kind);
+  });
+  return hit ? `${hit.link}?do=watch` : null;
+}
+
+// Finds the playing Turkish series on Qissat Ishq under its Arabic name(s)
+// from TMDB and remembers, on the player: the subtitled URL of the current
+// episode and how many dubbed episodes exist.
+async function prepareQissa(player, data) {
+  try {
+    const ar = await tmdb(`/tv/${data.id}`, { language: "ar", append_to_response: "alternative_titles" });
+    const isArabic = (t) => /[\u0600-\u06ff]/.test(t || "");
+    const names = [ar.name, ...(ar.alternative_titles?.results || []).map((t) => t.title)].filter(isArabic);
+    const number = absoluteEpisode(player, player.season, player.episode);
+    for (const name of [...new Set(names.map((n) => n.trim()))].slice(0, 4)) {
+      const [subUrl, dub] = await Promise.all([
+        number ? qissaEpisodeUrl(name, number, false) : null,
+        qissaPosts(`${name} مدبلجة`, 1),
+      ]);
+      const dubCount = foldArabic(dub.posts[0]?.title?.rendered).startsWith(`مسلسل ${foldArabic(name)} `) ? dub.total : 0;
+      if (subUrl || dubCount) {
+        player.qissa = { name, subUrl, dubCount, dubUrl: null, season: player.season, episode: player.episode };
+        return;
+      }
+    }
+  } catch {
+    // Site unreachable or TMDB has no Arabic name -- the other servers apply.
+  }
+}
+
+const LS_DUB_EPISODE = "mtflix_dub_episode";
+
+// "Arabic dubbed" row under the player: pick a dubbed episode and play it.
+// Only shown for series the site has a dub of.
+function setupDubRow() {
+  $("#watch-dub-row")?.remove();
+  const q = currentPlayer?.qissa;
+  const info = $(".watch-info");
+  if (!q?.dubCount || !info) return;
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(LS_DUB_EPISODE) || "{}");
+  } catch {
+    saved = {};
+  }
+  const row = document.createElement("div");
+  row.className = "episodes-season-row";
+  row.id = "watch-dub-row";
+  row.innerHTML = `
+    <span>Arabic dubbed · Episode</span>
+    <select id="watch-dub-select">${Array.from({ length: q.dubCount }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select>
+    <button type="button" class="watch-source-btn" id="watch-dub-play">Play in Arabic</button>
+    <button type="button" class="watch-source-btn" id="watch-dub-next">Next</button>`;
+  info.appendChild(row);
+  const select = $("#watch-dub-select");
+  select.value = String(Math.min(saved[currentPlayer.id] || 1, q.dubCount));
+  const play = async () => {
+    const number = Number(select.value);
+    const url = await qissaEpisodeUrl(q.name, number, true).catch(() => null);
+    if (!url) {
+      showToast(`Arabic dubbed episode ${number} isn't available`);
+      return;
+    }
+    q.dubUrl = url;
+    saved[currentPlayer.id] = number;
+    localStorage.setItem(LS_DUB_EPISODE, JSON.stringify(saved));
+    setPlayerSourceId("qissadub");
+    const label = $("#watch-source-label");
+    if (label) label.textContent = `${PLAYER_SOURCES.qissadub.label} · Ep ${number}`;
+    injectPlayer(url);
+  };
+  $("#watch-dub-play").addEventListener("click", play);
+  $("#watch-dub-next").addEventListener("click", () => {
+    if (Number(select.value) >= q.dubCount) return;
+    select.value = String(Number(select.value) + 1);
+    play();
+  });
 }
 
 const LS_PROFILES = "cineverse_profiles";
@@ -2605,6 +2758,7 @@ function setupSourceDropdown() {
       $("#watch-server-dropdown")?.remove();
     }
     menu.innerHTML = Object.entries(PLAYER_SOURCES)
+      .filter(([, src]) => !src.menuHidden)
       .map(
         ([id, src]) =>
           `<button type="button" class="watch-source-option${id === activeId ? " active" : ""}" data-source="${id}">${src.label}</button>`
@@ -2614,8 +2768,9 @@ function setupSourceDropdown() {
       opt.addEventListener("click", () => {
         dropdown.classList.remove("open");
         if (opt.dataset.source === getPlayerSourceId() || !currentPlayer) return;
-        if (opt.dataset.source === "turkishfull" && !hasTurkishFullNow()) {
-          showToast("Turkish (Full) doesn't have this episode");
+        const picked = PLAYER_SOURCES[opt.dataset.source];
+        if (picked.buildUrl && !picked.buildUrl(currentPlayer.type, currentPlayer.id, currentPlayer.season, currentPlayer.episode)) {
+          showToast(`${picked.label} doesn't have this ${currentPlayer.type === "tv" ? "episode" : "title"}`);
           return;
         }
         setPlayerSourceId(opt.dataset.source);
@@ -2844,7 +2999,10 @@ async function initWatchPage() {
   currentPlayerType = type;
   // Awaited so the source dropdown and the first play already know whether
   // Turkish (Full) has this series.
-  if (type === "tv" && currentPlayerLang === "tr") await prepareTurkishFull(currentPlayer, data);
+  if (type === "tv" && currentPlayerLang === "tr") {
+    await Promise.all([prepareTurkishFull(currentPlayer, data), prepareQissa(currentPlayer, data)]);
+    setupDubRow();
+  }
 
   if (reset) removeContinueWatchingCard(id);
 
