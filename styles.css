@@ -1061,22 +1061,11 @@ body.watch-page {
 .watch-source-option { flex-shrink: 0; }
 /* Phones: .watch-card clips its children, and there the card is barely
    taller than the player, so a menu hanging under its button lost its last
-   servers with no way to reach them. It opens as a sheet pinned to the
-   bottom of the screen instead (fixed, so the card can't clip it). */
+   servers with no way to reach them. It is kept no taller than the player
+   under it (16:9 of the card's width) and scrolls inside that. */
 @media (max-width: 640px) {
-  .watch-source-menu,
-  .watch-server-dropdown .watch-source-menu {
-    position: fixed;
-    top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    max-height: 60vh;
-    z-index: 1000;
-  }
-  .watch-source-option {
-    padding: 14px 12px;
-    font-size: 0.95rem;
+  .watch-source-menu {
+    max-height: calc((100vw - 32px) * 0.5625 - 16px);
   }
 }
 
