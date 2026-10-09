@@ -257,7 +257,7 @@ def main():
             index[str(tmdb_id)][kind] = [
                 {"season": number, "titles": part["titles"], "eps": [0 if part["eps"].get(n, 0) in empty else part["eps"].get(n, 0) for n in range(1, max(part["eps"]) + 1)]}
                 for number, part in sorted(entry[kind].items())
-                if part["eps"].values() - empty
+                if set(part["eps"].values()) - empty
             ]
 
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:

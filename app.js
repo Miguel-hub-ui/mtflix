@@ -274,13 +274,18 @@ const QISSA_API = `${QISSA_SITE}wp-json/wp/v2/posts`;
 // player's place on the page is known (measured on the live page), then
 // scaled and shifted until that player alone fills the stage. Everything
 // else on the page is clipped away and the frame can't be scrolled.
-const QISSA_FRAME = { width: 1000, playerLeft: 12, playerTop: 176, playerWidth: 976, playerHeight: 539 };
+// Lodynet's page is opened at its player's anchor (#IframeWetch), so its
+// numbers are measured from there instead of from the top of the page.
+const LODYNET_SITE = "https://lodynet.watch/";
+const FRAMED_SITES = [
+  { site: QISSA_SITE, width: 1000, playerLeft: 12, playerTop: 176, playerWidth: 976, playerHeight: 539 },
+  { site: LODYNET_SITE, width: 1000, playerLeft: 214, playerTop: 10, playerWidth: 572, playerHeight: 322 },
+];
 
-function cropQissaFrame(stage) {
+function cropSiteFrame(stage, { width, playerLeft, playerTop, playerWidth, playerHeight }) {
   const holder = stage.querySelector(".modal-trailer");
   const frame = holder?.querySelector("iframe");
   if (!frame) return;
-  const { width, playerLeft, playerTop, playerWidth, playerHeight } = QISSA_FRAME;
   holder.style.overflow = "hidden";
   Object.assign(frame.style, {
     position: "absolute",
@@ -298,6 +303,24 @@ function cropQissaFrame(stage) {
   };
   fit();
   new ResizeObserver(fit).observe(holder);
+  // Chromium sometimes leaves a scaled cross-origin frame black until its
+  // transform next changes, so the transform is re-applied from scratch once
+  // the page has loaded and a few more times while its player comes up.
+  const repaint = () => {
+    if (!frame.isConnected) return;
+    frame.style.transform = "none";
+    void frame.offsetHeight;
+    fit();
+  };
+  frame.addEventListener("load", repaint);
+  [3000, 7000, 12000, 20000].forEach((ms) => setTimeout(repaint, ms));
+  // These sites are slow: the stage stays black for half a minute or more
+  // before their player shows, which reads as broken without a word.
+  const note = document.createElement("div");
+  note.textContent = "Loading the Arabic player — this can take up to 40 seconds";
+  note.style.cssText = "position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-size:13px;opacity:.75;pointer-events:none;text-shadow:0 1px 3px #000";
+  holder.appendChild(note);
+  setTimeout(() => note.remove(), 40000);
 }
 
 // Spelling variants that differ between TMDB and the site (أ/ا, ة/ه, ى/ي,
@@ -384,6 +407,29 @@ function indexedSubUrl(player, season, episode) {
   return qissaPostUrl(own?.eps[episode] || first?.eps[absoluteEpisode(player, season, episode)]).catch(() => null);
 }
 
+// lodynet-series.json (built by tools/build_lodynet_index.py): the dubbed
+// episodes of the second source, Lodynet, which carries the older dubs
+// Qissat Ishq doesn't -- { "<tmdb id>": [ { season, eps: [<post id>, ...] } ] }.
+let lodynetIndexPromise = null;
+
+function loadLodynetIndex() {
+  lodynetIndexPromise ||= fetch("lodynet-series.json")
+    .then((res) => (res.ok ? res.json() : {}))
+    .catch(() => ({}));
+  return lodynetIndexPromise;
+}
+
+function lodynetParts(parts = []) {
+  return parts.map((part) => {
+    const eps = {};
+    part.eps.forEach((id, i) => {
+      if (id) eps[i + 1] = id;
+    });
+    const label = part.season || parts.length > 1 ? `Season ${part.season || 1}` : "";
+    return { season: part.season, label, eps, lodynet: true };
+  });
+}
+
 // A part found by live search instead (a series newer than the index) has no
 // episode list, just a name and a count.
 function dubNumbers(part) {
@@ -391,6 +437,7 @@ function dubNumbers(part) {
 }
 
 async function dubEpisodeUrl(part, number) {
+  if (part.lodynet) return part.eps[number] ? `${LODYNET_SITE}?p=${part.eps[number]}#IframeWetch` : null;
   return part.count ? qissaEpisodeUrl(part.name, number, true) : qissaPostUrl(part.eps[number]);
 }
 
@@ -424,7 +471,10 @@ async function prepareQissa(player, data) {
   const index = await loadQissaIndex();
   const entry = index.series?.[data.id];
   const fresh = entry ? await loadNewQissaEpisodes(index.built) : {};
-  const dub = qissaParts(entry, "dub", fresh);
+  // The dub comes from whichever of the two sources has more of it.
+  const episodes = (parts) => parts.reduce((sum, part) => sum + Object.keys(part.eps).length, 0);
+  const sources = [qissaParts(entry, "dub", fresh), lodynetParts((await loadLodynetIndex())[data.id])];
+  const dub = episodes(sources[1]) > episodes(sources[0]) ? sources[1] : sources[0];
   player.qissaSub = qissaParts(entry, "sub", fresh);
   const found = (name, subUrl, parts) => {
     player.qissa = { name, subUrl, dub: parts, dubUrl: null, season: player.season, episode: player.episode };
@@ -465,7 +515,7 @@ async function prepareQissa(player, data) {
   } catch {
     // Site unreachable or TMDB has no Arabic name -- the other servers apply.
   }
-  if (dub.length) found(player.qissaNames?.[0] || entry.names[0], null, dub);
+  if (dub.length) found(player.qissaNames?.[0] || "", null, dub);
 }
 
 // Re-points the Arabic-subtitled server at another episode of the playing
@@ -2896,7 +2946,7 @@ function injectPlayer(url) {
 
   heroArea.classList.add("is-playing");
   heroArea.style.backgroundImage = "";
-  const cropped = url.startsWith(QISSA_SITE);
+  const cropped = FRAMED_SITES.find((framed) => url.startsWith(framed.site));
   heroArea.innerHTML = `
     <div class="modal-trailer">
       <!-- Note: the allow attribute uses FULLSET with a wildcard, not bare
@@ -2909,7 +2959,7 @@ function injectPlayer(url) {
            servers' native buttons work again. -->
       <iframe src="${url}" frameborder="0"${cropped ? ' scrolling="no"' : ""} allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
-  if (cropped) cropQissaFrame(heroArea);
+  if (cropped) cropSiteFrame(heroArea, cropped);
   mountStageFsBtn(heroArea);
 }
 
