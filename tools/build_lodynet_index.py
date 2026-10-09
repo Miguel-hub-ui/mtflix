@@ -1,22 +1,27 @@
-"""Builds lodynet-series.json: the Arabic-dubbed Turkish series on Lodynet, by TMDB id.
+"""Builds lodynet-series.json: the Turkish series on Lodynet, by TMDB id.
 
-Lodynet is the second source behind the "Arabic dubbed" server (Qissat Ishq,
-see build_qissa_index.py, is the first): it carries the older dubs that site
-doesn't. Every dubbed series (or season of one) is a category under the
-site's "Turkish dubbed" category, and CATEGORIES below ties each to its TMDB
-id and season. This reads the episodes of those categories through the site's
-public posts API and keeps the ones whose page still offers the site's own
-"ViD LO" player, the one MTFlix frames.
+Lodynet is the second source behind the two Arabic servers (Qissat Ishq, see
+build_qissa_index.py, is the first): it carries the older dubs and many
+subtitled series that site doesn't. Every series (or season of one) is a
+category under the site's "Turkish dubbed" or "Turkish subtitled" category.
+A dubbed category is tied to its TMDB id and season by hand, in CATEGORIES
+below; a subtitled one names the series in Latin script ("مسلسل رجل العصا Cop
+Adam مترجم"), which is looked up on TMDB. This reads the episodes of those
+categories through the site's public posts API and keeps the ones whose page
+still offers the site's own "ViD LO" player, the one MTFlix frames.
 
-Run from the repo root (the site rarely adds Turkish dubs any more):
+Run from the repo root to pick up new series and episodes (episodes already
+in the file are not checked again, so a re-run is quick):
 
     python tools/build_lodynet_index.py
 
-A category it prints as "unmapped" needs a line in CATEGORIES.
+A dubbed category it prints as "unmapped" needs a line in CATEGORIES;
+--all also lists the subtitled categories TMDB didn't lead to.
 
 Output: lodynet-series.json ->
-    { "<tmdb id>": [ { "season": 2,      (0: the category names no season)
-                       "eps": [<post id of episode 1, 0 if missing>, ...] } ] }
+    { "<tmdb id>": { "sub": [ <part>, ... ], "dub": [ <part>, ... ] } }
+    part = { "season": 2,      (0: the category names no season)
+             "eps": [<post id of episode 1, 0 if missing>, ...] }
 """
 
 import concurrent.futures
@@ -25,6 +30,7 @@ import json
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -34,6 +40,11 @@ API = f"{SITE}/wp-json/wp/v2"
 OUT = "lodynet-series.json"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 DUBBED = 12586  # "مسلسلات تركية مدبلجة"
+SUBTITLED = 36  # "مسلسلات تركية مترجمة"
+TMDB = "https://api.themoviedb.org/3"
+LATIN = re.compile(r"[A-Za-zÇĞİÖŞÜçğıöşüâîû][A-Za-zÇĞİÖŞÜçğıöşüâîû0-9'.:&!?-]*")
+SEASONS = {"الأول": 1, "الاول": 1, "الآول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "الخامس": 5, "السادس": 6, "السابع": 7}
+SEASON = re.compile(r"(?:الموسم|الجزء)\s+(\S+)")
 VIDLO = '"Id":116413'  # the site's own player in a page's server list
 EPISODE = re.compile(r"(?:ال)?حلقة\s+(\d+)")
 
@@ -155,49 +166,96 @@ def pages(path, **query):
         page += 1
 
 
+def slug(name):
+    """turkishSlug() in app.js."""
+    name = re.sub("[İIı]", "i", name).lower()
+    name = "".join(c for c in unicodedata.normalize("NFD", name) if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "-", name).strip("-")
+
+
+def tmdb_id(title, key):
+    """TMDB id of the Turkish series with this (often accent-less) title, or 0."""
+    query = urllib.parse.urlencode({"api_key": key, "query": title})
+    found, _ = get(f"{TMDB}/search/tv?{query}")
+    for result in (found or {}).get("results", []):
+        if result.get("original_language") == "tr" and slug(title) in (slug(result.get("original_name") or ""), slug(result.get("name") or "")):
+            return result["id"]
+    return 0
+
+
+def subtitled(cat, key):
+    """(TMDB id, season) of a subtitled category, from the Latin-script title in its name."""
+    name = html.unescape(cat["name"])
+    season = SEASON.search(name)
+    title = " ".join(w for w in LATIN.findall(name) if not re.fullmatch(r"(19|20)\d\d", w))
+    if len(title) < 2:
+        return 0, 0
+    return tmdb_id(title, key), SEASONS.get(season.group(1), 0) if season else 0
+
+
 def has_player(post_id):
     page, _ = get(f"{SITE}/?p={post_id}", parse=False)
     return page is None or VIDLO in page  # unreachable: left in rather than dropped
 
 
 def main():
-    series = {}
-    for cat in pages("categories", parent=DUBBED, _fields="id,name,count"):
-        if not cat["count"]:
-            continue
-        if cat["id"] not in CATEGORIES:
-            print(f"unmapped: {cat['id']} {cat['name']} ({cat['count']} episodes)")
-            continue
-        tmdb_id, season = CATEGORIES[cat["id"]]
-        if not tmdb_id:
-            continue
-        eps = series.setdefault(tmdb_id, {}).setdefault(season, {})
-        for post in pages("posts", categories=cat["id"], _fields="id,title"):
-            m = EPISODE.search(html.unescape(post["title"]["rendered"]))
-            if m:
-                eps.setdefault(int(m.group(1)), post["id"])
-        print(f"{cat['name']}: {len(eps)}", flush=True)
+    key = re.search(r'TMDB_API_KEY = "(\w+)"', open("app.js", encoding="utf-8").read()).group(1)
+    try:
+        old = json.load(open(OUT, encoding="utf-8"))
+        known = {i for entry in old.values() for kind in ("sub", "dub") for part in entry[kind] for i in part["eps"] if i}
+    except Exception:
+        known = set()
+
+    # tmdb id -> kind -> season -> { episode number: post id }
+    series, unmapped = {}, []
+    for kind, parent in (("dub", DUBBED), ("sub", SUBTITLED)):
+        for cat in pages("categories", parent=parent, _fields="id,name,count"):
+            if not cat["count"]:
+                continue
+            if kind == "sub":
+                tmdb, season = subtitled(cat, key)
+            elif cat["id"] in CATEGORIES:
+                tmdb, season = CATEGORIES[cat["id"]]
+            else:
+                tmdb, season = 0, 0
+                unmapped.append(f"dub {cat['id']} {cat['name']} ({cat['count']} episodes)")
+            if not tmdb:
+                if kind == "sub" and "--all" in sys.argv:
+                    unmapped.append(f"sub {cat['id']} {cat['name']} ({cat['count']} episodes)")
+                continue
+            eps = series.setdefault(tmdb, {"sub": {}, "dub": {}})[kind].setdefault(season, {})
+            for post in pages("posts", categories=cat["id"], _fields="id,title"):
+                m = EPISODE.search(html.unescape(post["title"]["rendered"]))
+                if m:
+                    eps.setdefault(int(m.group(1)), post["id"])
+            print(f"{kind} {cat['name']}: {len(eps)}", flush=True)
     if not series:
         sys.exit("No series read; file left unchanged.")
 
-    ids = sorted({i for seasons in series.values() for eps in seasons.values() for i in eps.values()})
-    print(f"checking {len(ids)} episodes for a player", flush=True)
+    ids = sorted({i for entry in series.values() for kind in ("sub", "dub") for eps in entry[kind].values() for i in eps.values()} - known)
+    print(f"checking {len(ids)} new episodes for a player", flush=True)
     with concurrent.futures.ThreadPoolExecutor(8) as pool:
         empty = {i for i, ok in zip(ids, pool.map(has_player, ids)) if not ok}
     print(f"{len(empty)} episodes have no player on the site and are left out")
 
     index = {}
-    for tmdb_id, seasons in series.items():
-        parts = [
-            {"season": season, "eps": [0 if eps.get(n, 0) in empty else eps.get(n, 0) for n in range(1, max(eps) + 1)]}
-            for season, eps in sorted(seasons.items())
-            if set(eps.values()) - empty
-        ]
-        if parts:
-            index[str(tmdb_id)] = parts
+    for tmdb, entry in series.items():
+        parts = {
+            kind: [
+                {"season": season, "eps": [0 if eps.get(n, 0) in empty else eps.get(n, 0) for n in range(1, max(eps) + 1)]}
+                for season, eps in sorted(entry[kind].items())
+                if set(eps.values()) - empty
+            ]
+            for kind in ("sub", "dub")
+        }
+        if parts["sub"] or parts["dub"]:
+            index[str(tmdb)] = parts
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(index, f, separators=(",", ":"), sort_keys=True)
-    print(f"{len(index)} series, {sum(1 for parts in index.values() for part in parts for e in part['eps'] if e)} episodes -> {OUT}")
+    count = lambda kind: sum(1 for entry in index.values() for part in entry[kind] for e in part["eps"] if e)
+    print(f"{len(index)} series, {count('sub')} subtitled and {count('dub')} dubbed episodes -> {OUT}")
+    for line in unmapped:
+        print("unmapped:", line)
 
 
 if __name__ == "__main__":

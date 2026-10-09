@@ -398,18 +398,28 @@ async function qissaPostUrl(ref) {
   return res.ok ? `${(await res.json()).link}?do=watch` : null;
 }
 
-// The subtitled episode in the index. The site lists a later season either
-// on its own, numbered from 1, or straight on after the earlier ones.
-function indexedSubUrl(player, season, episode) {
-  const parts = player.qissaSub || [];
+// The subtitled episode in one site's index. A site lists a later season
+// either on its own -- numbered from 1 or straight on after the earlier
+// ones -- or inside the first listing.
+function indexedEpisode(parts, player, season, episode) {
+  const absolute = absoluteEpisode(player, season, episode);
   const own = Number(season) > 1 ? parts.find((part) => part.season === Number(season)) : null;
   const first = parts.find((part) => part.season <= 1);
-  return qissaPostUrl(own?.eps[episode] || first?.eps[absoluteEpisode(player, season, episode)]).catch(() => null);
+  return own?.eps[episode] || own?.eps[absolute] || first?.eps[absolute] || null;
 }
 
-// lodynet-series.json (built by tools/build_lodynet_index.py): the dubbed
-// episodes of the second source, Lodynet, which carries the older dubs
-// Qissat Ishq doesn't -- { "<tmdb id>": [ { season, eps: [<post id>, ...] } ] }.
+// The subtitled episode from the indexes: Qissat Ishq first, then Lodynet.
+async function indexedSubUrl(player, season, episode) {
+  const url = await qissaPostUrl(indexedEpisode(player.qissaSub || [], player, season, episode)).catch(() => null);
+  if (url) return url;
+  const id = indexedEpisode(player.lodynetSub || [], player, season, episode);
+  return id ? `${LODYNET_SITE}?p=${id}#IframeWetch` : null;
+}
+
+// lodynet-series.json (built by tools/build_lodynet_index.py): the episodes
+// of the second source, Lodynet, which carries the older dubs and many
+// subtitled series Qissat Ishq doesn't --
+// { "<tmdb id>": { sub: [<part>], dub: [<part>] } }, part = { season, eps: [<post id>, ...] }.
 let lodynetIndexPromise = null;
 
 function loadLodynetIndex() {
@@ -473,9 +483,12 @@ async function prepareQissa(player, data) {
   const fresh = entry ? await loadNewQissaEpisodes(index.built) : {};
   // The dub comes from whichever of the two sources has more of it.
   const episodes = (parts) => parts.reduce((sum, part) => sum + Object.keys(part.eps).length, 0);
-  const sources = [qissaParts(entry, "dub", fresh), lodynetParts((await loadLodynetIndex())[data.id])];
+  const lodynet = (await loadLodynetIndex())[data.id];
+  const sources = [qissaParts(entry, "dub", fresh), lodynetParts(lodynet?.dub)];
   const dub = episodes(sources[1]) > episodes(sources[0]) ? sources[1] : sources[0];
   player.qissaSub = qissaParts(entry, "sub", fresh);
+  player.lodynetSub = lodynetParts(lodynet?.sub);
+  const indexed = await indexedSubUrl(player, player.season, player.episode);
   const found = (name, subUrl, parts) => {
     player.qissa = { name, subUrl, dub: parts, dubUrl: null, season: player.season, episode: player.episode };
   };
@@ -484,7 +497,6 @@ async function prepareQissa(player, data) {
     const isArabic = (t) => /[\u0600-\u06ff]/.test(t || "");
     const names = [ar.name, ...(ar.alternative_titles?.results || []).map((t) => t.title)].filter(isArabic);
     const number = absoluteEpisode(player, player.season, player.episode);
-    const indexed = await indexedSubUrl(player, player.season, player.episode);
     // The site often uses another Arabic name than TMDB does. Its own name
     // for the series comes first: from the index, or, for a series the index
     // doesn't list, from a live search for the Turkish title, which some of
@@ -515,18 +527,18 @@ async function prepareQissa(player, data) {
   } catch {
     // Site unreachable or TMDB has no Arabic name -- the other servers apply.
   }
-  if (dub.length) found(player.qissaNames?.[0] || "", null, dub);
+  if (dub.length || indexed) found(player.qissaNames?.[0] || "", indexed, dub);
 }
 
 // Re-points the Arabic-subtitled server at another episode of the playing
 // series (an episode picked from the list swaps the player in place).
 async function refreshQissaEpisode(season, episode) {
   const player = currentPlayer;
-  if (!player?.qissaNames?.length) return;
+  if (!player?.qissaSub) return;
   const number = absoluteEpisode(player, season, episode);
   let name = player.qissa?.name;
   let subUrl = await indexedSubUrl(player, season, episode);
-  for (const candidate of subUrl || player.qissaSub.length ? [] : name ? [name] : player.qissaNames) {
+  for (const candidate of subUrl || player.qissaSub.length ? [] : name ? [name] : player.qissaNames || []) {
     subUrl = number ? await qissaEpisodeUrl(candidate, number, false).catch(() => null) : null;
     if (subUrl) {
       name = candidate;
@@ -534,7 +546,7 @@ async function refreshQissaEpisode(season, episode) {
     }
   }
   if (player.qissa) Object.assign(player.qissa, { subUrl, season, episode });
-  else if (subUrl) player.qissa = { name: name || player.qissaNames[0], subUrl, dub: [], dubUrl: null, season, episode };
+  else if (subUrl) player.qissa = { name: name || player.qissaNames?.[0] || "", subUrl, dub: [], dubUrl: null, season, episode };
 }
 
 const LS_DUB_EPISODE = "mtflix_dub_episode";
@@ -611,7 +623,17 @@ function setupDubRow() {
   $("#watch-dub-row")?.remove();
   const q = currentPlayer?.qissa;
   const info = $(".watch-info");
-  if (!q?.dub.length || !info) return;
+  if (!info || currentPlayerLang !== "tr" || currentPlayer?.type !== "tv") return;
+  if (!q?.dub.length) {
+    // Every Turkish series gets the row, so it is plain what exists for it.
+    const none = document.createElement("div");
+    none.className = "episodes-season-row";
+    none.id = "watch-dub-row";
+    const subs = PLAYER_SOURCES.qissa.buildUrl("tv", currentPlayer.id, currentPlayer.season, currentPlayer.episode);
+    none.innerHTML = `<span>${subs ? "Voice: Turkish with Arabic subtitles" : "No Arabic subtitles found for this episode"} · no Arabic dub available for this series</span>`;
+    info.appendChild(none);
+    return;
+  }
   const arabic = getPlayerSourceId() === "qissadub";
   const row = document.createElement("div");
   row.className = "episodes-season-row";
