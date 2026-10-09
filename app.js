@@ -571,6 +571,68 @@ async function refreshQissaEpisode(season, episode) {
   else if (subUrl) player.qissa = { name: name || player.qissaNames?.[0] || "", subUrl, dub: [], dubUrl: null, season, episode };
 }
 
+// The subtitled episodes of the playing series on the source that has the
+// most of them.
+function subtitledSource(player) {
+  const sources = [
+    { site: "sk", parts: player.skSub || [] },
+    { site: "qissa", parts: player.qissaSub || [] },
+    { site: "lodynet", parts: player.lodynetSub || [] },
+  ];
+  const count = (source) => source.parts.reduce((sum, part) => sum + Object.keys(part.eps).length, 0);
+  return sources.reduce((best, source) => (count(source) > count(best) ? source : best));
+}
+
+// Second row under the player: the series' subtitled episodes as the source
+// numbers them. TMDB sometimes lists another cut of a series than the
+// Turkish broadcast the sites follow (Arafta: 148 episodes on TMDB, 71
+// broadcast), and then the season/episode list can't lead to an episode --
+// this picker always can.
+function setupSubtitledPicker(info) {
+  $("#watch-sub-row")?.remove();
+  const player = currentPlayer;
+  const { site, parts } = subtitledSource(player);
+  if (!parts.length) return;
+  const row = document.createElement("div");
+  row.className = "episodes-season-row";
+  row.id = "watch-sub-row";
+  const seasons = parts.map((part, i) => `<option value="${i}">${part.label || "Season 1"}</option>`).join("");
+  row.innerHTML = `<span>Arabic-subtitled episodes (Turkish broadcast numbering)</span>
+     ${parts.length > 1 ? `<select id="watch-sub-season">${seasons}</select>` : ""}
+     <select id="watch-sub-select"></select>
+     <button type="button" class="watch-source-btn" id="watch-sub-play">Play</button>`;
+  info.appendChild(row);
+  const season = $("#watch-sub-season");
+  const select = $("#watch-sub-select");
+  const shown = () => parts[Number(season?.value || 0)];
+  const fill = () => {
+    select.innerHTML = Object.keys(shown().eps).map((n) => `<option value="${n}">${n}</option>`).join("");
+  };
+  fill();
+  // Starts on the episode the page was opened on, when the source has it.
+  const wanted = String(absoluteEpisode(player, player.season, player.episode));
+  if (shown().eps[wanted]) select.value = wanted;
+  season?.addEventListener("change", fill);
+  $("#watch-sub-play").addEventListener("click", async () => {
+    const ref = shown().eps[select.value];
+    const url =
+      site === "sk"
+        ? `${SK_SITE}?emb=true&id=${ref}&serv=0`
+        : site === "lodynet"
+          ? `${LODYNET_SITE}?p=${ref}#IframeWetch`
+          : await qissaPostUrl(ref).catch(() => null);
+    if (!url || player !== currentPlayer) {
+      showToast(`Episode ${select.value} isn't available`);
+      return;
+    }
+    player.qissa ||= { name: "", dub: [], dubUrl: null };
+    Object.assign(player.qissa, { subUrl: url, season: player.season, episode: player.episode });
+    setPlayerSourceId("qissa");
+    showSourceLabel();
+    injectPlayer(url);
+  });
+}
+
 const LS_DUB_EPISODE = "mtflix_dub_episode";
 const LS_VOICE_TURKISH = "mtflix_voice_turkish";
 
@@ -643,6 +705,7 @@ function showSourceLabel() {
 // Turkish it offers the way back.
 function setupDubRow() {
   $("#watch-dub-row")?.remove();
+  $("#watch-sub-row")?.remove();
   const q = currentPlayer?.qissa;
   const info = $(".watch-info");
   if (!info || currentPlayerLang !== "tr" || currentPlayer?.type !== "tv") return;
@@ -654,6 +717,7 @@ function setupDubRow() {
     const subs = PLAYER_SOURCES.qissa.buildUrl("tv", currentPlayer.id, currentPlayer.season, currentPlayer.episode);
     none.innerHTML = `<span>${subs ? "Voice: Turkish with Arabic subtitles" : "No Arabic subtitles found for this episode"} · no Arabic dub available for this series</span>`;
     info.appendChild(none);
+    setupSubtitledPicker(info);
     return;
   }
   const arabic = getPlayerSourceId() === "qissadub";
