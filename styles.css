@@ -1051,6 +1051,34 @@ body.watch-page {
   left: 0;
   min-width: 140px;
 }
+/* A long server list scrolls instead of running out of the screen. */
+.watch-source-menu {
+  max-height: min(60vh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.watch-source-option { flex-shrink: 0; }
+/* Phones: .watch-card clips its children, and there the card is barely
+   taller than the player, so a menu hanging under its button lost its last
+   servers with no way to reach them. It opens as a sheet pinned to the
+   bottom of the screen instead (fixed, so the card can't clip it). */
+@media (max-width: 640px) {
+  .watch-source-menu,
+  .watch-server-dropdown .watch-source-menu {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-height: 60vh;
+    z-index: 1000;
+  }
+  .watch-source-option {
+    padding: 14px 12px;
+    font-size: 0.95rem;
+  }
+}
 
 .watch-card {
   background: var(--surface);
@@ -1484,6 +1512,12 @@ body.watch-page {
   margin-bottom: 20px;
   font-size: 0.9rem;
   color: var(--muted);
+}
+/* The voice rows under the player hold up to four controls: on a phone they
+   wrap instead of running off the side. */
+#watch-dub-row,
+#watch-sub-row {
+  flex-wrap: wrap;
 }
 .episodes-season-row select {
   background: var(--surface-2);
