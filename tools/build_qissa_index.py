@@ -23,9 +23,10 @@ Output: qissa-series.json ->
                                  "sub": [ <part>, ... ], "dub": [ <part>, ... ] } } }
     part = { "season": 2,            (0: the listing names no season)
              "titles": ["<title before الحلقة>", ...],
-             "eps": [<post id of episode 1, 0 if missing>, ...] }
+             "eps": [<post id of episode 1, 0 if missing or without a video>, ...] }
 """
 
+import concurrent.futures
 import datetime
 import html
 import json
@@ -37,6 +38,8 @@ import urllib.parse
 import urllib.request
 
 API = "https://new.eishq.net/wp-json/wp/v2/posts"
+# What the site's own watch page calls to load a post's first video server.
+EMBED = "https://new.eishq.net/wp-content/themes/vo2023/temp/ajax/iframe2.php?video=0&serverId=29&id="
 TMDB = "https://api.themoviedb.org/3"
 OUT = "qissa-series.json"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -179,6 +182,18 @@ def tmdb_ids(name, key):
     ]
 
 
+def has_video(post_id):
+    """False for a post the site published without a video: its watch page is an empty player."""
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(f"{EMBED}{post_id}", headers={"User-Agent": UA, "Referer": "https://new.eishq.net/", "X-Requested-With": "XMLHttpRequest"})
+            with urllib.request.urlopen(req, timeout=60) as res:
+                return "<iframe" in res.read().decode("utf-8", "replace")
+        except Exception:
+            time.sleep(5 * (attempt + 1))
+    return True  # unreachable: left in rather than dropped on a network error
+
+
 def main():
     built = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
     key = re.search(r'TMDB_API_KEY = "(\w+)"', open("app.js", encoding="utf-8").read()).group(1)
@@ -228,13 +243,21 @@ def main():
             part["titles"].append(title)
             part["eps"].update(eps)
 
+    # About one episode in twenty-five is a post without a video behind it.
+    ids = sorted({i for entry in series.values() for kind in ("sub", "dub") for part in entry[kind].values() for i in part["eps"].values()})
+    print(f"checking {len(ids)} episodes for a video", flush=True)
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        empty = {i for i, ok in zip(ids, pool.map(has_video, ids)) if not ok}
+    print(f"{len(empty)} episodes have no video on the site and are left out")
+
     index = {}
     for tmdb_id, entry in series.items():
         index[str(tmdb_id)] = {"names": entry["names"]}
         for kind in ("sub", "dub"):
             index[str(tmdb_id)][kind] = [
-                {"season": number, "titles": part["titles"], "eps": [part["eps"].get(n, 0) for n in range(1, max(part["eps"]) + 1)]}
+                {"season": number, "titles": part["titles"], "eps": [0 if part["eps"].get(n, 0) in empty else part["eps"].get(n, 0) for n in range(1, max(part["eps"]) + 1)]}
                 for number, part in sorted(entry[kind].items())
+                if part["eps"].values() - empty
             ]
 
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:

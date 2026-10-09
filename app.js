@@ -451,7 +451,9 @@ async function prepareQissa(player, data) {
     player.qissaNames = names.map((n) => n.trim()).filter((n, i, all) => all.findIndex((m) => foldArabic(m) === foldArabic(n)) === i).slice(0, 5);
     for (const name of player.qissaNames) {
       const [subUrl, live] = await Promise.all([
-        indexed || (number ? qissaEpisodeUrl(name, number, false) : null),
+        // An indexed series is searched for no further: an episode the index
+        // leaves out is one the site has no video for.
+        indexed || (number && !player.qissaSub.length ? qissaEpisodeUrl(name, number, false) : null),
         dub.length ? null : qissaPosts(`${name} مدبلجة`, 1),
       ]);
       const count = live && foldArabic(live.posts[0]?.title?.rendered).startsWith(`مسلسل ${foldArabic(name)} `) ? live.total : 0;
@@ -474,7 +476,7 @@ async function refreshQissaEpisode(season, episode) {
   const number = absoluteEpisode(player, season, episode);
   let name = player.qissa?.name;
   let subUrl = await indexedSubUrl(player, season, episode);
-  for (const candidate of subUrl ? [] : name ? [name] : player.qissaNames) {
+  for (const candidate of subUrl || player.qissaSub.length ? [] : name ? [name] : player.qissaNames) {
     subUrl = number ? await qissaEpisodeUrl(candidate, number, false).catch(() => null) : null;
     if (subUrl) {
       name = candidate;
@@ -504,9 +506,14 @@ function writeLsMap(key, id, value) {
 }
 
 // A series with an Arabic dub plays in Arabic unless the viewer switched
-// that series to Turkish (remembered per series).
+// that series to Turkish (remembered per series). A dub the site has under
+// half the episodes of (Bahar: 5 of 181) is offered but not the default.
 function arabicVoiceWanted() {
-  return !!currentPlayer?.qissa?.dub.length && !readLsMap(LS_VOICE_TURKISH)[currentPlayer.id];
+  const parts = currentPlayer?.qissa?.dub || [];
+  const numbers = parts.map(dubNumbers);
+  const have = numbers.reduce((sum, list) => sum + list.length, 0);
+  const span = numbers.reduce((sum, list) => sum + Math.max(...list), 0);
+  return have > 0 && have * 2 >= span && !readLsMap(LS_VOICE_TURKISH)[currentPlayer.id];
 }
 
 // The dubbed episode last played of the playing series -- stored as
