@@ -313,8 +313,8 @@ function foldArabic(text) {
 }
 
 // qissa-series.json (built by tools/build_qissa_index.py) lists, per TMDB id,
-// the Arabic names the site files a series under and every dubbed episode it
-// has, season by season, as post ids.
+// the Arabic names the site files a series under and every subtitled and
+// dubbed episode it has, season by season, as post ids.
 let qissaIndexPromise = null;
 
 function loadQissaIndex() {
@@ -327,39 +327,61 @@ function loadQissaIndex() {
 // "<series, maybe with its season> الحلقة <n> ..." -- with the site's typos.
 const QISSA_EPISODE_TITLE = /^(.+?)\s+(?:الحلق[ةه]|الخلقة|الحلفة)\s+(\d+)/;
 
-// Dubbed episodes posted since the index was built, so an airing dub is
-// never a build behind: { "<title before الحلقة>": { <number>: <post link> } }.
-let newDubEpisodesPromise = null;
+// Episodes posted since the index was built, so an airing series is never a
+// build behind: { "<sub|dub>:<title before الحلقة>": { <number>: <post link> } }.
+let newQissaEpisodesPromise = null;
 
-function loadNewDubEpisodes(built) {
-  newDubEpisodesPromise ||= (async () => {
+function loadNewQissaEpisodes(built) {
+  newQissaEpisodesPromise ||= (async () => {
     const found = {};
     for (let page = 1; built && page <= 5; page++) {
-      const res = await fetch(`${QISSA_API}?search=${encodeURIComponent("مدبلج")}&after=${built}&per_page=100&page=${page}&_fields=title,link`);
+      const res = await fetch(`${QISSA_API}?after=${built}&per_page=100&page=${page}&_fields=title,link`);
       if (!res.ok) break;
       const posts = await res.json();
       for (const post of posts) {
-        const m = String(post.title?.rendered || "").trim().match(QISSA_EPISODE_TITLE);
-        if (m) (found[m[1]] ||= {})[Number(m[2])] = post.link;
+        const title = String(post.title?.rendered || "").trim();
+        const m = title.match(QISSA_EPISODE_TITLE);
+        if (m) (found[`${title.includes("مدبلج") ? "dub" : "sub"}:${m[1]}`] ||= {})[Number(m[2])] = post.link;
       }
       if (posts.length < 100) break;
     }
     return found;
   })().catch(() => ({}));
-  return newDubEpisodesPromise;
+  return newQissaEpisodesPromise;
 }
 
-// The dubbed release of one indexed series as the player uses it: one part
-// per season, each { label, eps: { <number>: <post id or link> } }.
-function dubParts(entry, fresh) {
-  return (entry?.dub || []).map((part) => {
+// One release ("sub" or "dub") of an indexed series as the player uses it:
+// one part per season the site lists separately, each
+// { season, label, eps: { <number>: <post id or link> } }.
+function qissaParts(entry, kind, fresh) {
+  const parts = entry?.[kind] || [];
+  return parts.map((part) => {
     const eps = {};
     part.eps.forEach((id, i) => {
       if (id) eps[i + 1] = id;
     });
-    for (const title of part.titles) Object.assign(eps, fresh[title]);
-    return { label: part.label, eps };
+    for (const title of part.titles) Object.assign(eps, fresh[`${kind}:${title}`]);
+    const label = part.season || parts.length > 1 ? `Season ${part.season || 1}` : "";
+    return { season: part.season, label, eps };
   });
+}
+
+// Watch-page URL behind an index entry: a post id, or the link of a post
+// newer than the index.
+async function qissaPostUrl(ref) {
+  if (!ref) return null;
+  if (typeof ref === "string") return `${ref}?do=watch`;
+  const res = await fetch(`${QISSA_API}/${ref}?_fields=link`);
+  return res.ok ? `${(await res.json()).link}?do=watch` : null;
+}
+
+// The subtitled episode in the index. The site lists a later season either
+// on its own, numbered from 1, or straight on after the earlier ones.
+function indexedSubUrl(player, season, episode) {
+  const parts = player.qissaSub || [];
+  const own = Number(season) > 1 ? parts.find((part) => part.season === Number(season)) : null;
+  const first = parts.find((part) => part.season <= 1);
+  return qissaPostUrl(own?.eps[episode] || first?.eps[absoluteEpisode(player, season, episode)]).catch(() => null);
 }
 
 // A part found by live search instead (a series newer than the index) has no
@@ -369,12 +391,7 @@ function dubNumbers(part) {
 }
 
 async function dubEpisodeUrl(part, number) {
-  if (part.count) return qissaEpisodeUrl(part.name, number, true);
-  const ref = part.eps[number];
-  if (!ref) return null;
-  if (typeof ref === "string") return `${ref}?do=watch`;
-  const res = await fetch(`${QISSA_API}/${ref}?_fields=link`);
-  return res.ok ? `${(await res.json()).link}?do=watch` : null;
+  return part.count ? qissaEpisodeUrl(part.name, number, true) : qissaPostUrl(part.eps[number]);
 }
 
 async function qissaPosts(search, perPage) {
@@ -406,15 +423,18 @@ async function qissaEpisodeUrl(name, number, dubbed) {
 async function prepareQissa(player, data) {
   const index = await loadQissaIndex();
   const entry = index.series?.[data.id];
-  const dub = entry ? dubParts(entry, await loadNewDubEpisodes(index.built)) : [];
+  const fresh = entry ? await loadNewQissaEpisodes(index.built) : {};
+  const dub = qissaParts(entry, "dub", fresh);
+  player.qissaSub = qissaParts(entry, "sub", fresh);
   const found = (name, subUrl, parts) => {
     player.qissa = { name, subUrl, dub: parts, dubUrl: null, season: player.season, episode: player.episode };
   };
   try {
     const ar = await tmdb(`/tv/${data.id}`, { language: "ar", append_to_response: "alternative_titles" }).catch(() => ({}));
-    const isArabic = (t) => /[؀-ۿ]/.test(t || "");
+    const isArabic = (t) => /[\u0600-\u06ff]/.test(t || "");
     const names = [ar.name, ...(ar.alternative_titles?.results || []).map((t) => t.title)].filter(isArabic);
     const number = absoluteEpisode(player, player.season, player.episode);
+    const indexed = await indexedSubUrl(player, player.season, player.episode);
     // The site often uses another Arabic name than TMDB does. Its own name
     // for the series comes first: from the index, or, for a series the index
     // doesn't list, from a live search for the Turkish title, which some of
@@ -431,7 +451,7 @@ async function prepareQissa(player, data) {
     player.qissaNames = names.map((n) => n.trim()).filter((n, i, all) => all.findIndex((m) => foldArabic(m) === foldArabic(n)) === i).slice(0, 5);
     for (const name of player.qissaNames) {
       const [subUrl, live] = await Promise.all([
-        number ? qissaEpisodeUrl(name, number, false) : null,
+        indexed || (number ? qissaEpisodeUrl(name, number, false) : null),
         dub.length ? null : qissaPosts(`${name} مدبلجة`, 1),
       ]);
       const count = live && foldArabic(live.posts[0]?.title?.rendered).startsWith(`مسلسل ${foldArabic(name)} `) ? live.total : 0;
@@ -453,8 +473,8 @@ async function refreshQissaEpisode(season, episode) {
   if (!player?.qissaNames?.length) return;
   const number = absoluteEpisode(player, season, episode);
   let name = player.qissa?.name;
-  let subUrl = null;
-  for (const candidate of name ? [name] : player.qissaNames) {
+  let subUrl = await indexedSubUrl(player, season, episode);
+  for (const candidate of subUrl ? [] : name ? [name] : player.qissaNames) {
     subUrl = number ? await qissaEpisodeUrl(candidate, number, false).catch(() => null) : null;
     if (subUrl) {
       name = candidate;
@@ -462,7 +482,7 @@ async function refreshQissaEpisode(season, episode) {
     }
   }
   if (player.qissa) Object.assign(player.qissa, { subUrl, season, episode });
-  else if (subUrl) player.qissa = { name, subUrl, dub: [], dubUrl: null, season, episode };
+  else if (subUrl) player.qissa = { name: name || player.qissaNames[0], subUrl, dub: [], dubUrl: null, season, episode };
 }
 
 const LS_DUB_EPISODE = "mtflix_dub_episode";
