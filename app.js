@@ -314,8 +314,12 @@ function cropSiteFrame(stage, { width, playerLeft, playerTop, playerWidth, playe
   };
   frame.addEventListener("load", repaint);
   [3000, 7000, 12000, 20000].forEach((ms) => setTimeout(repaint, ms));
-  // These sites are slow: the stage stays black for half a minute or more
-  // before their player shows, which reads as broken without a word.
+  showSlowPlayerNote(holder);
+}
+
+// The Arabic sites are slow: the stage stays black for half a minute or more
+// before their player shows, which reads as broken without a word.
+function showSlowPlayerNote(holder) {
   const note = document.createElement("div");
   note.textContent = "Loading the Arabic player — this can take up to 40 seconds";
   note.style.cssText = "position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-size:13px;opacity:.75;pointer-events:none;text-shadow:0 1px 3px #000";
@@ -408,8 +412,12 @@ function indexedEpisode(parts, player, season, episode) {
   return own?.eps[episode] || own?.eps[absolute] || first?.eps[absolute] || null;
 }
 
-// The subtitled episode from the indexes: Qissat Ishq first, then Lodynet.
+// The subtitled episode from the indexes. 3sk comes first: its bare embed
+// page fills the stage by itself, where the other two sites' pages have to
+// be cropped to their player. Then Qissat Ishq, then Lodynet.
 async function indexedSubUrl(player, season, episode) {
+  const sk = indexedEpisode(player.skSub || [], player, season, episode);
+  if (sk) return `${SK_SITE}?emb=true&id=${sk}&serv=0`;
   const url = await qissaPostUrl(indexedEpisode(player.qissaSub || [], player, season, episode)).catch(() => null);
   if (url) return url;
   const id = indexedEpisode(player.lodynetSub || [], player, season, episode);
@@ -427,6 +435,19 @@ function loadLodynetIndex() {
     .then((res) => (res.ok ? res.json() : {}))
     .catch(() => ({}));
   return lodynetIndexPromise;
+}
+
+// 3sk-series.json (built by tools/build_3sk_index.py): the subtitled episodes
+// of the third source -- { "<tmdb id>": [ { season, eps: [<post id>, ...] } ] }.
+// An episode plays from the site's bare embed page, /?emb=true&id=<post id>.
+const SK_SITE = "https://3sk.quest/";
+let skIndexPromise = null;
+
+function loadSkIndex() {
+  skIndexPromise ||= fetch("3sk-series.json")
+    .then((res) => (res.ok ? res.json() : {}))
+    .catch(() => ({}));
+  return skIndexPromise;
 }
 
 function lodynetParts(parts = []) {
@@ -488,6 +509,7 @@ async function prepareQissa(player, data) {
   const dub = episodes(sources[1]) > episodes(sources[0]) ? sources[1] : sources[0];
   player.qissaSub = qissaParts(entry, "sub", fresh);
   player.lodynetSub = lodynetParts(lodynet?.sub);
+  player.skSub = lodynetParts((await loadSkIndex())[data.id]);
   const indexed = await indexedSubUrl(player, player.season, player.episode);
   const found = (name, subUrl, parts) => {
     player.qissa = { name, subUrl, dub: parts, dubUrl: null, season: player.season, episode: player.episode };
@@ -2982,6 +3004,7 @@ function injectPlayer(url) {
       <iframe src="${url}" frameborder="0"${cropped ? ' scrolling="no"' : ""} allow="autoplay; encrypted-media; fullscreen *; picture-in-picture; display-capture" allowfullscreen></iframe>
     </div>`;
   if (cropped) cropSiteFrame(heroArea, cropped);
+  else if (url.startsWith(SK_SITE)) showSlowPlayerNote(heroArea.querySelector(".modal-trailer"));
   mountStageFsBtn(heroArea);
 }
 
