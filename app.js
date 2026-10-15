@@ -2379,7 +2379,8 @@ function renderDiscoverGrid(type, container) {
 
   const genreMap = genreMaps[type] || {};
   const genreOptionsHTML = Object.entries(genreMap)
-    .sort((a, b) => a[1].localeCompare(b[1]))
+    // Sci-Fi (movies 878, TV 10765) first, the rest A-Z.
+    .sort((a, b) => (["878", "10765"].includes(b[0]) - ["878", "10765"].includes(a[0])) || a[1].localeCompare(b[1]))
     .map(([id, name]) => `<label class="genre-option"><input type="checkbox" value="${id}" /><span>${escapeHtml(name)}</span></label>`)
     .join("");
   const yearOptionsHTML = yearOptions()
