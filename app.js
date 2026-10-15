@@ -2199,7 +2199,13 @@ function wireRowArrows(section) {
   });
 }
 
+// Bumped on every render: the home rows load one TMDB request at a time, so a
+// switch to Movies / TV mid-load must stop the old loop from appending its
+// remaining rows underneath the new view.
+let rowsRenderId = 0;
+
 async function renderRows(filter) {
+  const renderId = ++rowsRenderId;
   const container = $("#rows");
   container.innerHTML = "";
 
@@ -2230,6 +2236,7 @@ async function renderRows(filter) {
   }
 
   for (const def of ROWS) {
+    if (renderId !== rowsRenderId) return;
     const section = buildRowSection(def);
     container.appendChild(section);
     wireRowArrows(section);
@@ -2244,6 +2251,7 @@ async function renderRows(filter) {
       if (def.id === "tr-tv") {
         items = await enrichItems(items);
       }
+      if (renderId !== rowsRenderId) return;
       fillRow(section, items);
     } catch (err) {
       handleFetchError(err, section);
