@@ -2420,12 +2420,13 @@ function renderDiscoverGrid(type, container) {
 
 async function loadDiscoverPage(reset) {
   if (discoverState.loading) return;
-  discoverState.loading = true;
-  const { type, genre, year, page } = discoverState;
+  const state = discoverState;
+  state.loading = true;
+  const { type, genre, year, page } = state;
   const grid = $("#discover-grid");
   const loadBtn = $("#discover-load-more");
   if (!grid) {
-    discoverState.loading = false;
+    state.loading = false;
     return;
   }
   if (reset) grid.innerHTML = skeletonRow(12);
@@ -2437,7 +2438,10 @@ async function loadDiscoverPage(reset) {
 
   try {
     const data = await tmdb(`/discover/${type}`, params);
-    discoverState.totalPages = data.total_pages || 1;
+    // The viewer switched between Movies / TV Shows (or left) while this
+    // page was loading -- don't pour it into the new view's grid.
+    if (state !== discoverState || !grid.isConnected) return;
+    state.totalPages = data.total_pages || 1;
     const items = data.results.map((r) => normalizeItem(r, type)).filter((i) => i.poster_path);
 
     if (reset) {
@@ -2451,11 +2455,11 @@ async function loadDiscoverPage(reset) {
       grid.insertAdjacentHTML("beforeend", items.map(cardHTML).join(""));
     }
 
-    if (loadBtn) loadBtn.classList.toggle("hidden", discoverState.page >= discoverState.totalPages);
+    if (loadBtn) loadBtn.classList.toggle("hidden", state.page >= state.totalPages);
   } catch (err) {
-    handleFetchError(err, grid);
+    if (state === discoverState) handleFetchError(err, grid);
   } finally {
-    discoverState.loading = false;
+    state.loading = false;
   }
 }
 
