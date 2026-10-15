@@ -2,13 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <script>
+    // Installed app (Android APK, home-screen app, desktop install): tag the
+    // page before it paints so styles.css can drop the browser-ish bits
+    // (text selection, long-press menus, zoom, pull-to-refresh). Remembered
+    // for the session because only the first page load carries the
+    // android-app:// referrer.
+    (function () {
+      var app = false;
+      try {
+        app = sessionStorage.getItem("mtflix_app") === "1" ||
+          ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay"].some(function (m) {
+            return window.matchMedia("(display-mode: " + m + ")").matches;
+          }) ||
+          window.navigator.standalone === true ||
+          document.referrer.indexOf("android-app://") === 0;
+        if (app) sessionStorage.setItem("mtflix_app", "1");
+      } catch (e) {}
+      if (app) document.documentElement.classList.add("is-app");
+    })();
+  </script>
   <title>MTFlix — Watch</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
   <meta name="theme-color" content="#000000" />
-  <link rel="stylesheet" href="styles.css?v=43" />
+  <link rel="stylesheet" href="styles.css?v=44" />
 </head>
 <body class="watch-page" data-page="watch">
 
@@ -54,6 +75,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
 </body>
 </html>

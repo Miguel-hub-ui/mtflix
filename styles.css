@@ -12,7 +12,47 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: var(--bg); }
+/* Taps shouldn't flash a grey box, and double-tap shouldn't wait to zoom. */
+a, button, input, select, textarea, label, [role="button"], .card {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* --- Installed app ---------------------------------------------------------
+   html.is-app is set by the inline script in each page's <head> when MTFlix
+   runs as an installed app. Strip what makes it feel like a web page: text
+   selection, the long-press image/link menu, image dragging, rubber-band
+   pull-to-refresh, and content sliding under the phone's status bar / notch. */
+html.is-app,
+html.is-app body {
+  overscroll-behavior-y: none;
+}
+html.is-app body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
+}
+html.is-app input,
+html.is-app textarea,
+html.is-app [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+html.is-app img,
+html.is-app a {
+  -webkit-user-drag: none;
+}
+html.is-app .navbar {
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-left: max(4%, env(safe-area-inset-left, 0px));
+  padding-right: max(4%, env(safe-area-inset-right, 0px));
+}
+html.is-app .watch-shell {
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+}
 
 body {
   background: var(--bg);

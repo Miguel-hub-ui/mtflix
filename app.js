@@ -6008,6 +6008,37 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Installed app only (html.is-app, set in each page's <head>): no
+// browser-style long-press / right-click menu outside text fields, and no
+// pinch or Ctrl+wheel page zoom -- the layout already scales to the screen.
+if (document.documentElement.classList.contains("is-app")) {
+  const isTextField = (el) => !!el?.closest?.("input, textarea, [contenteditable='true']");
+  document.addEventListener("contextmenu", (e) => {
+    if (!isTextField(e.target)) e.preventDefault();
+  });
+  // iOS ignores user-scalable=no, so pinch zoom is cancelled here instead.
+  ["gesturestart", "gesturechange"].forEach((type) =>
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
+  );
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    },
+    { passive: false }
+  );
+  window.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.ctrlKey) e.preventDefault();
+    },
+    { passive: false }
+  );
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && ["+", "=", "-", "0"].includes(e.key)) e.preventDefault();
+  });
+}
+
 window.addEventListener("load", () => {
   if (document.body.dataset.page === "watch") {
     initWatchPage();

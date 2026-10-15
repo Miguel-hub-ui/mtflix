@@ -2,7 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <script>
+    // Installed app (Android APK, home-screen app, desktop install): tag the
+    // page before it paints so styles.css can drop the browser-ish bits
+    // (text selection, long-press menus, zoom, pull-to-refresh). Remembered
+    // for the session because only the first page load carries the
+    // android-app:// referrer.
+    (function () {
+      var app = false;
+      try {
+        app = sessionStorage.getItem("mtflix_app") === "1" ||
+          ["standalone", "fullscreen", "minimal-ui", "window-controls-overlay"].some(function (m) {
+            return window.matchMedia("(display-mode: " + m + ")").matches;
+          }) ||
+          window.navigator.standalone === true ||
+          document.referrer.indexOf("android-app://") === 0;
+        if (app) sessionStorage.setItem("mtflix_app", "1");
+      } catch (e) {}
+      if (app) document.documentElement.classList.add("is-app");
+    })();
+  </script>
   <title>MTFlix.site — Watch Movies &amp; TV</title>
   <meta name="description" content="MTFlix.site — watch movies and TV shows online, from new releases to Turkish series with Arabic subtitles. Get the MTFlix app on Android, Windows and iOS." />
   <meta property="og:site_name" content="MTFlix.site" />
@@ -21,7 +42,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=43" />
+  <link rel="stylesheet" href="styles.css?v=44" />
 </head>
 <body>
 
@@ -242,6 +263,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
 </body>
 </html>
