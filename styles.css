@@ -1096,26 +1096,6 @@ body.watch-page {
   inset: 0;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.15) 55%);
 }
-.watch-play-btn {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: none;
-  color: #062024;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
-  transition: transform 0.2s;
-  z-index: 2;
-}
-.watch-play-btn:hover { transform: translate(-50%, -50%) scale(1.08); }
-.watch-play-btn svg { width: 34px; height: 34px; margin-left: 4px; }
 /* Page-level fullscreen control for the player stage -- currently DISABLED
    (mountStageFsBtn returns early) because the servers' own fullscreen
    buttons were fixed at the iframe policy level (see injectPlayer). */
@@ -1209,8 +1189,6 @@ body.watch-page {
   .watch-shell { padding: 14px 16px 40px; }
   .watch-brand-name { display: none; }
   .watch-card-head { padding: 12px 14px 12px; gap: 8px; }
-  .watch-play-btn { width: 64px; height: 64px; }
-  .watch-play-btn svg { width: 26px; height: 26px; }
 }
 
 .next-ep-prompt {

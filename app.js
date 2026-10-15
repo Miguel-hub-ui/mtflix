@@ -96,7 +96,7 @@ const PLAYER_SOURCES = {
     // appears for it.
     hasInternalAutoNext: true,
     buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false" });
+      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false", autoplay: "true" });
       if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
       if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
       return params;
@@ -3021,22 +3021,6 @@ document.addEventListener("fullscreenchange", () => {
   btn.setAttribute("aria-label", btn.title);
 });
 
-// Shows a backdrop + play button and only loads the (heavy, ad-laden) embed
-// iframe once the viewer actually clicks -- avoids autoplaying anything
-// before they've chosen to watch.
-function renderPlayOverlay(backdropUrl, onPlay) {
-  const stage = $("#modal-hero");
-  if (!stage) return;
-  stage.classList.remove("is-playing");
-  stage.style.backgroundImage = backdropUrl ? `url(${backdropUrl})` : "";
-  stage.innerHTML = `
-    <button type="button" class="watch-play-btn" id="watch-play-btn" aria-label="Play">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-    </button>`;
-  $("#watch-play-btn")?.addEventListener("click", onPlay, { once: true });
-  mountStageFsBtn(stage);
-}
-
 function injectPlayer(url) {
   const heroArea = $("#modal-hero");
   if (!heroArea) return;
@@ -3403,11 +3387,11 @@ async function initWatchPage() {
   setupSourceDropdown();
   setupDubRow();
   showSourceLabel();
-  renderPlayOverlay(data.backdrop_path ? img(data.backdrop_path, "w1280") : "", async () => {
-    // A dubbed episode isn't the Turkish episode this page was opened on.
-    if (type === "tv" && getPlayerSourceId() !== "qissadub") markEpWatched(id, season, episode);
-    injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
-  });
+  // Start playing straight away -- picking a title is the "play" click, so
+  // there's no extra play-button overlay to tap first.
+  // A dubbed episode isn't the Turkish episode this page was opened on.
+  if (type === "tv" && getPlayerSourceId() !== "qissadub") markEpWatched(id, season, episode);
+  injectPlayer(buildPlayerUrl(type, id, season, episode, startAt));
 
   $("#watch-back")?.addEventListener("click", (e) => {
     e.preventDefault();
