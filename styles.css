@@ -604,15 +604,17 @@ button { font-family: inherit; cursor: pointer; }
   background: none;
   border: 0;
   padding: 4px 0;
-  color: var(--muted);
+  color: var(--accent);
   font-family: inherit;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.15s;
 }
-.row-see-more:hover, .row-see-more:focus-visible { color: var(--text); }
+.row-see-more:hover, .row-see-more:focus-visible { color: var(--accent-hover); }
 .row-all-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .row-all-header .results-title { margin-bottom: 0; }
 .row-all-back {
