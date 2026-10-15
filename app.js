@@ -2115,10 +2115,15 @@ function normalizeItem(r, forcedType) {
   };
 }
 
+// TMDB's "Science Fiction" (id 878) is shown under the shorter "Sci-Fi".
+function genreName(g) {
+  return g.id === 878 ? "Sci-Fi" : g.name;
+}
+
 async function loadGenres() {
   try {
     const [m, t] = await Promise.all([tmdb("/genre/movie/list"), tmdb("/genre/tv/list")]);
-    m.genres.forEach((g) => (genreMaps.movie[g.id] = g.name));
+    m.genres.forEach((g) => (genreMaps.movie[g.id] = genreName(g)));
     t.genres.forEach((g) => (genreMaps.tv[g.id] = g.name));
   } catch (_) {}
 }
@@ -4066,7 +4071,7 @@ async function openDetail(type, id, autoplayTrailer) {
     ? `${data.episode_run_time[0]}m per ep`
     : "";
   const seasons = data.number_of_seasons ? `${data.number_of_seasons} season${data.number_of_seasons > 1 ? "s" : ""}` : "";
-  const genres = (data.genres || []).map((g) => `<span class="genre-pill">${g.name}</span>`).join("");
+  const genres = (data.genres || []).map((g) => `<span class="genre-pill">${genreName(g)}</span>`).join("");
   const cast = (data.credits?.cast || []).slice(0, 6);
   const similar = (data.similar?.results || [])
     .filter((s) => s.poster_path)
