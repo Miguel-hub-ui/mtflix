@@ -872,6 +872,74 @@ button { font-family: inherit; cursor: pointer; }
   min-width: 150px;
 }
 .discover-filterbar select:focus { border-color: var(--accent); }
+.genre-select { position: relative; min-width: 150px; }
+.genre-select-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+}
+.genre-select-btn::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  opacity: 0.8;
+}
+.genre-select-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.genre-select.open .genre-select-btn { border-color: var(--accent); }
+.genre-select-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 100%;
+  width: max-content;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.genre-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.genre-option:hover { background: rgba(255, 255, 255, 0.07); }
+.genre-option input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.genre-clear { color: var(--muted); }
 .discover-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -2447,6 +2515,9 @@ body.watch-page {
   .discover-view { padding: 100px 3% 40px; }
   .discover-filterbar { gap: 8px; margin-bottom: 18px; }
   .discover-filterbar select { min-width: 0; flex: 1; padding: 9px 10px; font-size: 0.8rem; }
+  .genre-select { min-width: 0; flex: 1; }
+  .genre-select-btn { padding: 9px 10px; font-size: 0.8rem; }
+  .genre-select-panel { max-height: 55vh; }
   .discover-grid .card-title { font-size: 0.72rem; }
   .discover-grid .card-sub { font-size: 0.65rem; }
   .discover-grid .card-info { padding: 18px 7px 7px; }

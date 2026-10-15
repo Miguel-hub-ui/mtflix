@@ -2360,7 +2360,7 @@ async function loadRowAllPage(reset) {
   }
 }
 
-let discoverState = { type: "movie", genre: "", year: "", page: 1, totalPages: 1, loading: false };
+let discoverState = { type: "movie", genres: [], year: "", page: 1, totalPages: 1, loading: false, seq: 0 };
 
 function yearOptions() {
   const current = new Date().getFullYear() + 1;
@@ -2370,12 +2370,12 @@ function yearOptions() {
 }
 
 function renderDiscoverGrid(type, container) {
-  discoverState = { type, genre: "", year: "", page: 1, totalPages: 1, loading: false };
+  discoverState = { type, genres: [], year: "", page: 1, totalPages: 1, loading: false, seq: 0 };
 
   const genreMap = genreMaps[type] || {};
   const genreOptionsHTML = Object.entries(genreMap)
     .sort((a, b) => a[1].localeCompare(b[1]))
-    .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+    .map(([id, name]) => `<label class="genre-option"><input type="checkbox" value="${id}" /><span>${escapeHtml(name)}</span></label>`)
     .join("");
   const yearOptionsHTML = yearOptions()
     .map((y) => `<option value="${y}">${y}</option>`)
@@ -2385,10 +2385,15 @@ function renderDiscoverGrid(type, container) {
   section.className = "discover-view";
   section.innerHTML = `
     <div class="discover-filterbar">
-      <select id="discover-genre">
-        <option value="">${t("filter_all_genres")}</option>
-        ${genreOptionsHTML}
-      </select>
+      <div class="genre-select" id="discover-genre">
+        <button type="button" class="genre-select-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="genre-select-label">${t("filter_all_genres")}</span>
+        </button>
+        <div class="genre-select-panel hidden">
+          <button type="button" class="genre-option genre-clear">${t("filter_all_genres")}</button>
+          ${genreOptionsHTML}
+        </div>
+      </div>
       <select id="discover-year">
         <option value="">${t("filter_all_years")}</option>
         ${yearOptionsHTML}
@@ -2400,11 +2405,38 @@ function renderDiscoverGrid(type, container) {
     </div>`;
   container.appendChild(section);
 
-  $("#discover-genre").addEventListener("change", (e) => {
-    discoverState.genre = e.target.value;
+  const genreWrap = $("#discover-genre");
+  const genreBtn = genreWrap.querySelector(".genre-select-btn");
+  const genrePanel = genreWrap.querySelector(".genre-select-panel");
+  const genreBoxes = [...genrePanel.querySelectorAll("input[type=checkbox]")];
+  const setGenrePanel = (open) => {
+    genrePanel.classList.toggle("hidden", !open);
+    genreWrap.classList.toggle("open", open);
+    genreBtn.setAttribute("aria-expanded", String(open));
+  };
+  const applyGenres = () => {
+    const picked = genreBoxes.filter((b) => b.checked);
+    discoverState.genres = picked.map((b) => b.value);
+    const names = picked.map((b) => genreMap[b.value]);
+    genreWrap.querySelector(".genre-select-label").textContent =
+      names.length === 0 ? t("filter_all_genres") : names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+    genreWrap.classList.toggle("has-value", names.length > 0);
     discoverState.page = 1;
     loadDiscoverPage(true);
+  };
+  genreBtn.addEventListener("click", () => setGenrePanel(genrePanel.classList.contains("hidden")));
+  genreBoxes.forEach((b) => b.addEventListener("change", applyGenres));
+  genrePanel.querySelector(".genre-clear").addEventListener("click", () => {
+    if (!genreBoxes.some((b) => b.checked)) return setGenrePanel(false);
+    genreBoxes.forEach((b) => (b.checked = false));
+    applyGenres();
+    setGenrePanel(false);
   });
+  const closeGenrePanel = (e) => {
+    if (!genreWrap.isConnected) return document.removeEventListener("pointerdown", closeGenrePanel);
+    if (!genreWrap.contains(e.target)) setGenrePanel(false);
+  };
+  document.addEventListener("pointerdown", closeGenrePanel);
   $("#discover-year").addEventListener("change", (e) => {
     discoverState.year = e.target.value;
     discoverState.page = 1;
@@ -2419,10 +2451,12 @@ function renderDiscoverGrid(type, container) {
 }
 
 async function loadDiscoverPage(reset) {
-  if (discoverState.loading) return;
+  // A filter change (reset) supersedes whatever is loading; Load More waits.
+  if (discoverState.loading && !reset) return;
   const state = discoverState;
   state.loading = true;
-  const { type, genre, year, page } = state;
+  const seq = ++state.seq;
+  const { type, genres, year, page } = state;
   const grid = $("#discover-grid");
   const loadBtn = $("#discover-load-more");
   if (!grid) {
@@ -2433,14 +2467,15 @@ async function loadDiscoverPage(reset) {
   loadBtn?.classList.add("hidden");
 
   const params = { sort_by: "popularity.desc", page };
-  if (genre) params.with_genres = genre;
+  // Comma = titles that have every picked genre.
+  if (genres.length) params.with_genres = genres.join(",");
   if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = year;
 
   try {
     const data = await tmdb(`/discover/${type}`, params);
     // The viewer switched between Movies / TV Shows (or left) while this
     // page was loading -- don't pour it into the new view's grid.
-    if (state !== discoverState || !grid.isConnected) return;
+    if (state !== discoverState || !grid.isConnected || seq !== state.seq) return;
     state.totalPages = data.total_pages || 1;
     const items = data.results.map((r) => normalizeItem(r, type)).filter((i) => i.poster_path);
 
@@ -2457,9 +2492,9 @@ async function loadDiscoverPage(reset) {
 
     if (loadBtn) loadBtn.classList.toggle("hidden", state.page >= state.totalPages);
   } catch (err) {
-    if (state === discoverState) handleFetchError(err, grid);
+    if (state === discoverState && seq === state.seq) handleFetchError(err, grid);
   } finally {
-    state.loading = false;
+    if (seq === state.seq) state.loading = false;
   }
 }
 
