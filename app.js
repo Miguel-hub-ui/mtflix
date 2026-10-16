@@ -16,6 +16,9 @@
   // frequently ineligible for bfcache), and the splash replay is what made
   // returning from a movie feel like the whole app restarted.
   if (returningFromWatch) {
+    // Also tells initProfiles() to go straight back to Home instead of the
+    // "Who's watching?" gate -- see the note there.
+    window.mtflixResumeHome = true;
     sessionStorage.removeItem("mtflix_returning");
     localStorage.removeItem(returnMarkerKey);
     splash.remove();
@@ -3459,6 +3462,13 @@ async function initWatchPage() {
     // another site, and backing into THAT reads as the app glitching out.
     if (document.referrer && new URL(document.referrer, location.href).origin === location.origin) {
       history.back();
+      // Embeds that navigate inside their iframe over a long session add
+      // their own history entries, so back() can just step the player back
+      // instead of leaving the page. If we're still here, go home directly.
+      const fallback = setTimeout(() => {
+        if (document.visibilityState === "visible") location.href = "index.html";
+      }, 800);
+      window.addEventListener("pagehide", () => clearTimeout(fallback), { once: true });
       return;
     }
     location.href = "index.html";
@@ -5109,6 +5119,18 @@ function initProfiles() {
       localStorage.removeItem(LS_LIST);
       localStorage.removeItem(LS_PROGRESS);
     }
+  }
+  // A quick Back from the player restores the home page from the browser's
+  // back/forward cache, but after a long time on watch.html the browser drops
+  // that cache and index.html cold-loads -- which used to land on the profile
+  // gate, so returning from a long movie looked like the whole site had
+  // restarted. The profile was already picked (and any PIN entered) before
+  // playback started, so go straight back into it.
+  const resumeProfile = window.mtflixResumeHome && activeProfile();
+  window.mtflixResumeHome = false;
+  if (resumeProfile) {
+    enterApp(resumeProfile.id);
+    return;
   }
   renderGate(false);
 }
