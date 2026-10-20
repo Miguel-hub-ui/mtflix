@@ -99,7 +99,9 @@ const PLAYER_SOURCES = {
     // appears for it.
     hasInternalAutoNext: true,
     buildParams(type, resumeSeconds) {
-      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false", autoplay: "true" });
+      // lastserver + prioritize make CineSrc try its "Wave" server first
+      // instead of Nebula (Wave looked sharper to the owner).
+      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false", autoplay: "true", lastserver: "wave", prioritize: "true" });
       if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
       if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
       return params;
