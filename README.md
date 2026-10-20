@@ -104,7 +104,7 @@ Movies and TV shows stream through an embed player inside the detail modal. Thre
 
 | Source | Default | Quality | Live progress events |
 |--------|---------|---------|------------------------|
-| **CineSrc 4K** | ✓ main (non-Turkish) | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params; `lastserver=wave&prioritize=true` makes it start on its Wave server instead of Nebula |
+| **CineSrc 4K** | ✓ main (non-Turkish) | Up to 4K, multi-server fallback inside the player | Yes — sends `cinesrc:*` postMessages (timeupdate/play/pause/ended/seeked); accepts `t=` (resume), `color=` and `autonext=` params; `lastserver=wave&prioritize=true` makes it start on its Wave server instead of Nebula, and `quality=1080` starts Wave in 1080p rather than its default 2160p |
 | **Turkish (Arabic subs)** | ✓ auto for Turkish series it has | Varies (576p seen) | No |
 | **Arabic dubbed** | picked from the "Arabic dubbed" row | Varies (576p seen) | No |
 | MultiEmbed | | Up to 1080p | No |
