@@ -99,11 +99,12 @@ const PLAYER_SOURCES = {
     // appears for it.
     hasInternalAutoNext: true,
     buildParams(type, resumeSeconds) {
-      // lastserver + prioritize make CineSrc try its "Wave" server first
-      // instead of Nebula (Wave looked sharper to the owner). Don't add
-      // quality=1080 here: it does start Wave in 1080p, but CineSrc's player
-      // then sticks on "Switching quality..." and locks its quality menu.
-      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false", autoplay: "true", lastserver: "wave", prioritize: "true" });
+      // Left on CineSrc's own first server (Nebula). Forcing its "Wave" server
+      // (lastserver=wave&prioritize=true) was tried in October 2026 and
+      // dropped: only Wave's 2160p file loads reliably, and switching it to
+      // 1080p/720p stalls and falls back to 2160p. Nebula is one adaptive
+      // stream, so its quality menu works.
+      const params = new URLSearchParams({ color: "#e50914", continueprompt: "false", autoplay: "true" });
       if (type === "tv" && activeProfile()?.autoplay === false) params.set("autonext", "false");
       if (resumeSeconds > 30) params.set("t", String(Math.floor(resumeSeconds)));
       return params;
