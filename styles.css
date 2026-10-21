@@ -1298,31 +1298,20 @@ body.watch-page {
   .watch-brand-name { display: none; }
   .watch-card-head { padding: 12px 14px 12px; gap: 8px; }
 }
-/* Phones held upright: a 16:9 stage is only ~200px tall there, and the
+/* Phones held upright: the 16:9 stage is only ~200px tall there, and the
    servers' own controls (CineSrc's server list, settings, seek bar) live
-   inside the iframe where MTFlix can't restyle them -- they overlapped and
-   the server list was cut off. So the card runs edge to edge and the stage
-   is square: the video letterboxes inside it, and the player's menus get
-   room to open. */
+   inside the iframe where MTFlix can't restyle them -- drawn at that size
+   they overlapped and the server list was cut off. Laying the frame out
+   1/0.6 larger and scaling it back down zooms out only what's inside the
+   stage; the page around it is untouched. Cropped frames (scrolling="no")
+   size themselves inline in cropSiteFrame, so they're left alone, and a
+   fullscreen frame drops the transform by the browser's own rules. */
 @media (max-width: 640px) and (orientation: portrait) {
-  .watch-card {
-    margin: 0 -16px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
-  .watch-stage { aspect-ratio: 1 / 1; max-height: 72vh; }
-  .watch-source-menu { max-height: min(60vh, 340px); }
-  /* The servers' players draw their controls huge at phone width. Laying
-     the frame out 1/0.7 larger and scaling it back down zooms out only
-     what's inside the stage, not the page. Cropped frames (scrolling="no")
-     size themselves inline in cropSiteFrame, so they're left alone, and a
-     fullscreen frame drops the transform by the browser's own rules. */
   .watch-stage:not(:fullscreen) .modal-trailer { overflow: hidden; }
   .watch-stage:not(:fullscreen) .modal-trailer iframe:not([scrolling]) {
-    width: calc(100% / 0.7);
-    height: calc(100% / 0.7);
-    transform: scale(0.7);
+    width: calc(100% / 0.6);
+    height: calc(100% / 0.6);
+    transform: scale(0.6);
     transform-origin: 0 0;
   }
 }
