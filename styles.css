@@ -1313,6 +1313,18 @@ body.watch-page {
   }
   .watch-stage { aspect-ratio: 1 / 1; max-height: 72vh; }
   .watch-source-menu { max-height: min(60vh, 340px); }
+  /* The servers' players draw their controls huge at phone width. Laying
+     the frame out 1/0.7 larger and scaling it back down zooms out only
+     what's inside the stage, not the page. Cropped frames (scrolling="no")
+     size themselves inline in cropSiteFrame, so they're left alone, and a
+     fullscreen frame drops the transform by the browser's own rules. */
+  .watch-stage:not(:fullscreen) .modal-trailer { overflow: hidden; }
+  .watch-stage:not(:fullscreen) .modal-trailer iframe:not([scrolling]) {
+    width: calc(100% / 0.7);
+    height: calc(100% / 0.7);
+    transform: scale(0.7);
+    transform-origin: 0 0;
+  }
 }
 
 .next-ep-prompt {
