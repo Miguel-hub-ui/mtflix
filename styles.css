@@ -1298,6 +1298,22 @@ body.watch-page {
   .watch-brand-name { display: none; }
   .watch-card-head { padding: 12px 14px 12px; gap: 8px; }
 }
+/* Phones held upright: a 16:9 stage is only ~200px tall there, and the
+   servers' own controls (CineSrc's server list, settings, seek bar) live
+   inside the iframe where MTFlix can't restyle them -- they overlapped and
+   the server list was cut off. So the card runs edge to edge and the stage
+   is square: the video letterboxes inside it, and the player's menus get
+   room to open. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .watch-card {
+    margin: 0 -16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .watch-stage { aspect-ratio: 1 / 1; max-height: 72vh; }
+  .watch-source-menu { max-height: min(60vh, 340px); }
+}
 
 .next-ep-prompt {
   position: absolute;
