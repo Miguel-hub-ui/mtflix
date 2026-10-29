@@ -4676,6 +4676,11 @@ function initAuth() {
     }
     if (fbUser) {
       const verified = await isCodeVerified(fbUser.uid);
+      if (verified === null) {
+        // Offline: keep the login and wait for the connection to come back.
+        showOfflineScreen();
+        return;
+      }
       if (!verified) {
         showEmailVerifyGate(fbUser);
         return;
@@ -4692,6 +4697,9 @@ function initAuth() {
     } else if (getAuthUserId() === "guest") {
       applyUserChrome({ id: "guest", name: "Guest", email: "" });
       enterGuestSession();
+    } else if (!navigator.onLine) {
+      // Signing in can't work offline anyway; show why instead.
+      showOfflineScreen();
     } else {
       localStorage.removeItem(LS_AUTH);
       showAuthScreen("signin");
@@ -4817,13 +4825,20 @@ function authErrorVerify(msg) {
   el.classList.toggle("hidden", !msg);
 }
 
+// null = couldn't check (no connection), so the caller mustn't treat the
+// account as unverified and bounce it to the sign-in screen.
 async function isCodeVerified(uid) {
   try {
     const snap = await db.collection("users").doc(uid).get();
     return !!(snap.exists && snap.data().codeVerified);
-  } catch {
+  } catch (err) {
+    if (!navigator.onLine || err?.code === "unavailable") return null;
     return false;
   }
+}
+
+function showOfflineScreen() {
+  if (window.mtflixShowOffline) window.mtflixShowOffline();
 }
 
 async function markCodeVerified(uid) {
