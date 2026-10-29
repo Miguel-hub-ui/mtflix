@@ -4987,6 +4987,9 @@ function signOut() {
 }
 
 function enterAfterAuth(user) {
+  // Signed in fine: this device never needs the signed-out apology, even
+  // if it's signed out some other way later.
+  localStorage.setItem(LS_APOLOGY_SEEN, "1");
   $("#auth-screen").classList.add("hidden");
   applyUserChrome(user);
   initProfiles();

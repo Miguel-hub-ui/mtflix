@@ -1,4 +1,4 @@
-const CACHE_NAME = "mtflix-shell-v63";
+const CACHE_NAME = "mtflix-shell-v64";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
