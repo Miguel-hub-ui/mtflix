@@ -1914,6 +1914,44 @@ body.watch-page {
   overflow-y: auto;
 }
 
+.signout-apology {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 261;
+  width: min(420px, calc(100% - 32px));
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  background: var(--surface);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+  animation: apology-in 0.35s ease-out;
+  transition: opacity 0.25s, transform 0.25s;
+}
+.signout-apology.leaving { opacity: 0; transform: translate(-50%, -12px); }
+.signout-apology-icon { font-size: 1.4rem; line-height: 1.2; }
+.signout-apology > div { flex: 1; min-width: 0; }
+.signout-apology strong { display: block; font-size: 0.95rem; margin-bottom: 3px; }
+.signout-apology p { margin: 0; font-size: 0.84rem; line-height: 1.4; color: var(--muted); }
+.signout-apology button {
+  flex: none;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+@keyframes apology-in {
+  from { opacity: 0; transform: translate(-50%, -16px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .auth-panel {
   width: min(420px, 100%);
   background: var(--surface);

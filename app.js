@@ -4731,6 +4731,41 @@ function switchAuthTab(tab) {
 function showAuthScreen(tab) {
   $("#auth-screen").classList.remove("hidden");
   switchAuthTab(tab || "signin");
+  maybeShowSignedOutApology();
+}
+
+// One-time apology for the devices that a bad update (Oct 29, 2026) signed
+// out. Shown only where an account was used before (its profiles are still
+// saved here), once per device, and only for a few weeks.
+const LS_APOLOGY_SEEN = "mtflix_signout_apology_seen";
+
+function maybeShowSignedOutApology() {
+  try {
+    if (localStorage.getItem(LS_APOLOGY_SEEN)) return;
+    if (Date.now() > new Date("2026-12-01").getTime()) return;
+    const hadAccount = Object.keys(localStorage).some((k) => k.startsWith(LS_PROFILES + "_"));
+    if (!hadAccount) return;
+    localStorage.setItem(LS_APOLOGY_SEEN, "1");
+  } catch {
+    return;
+  }
+  const note = document.createElement("div");
+  note.className = "signout-apology";
+  note.setAttribute("role", "status");
+  note.innerHTML = `
+    <span class="signout-apology-icon" aria-hidden="true">🙏</span>
+    <div>
+      <strong>Sorry, you were signed out</strong>
+      <p>We were fixing some issues. Please sign in again — your profiles and lists are safe.</p>
+    </div>
+    <button type="button" aria-label="Close">✕</button>`;
+  const close = () => {
+    note.classList.add("leaving");
+    setTimeout(() => note.remove(), 250);
+  };
+  note.querySelector("button").addEventListener("click", close);
+  $("#auth-screen").appendChild(note);
+  setTimeout(close, 12000);
 }
 
 function authError(form, msg) {
@@ -4942,6 +4977,8 @@ async function showEmailVerifyGate(fbUser) {
 function signOut() {
   const uid = getAuthUserId();
   localStorage.removeItem(LS_AUTH);
+  // Signing out on purpose isn't the glitch the apology is about.
+  localStorage.setItem(LS_APOLOGY_SEEN, "1");
   if (uid && uid !== "guest") {
     auth.signOut().finally(() => location.reload());
   } else {
