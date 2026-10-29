@@ -8,9 +8,17 @@
   // Session storage covers ordinary Back navigation. Keep a short-lived
   // local copy too: mobile browsers can evict a long-idle PWA from memory,
   // which may lose its session state before it reloads index.html.
+  // Opening the app fresh (tapping its icon) is a plain navigation with no
+  // watch page behind it. That must always show the intro and the "Who's
+  // watching?" picker, even if the app was closed in the middle of a movie
+  // and the markers below are still around.
+  const navType = performance.getEntriesByType?.("navigation")[0]?.type;
+  const cameFromWatch = /\/watch\.html/.test(document.referrer);
+  const freshLaunch = navType === "navigate" && !cameFromWatch;
   const returningFromWatch =
-    sessionStorage.getItem("mtflix_returning") === "1" ||
-    (returnMarkerAge > 0 && Date.now() - returnMarkerAge < 6 * 60 * 60 * 1000);
+    !freshLaunch &&
+    (sessionStorage.getItem("mtflix_returning") === "1" ||
+      (returnMarkerAge > 0 && Date.now() - returnMarkerAge < 6 * 60 * 60 * 1000));
   // Coming back from the player must not replay the intro: browsers often
   // fully reload the home page on Back (service-worker-controlled pages are
   // frequently ineligible for bfcache), and the splash replay is what made
@@ -25,6 +33,7 @@
     return;
   }
   if (returnMarkerAge) localStorage.removeItem(returnMarkerKey);
+  sessionStorage.removeItem("mtflix_returning");
   document.body.classList.add("intro-active");
   let finished = false;
   const finish = () => {
@@ -4644,36 +4653,8 @@ function friendlyAuthError(err) {
   return map[err.code] || "Something went wrong. Please try again.";
 }
 
-// A login only survives closing the app when "Remember me" was ticked.
-// Otherwise it lasts for this app session (page reloads and the watch page
-// included) and the next launch asks for the password again.
-const LS_REMEMBER = "mtflix_remember_login";
-const SS_LIVE_LOGIN = "mtflix_live_login";
-
-function markLogin(remember) {
-  sessionStorage.setItem(SS_LIVE_LOGIN, "1");
-  if (remember) localStorage.setItem(LS_REMEMBER, "1");
-  else localStorage.removeItem(LS_REMEMBER);
-}
-
-function forgetLogin() {
-  sessionStorage.removeItem(SS_LIVE_LOGIN);
-  localStorage.removeItem(LS_REMEMBER);
-}
-
-function loginStillValid() {
-  return localStorage.getItem(LS_REMEMBER) === "1" || sessionStorage.getItem(SS_LIVE_LOGIN) === "1";
-}
-
 function initAuth() {
   auth.onAuthStateChanged(async (fbUser) => {
-    if (fbUser && !loginStillValid()) {
-      // Left over from an earlier launch without "Remember me": sign out,
-      // which re-runs this handler with no user and shows the sign-in screen.
-      localStorage.removeItem(LS_AUTH);
-      auth.signOut();
-      return;
-    }
     if (fbUser) {
       const verified = await isCodeVerified(fbUser.uid);
       if (verified === null) {
@@ -4770,7 +4751,6 @@ async function handleSignIn() {
     await auth.setPersistence(
       remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
     );
-    markLogin(remember);
     await auth.signInWithEmailAndPassword(email, pass);
     // onAuthStateChanged takes over from here
   } catch (err) {
@@ -4788,7 +4768,6 @@ async function handleSignUp() {
   if (pass.length < 6) return authError("signup", "Password must be at least 6 characters.");
   if (pass !== confirm) return authError("signup", "Passwords do not match.");
   try {
-    markLogin(false);
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await cred.user.updateProfile({ displayName: name });
     // onAuthStateChanged takes over from here
@@ -4951,7 +4930,6 @@ async function showEmailVerifyGate(fbUser) {
   };
 
   $("#verify-back").onclick = () => {
-    forgetLogin();
     auth.signOut();
     localStorage.removeItem(LS_AUTH);
     $("#form-verify").classList.add("hidden");
@@ -4964,7 +4942,6 @@ async function showEmailVerifyGate(fbUser) {
 function signOut() {
   const uid = getAuthUserId();
   localStorage.removeItem(LS_AUTH);
-  forgetLogin();
   if (uid && uid !== "guest") {
     auth.signOut().finally(() => location.reload());
   } else {
