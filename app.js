@@ -865,6 +865,8 @@ const I18N = {
     row_continue: "Continue Watching", row_see_more: "See more",
     row_tr_series: "Turkish Series",
     filter_all_genres: "All Genres", filter_all_years: "All Years", filter_load_more: "Load More",
+    sort_popular: "Most Popular", sort_top: "Top Rated", sort_newest: "Newest First", sort_oldest: "Oldest First", sort_az: "A – Z",
+    kind_all: "All Types", kind_live: "Live Action", kind_anime: "Anime", kind_cartoon: "Cartoons",
     filter_no_results: "No titles match those filters", filter_no_results_sub: "Try a different genre or year.",
   },
   es: {
@@ -2386,8 +2388,64 @@ function yearOptions() {
   return opts;
 }
 
+const DISCOVER_SORTS = ["popular", "top", "newest", "oldest", "az"];
+const DISCOVER_KINDS = ["live", "anime", "cartoon"];
+const ANIMATION_GENRE = "16";
+
+// Live action = not animated; anime = Japanese animation; cartoon = any other animation.
+function titleKind(r) {
+  if (!(r.genre_ids || []).includes(16)) return "live";
+  return r.original_language === "ja" ? "anime" : "cartoon";
+}
+
+function discoverParams(state, page) {
+  const { type, genres, year, sort, kinds } = state;
+  const movie = type === "movie";
+  const dateField = movie ? "primary_release_date" : "first_air_date";
+  const params = { page };
+  switch (sort) {
+    case "top":
+      params.sort_by = "vote_average.desc";
+      params["vote_count.gte"] = 200;
+      break;
+    case "newest":
+      params.sort_by = `${dateField}.desc`;
+      // Skip announced-but-unreleased titles.
+      params[`${dateField}.lte`] = new Date().toISOString().slice(0, 10);
+      params["vote_count.gte"] = 5;
+      break;
+    case "oldest":
+      params.sort_by = `${dateField}.asc`;
+      params["vote_count.gte"] = 50;
+      break;
+    case "az":
+      params.sort_by = movie ? "title.asc" : "name.asc";
+      params["vote_count.gte"] = 50;
+      break;
+    default:
+      params.sort_by = "popularity.desc";
+  }
+
+  // Narrow on TMDB's side where one query can express it; the rest is
+  // filtered per title after the page comes back.
+  const withGenres = [...genres];
+  if (!kinds.has("live")) {
+    if (!withGenres.includes(ANIMATION_GENRE)) withGenres.push(ANIMATION_GENRE);
+    if (!kinds.has("cartoon")) params.with_original_language = "ja";
+  } else if (!kinds.has("anime") && !kinds.has("cartoon")) {
+    params.without_genres = ANIMATION_GENRE;
+  }
+  // Comma = titles that have every picked genre.
+  if (withGenres.length) params.with_genres = withGenres.join(",");
+  if (year) params[movie ? "primary_release_year" : "first_air_date_year"] = year;
+  return params;
+}
+
 function renderDiscoverGrid(type, container) {
-  discoverState = { type, genres: [], year: "", page: 1, totalPages: 1, loading: false, seq: 0 };
+  discoverState = {
+    type, genres: [], year: "", sort: "popular", kinds: new Set(DISCOVER_KINDS),
+    page: 1, totalPages: 1, loading: false, seq: 0,
+  };
 
   const genreMap = genreMaps[type] || {};
   const genreOptionsHTML = Object.entries(genreMap)
@@ -2416,6 +2474,17 @@ function renderDiscoverGrid(type, container) {
         <option value="">${t("filter_all_years")}</option>
         ${yearOptionsHTML}
       </select>
+      <select id="discover-sort">
+        ${DISCOVER_SORTS.map((s) => `<option value="${s}">${t("sort_" + s)}</option>`).join("")}
+      </select>
+      <div class="genre-select" id="discover-kind">
+        <button type="button" class="genre-select-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="genre-select-label">${t("kind_all")}</span>
+        </button>
+        <div class="genre-select-panel align-right hidden">
+          ${DISCOVER_KINDS.map((k) => `<label class="genre-option"><input type="checkbox" value="${k}" checked /><span>${t("kind_" + k)}</span></label>`).join("")}
+        </div>
+      </div>
     </div>
     <div class="discover-grid" id="discover-grid">${skeletonRow(12)}</div>
     <div class="discover-load-wrap">
@@ -2460,6 +2529,47 @@ function renderDiscoverGrid(type, container) {
     discoverState.page = 1;
     loadDiscoverPage(true);
   });
+  $("#discover-sort").addEventListener("change", (e) => {
+    discoverState.sort = e.target.value;
+    discoverState.page = 1;
+    loadDiscoverPage(true);
+  });
+
+  // "Show" dropdown: uncheck Live Action / Anime / Cartoons to hide them.
+  const kindWrap = $("#discover-kind");
+  const kindBtn = kindWrap.querySelector(".genre-select-btn");
+  const kindPanel = kindWrap.querySelector(".genre-select-panel");
+  const kindBoxes = [...kindPanel.querySelectorAll("input[type=checkbox]")];
+  const setKindPanel = (open) => {
+    kindPanel.classList.toggle("hidden", !open);
+    kindWrap.classList.toggle("open", open);
+    kindBtn.setAttribute("aria-expanded", String(open));
+  };
+  kindBtn.addEventListener("click", () => setKindPanel(kindPanel.classList.contains("hidden")));
+  kindBoxes.forEach((b) =>
+    b.addEventListener("change", () => {
+      let picked = kindBoxes.filter((x) => x.checked);
+      // At least one type has to stay on.
+      if (!picked.length) {
+        b.checked = true;
+        picked = [b];
+      }
+      discoverState.kinds = new Set(picked.map((x) => x.value));
+      const all = picked.length === kindBoxes.length;
+      kindWrap.querySelector(".genre-select-label").textContent = all
+        ? t("kind_all")
+        : picked.map((x) => t("kind_" + x.value)).join(", ");
+      kindWrap.classList.toggle("has-value", !all);
+      discoverState.page = 1;
+      loadDiscoverPage(true);
+    })
+  );
+  const closeKindPanel = (e) => {
+    if (!kindWrap.isConnected) return document.removeEventListener("pointerdown", closeKindPanel);
+    if (!kindWrap.contains(e.target)) setKindPanel(false);
+  };
+  document.addEventListener("pointerdown", closeKindPanel);
+
   $("#discover-load-more").addEventListener("click", () => {
     discoverState.page += 1;
     loadDiscoverPage(false);
@@ -2474,7 +2584,7 @@ async function loadDiscoverPage(reset) {
   const state = discoverState;
   state.loading = true;
   const seq = ++state.seq;
-  const { type, genres, year, page } = state;
+  const { type, kinds } = state;
   const grid = $("#discover-grid");
   const loadBtn = $("#discover-load-more");
   if (!grid) {
@@ -2484,18 +2594,26 @@ async function loadDiscoverPage(reset) {
   if (reset) grid.innerHTML = skeletonRow(12);
   loadBtn?.classList.add("hidden");
 
-  const params = { sort_by: "popularity.desc", page };
-  // Comma = titles that have every picked genre.
-  if (genres.length) params.with_genres = genres.join(",");
-  if (year) params[type === "movie" ? "primary_release_year" : "first_air_date_year"] = year;
-
   try {
-    const data = await tmdb(`/discover/${type}`, params);
-    // The viewer switched between Movies / TV Shows (or left) while this
-    // page was loading -- don't pour it into the new view's grid.
-    if (state !== discoverState || !grid.isConnected || seq !== state.seq) return;
-    state.totalPages = data.total_pages || 1;
-    const items = data.results.map((r) => normalizeItem(r, type)).filter((i) => i.poster_path);
+    // The type filter can drop titles from a page, so keep pulling pages
+    // (a few at most) until there's a decent batch to show.
+    const items = [];
+    let page = state.page;
+    for (let tries = 0; tries < 5; tries++) {
+      const data = await tmdb(`/discover/${type}`, discoverParams(state, page));
+      // The viewer switched between Movies / TV Shows (or left) or changed a
+      // filter while this page was loading -- don't pour it into the grid.
+      if (state !== discoverState || !grid.isConnected || seq !== state.seq) return;
+      state.totalPages = Math.min(data.total_pages || 1, 500);
+      state.page = page;
+      items.push(
+        ...data.results
+          .filter((r) => r.poster_path && kinds.has(titleKind(r)))
+          .map((r) => normalizeItem(r, type))
+      );
+      if (items.length >= 12 || page >= state.totalPages) break;
+      page += 1;
+    }
 
     if (reset) {
       if (!items.length) {

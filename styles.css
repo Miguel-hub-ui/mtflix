@@ -916,6 +916,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 4px 0;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
+.genre-select-panel.align-right { left: auto; right: 0; }
 .genre-option {
   display: flex;
   align-items: center;
@@ -2531,8 +2532,8 @@ body.watch-page {
   .discover-grid .card, .discover-grid .skeleton-card { width: auto; }
   .discover-view { padding: 100px 3% 40px; }
   .discover-filterbar { gap: 8px; margin-bottom: 18px; }
-  .discover-filterbar select { min-width: 0; flex: 1; padding: 9px 10px; font-size: 0.8rem; }
-  .genre-select { min-width: 0; flex: 1; }
+  .discover-filterbar select { min-width: 0; flex: 1 1 calc(50% - 4px); padding: 9px 10px; font-size: 0.8rem; }
+  .genre-select { min-width: 0; flex: 1 1 calc(50% - 4px); }
   .genre-select-btn { padding: 9px 10px; font-size: 0.8rem; }
   .genre-select-panel { max-height: 55vh; }
   .discover-grid .card-title { font-size: 0.72rem; }
