@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>MTFlix — Player</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<meta name="theme-color" content="#1a1a1a" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0b0e;
+    --panel: #15151b;
+    --line: #26262e;
+    --text: #f2f2f6;
+    --muted: #93939f;
+    --accent: #22d3ee;
+    --accent-hover: #67e8f9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 0 20px 64px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 0 20px;
+  }
+  .back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .back:hover { color: var(--text); background: var(--panel); }
+  .brand { font-weight: 800; letter-spacing: .12em; font-size: 14px; }
+  .brand em { color: var(--accent); font-style: normal; }
+  h1 { font-size: 21px; margin: 0 0 6px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; max-width: 70ch; line-height: 1.55; }
+  .stage {
+    position: relative;
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+  }
+  video { width: 100%; height: 100%; display: block; background: #000; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button, label.file {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 13px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  button:hover, label.file:hover { border-color: #3a3a46; background: #1c1c23; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  input[type=file] { display: none; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
+    margin-top: 16px;
+  }
+  .stat { background: var(--panel); padding: 11px 13px; }
+  .stat dt {
+    color: var(--muted); font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; margin: 0 0 3px;
+  }
+  .stat dd { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .verdict {
+    margin-top: 15px; padding: 12px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel);
+    font-size: 13.5px; line-height: 1.55;
+  }
+  .verdict strong { color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 18px; line-height: 1.6; max-width: 76ch; }
+  .err { color: #f08080; font-size: 13px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="back">‹ Back</a>
+  <span class="brand">MT<em>FLIX</em></span>
+</div>
+
+<h1>High-bitrate player</h1>
+<p class="sub">
+  The same 1080p frame encoded at three bitrates, plus a harder clip with motion and detail.
+  Play each fullscreen on the screen you actually watch on — the resolution never changes, only the bitrate does.
+</p>
+
+<div class="stage">
+  <video id="v" controls playsinline preload="metadata" loop></video>
+</div>
+
+<div class="row" id="sources"></div>
+<div class="row">
+  <label class="file">Test your own file<input type="file" id="file" accept="video/*" /></label>
+  <button type="button" id="fs">Fullscreen</button>
+  <button type="button" id="loop" aria-pressed="true">Loop</button>
+</div>
+<p class="err" id="err" hidden></p>
+
+<dl class="stats">
+  <div class="stat"><dt>Source</dt><dd id="s-label">—</dd></div>
+  <div class="stat"><dt>Encoded</dt><dd id="s-enc">—</dd></div>
+  <div class="stat"><dt>Playing at</dt><dd id="s-res">—</dd></div>
+  <div class="stat"><dt>Buffered</dt><dd id="s-buf">—</dd></div>
+  <div class="stat"><dt>Dropped frames</dt><dd id="s-drop">—</dd></div>
+</dl>
+
+<div class="verdict" id="verdict">Pick a source to begin.</div>
+
+<p class="hint">
+  Judge it at your real viewing distance, not inches from the glass. A 55–65&Prime; TV at 2.5–3&nbsp;m is the
+  harsh test: 0.8&nbsp;Mbps shows blocking in shadows and banding in gradients, 4&nbsp;Mbps looks merely soft,
+  24&nbsp;Mbps is clean. For reference, a Blu-ray is 1080p at roughly 20–30&nbsp;Mbps — well below that and
+  you are watching a re-encode, whatever the label claims.<br />
+  Clips are Creative Commons (Blender Foundation / test-videos.co.uk), so they are safe to stream and cache.
+</p>
+
+<script>
+(function () {
+  "use strict";
+
+  // Byte counts and durations are measured from the real files, so the Mbps
+  // shown is the true encoded rate rather than the filename's claim.
+  var SOURCES = [
+    { id: "bbb-low",   label: "1080p · 0.84 Mbps",            src: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4",  bytes: 1046987,  seconds: 10 },
+    { id: "bbb-mid",   label: "1080p · 4.19 Mbps",            src: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_5MB.mp4",  bytes: 5238714,  seconds: 10 },
+    { id: "bbb-high",  label: "1080p · 24.6 Mbps",            src: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_30MB.mp4", bytes: 30704510, seconds: 10 },
+    { id: "jelly",     label: "1080p · 25.2 Mbps (motion)",   src: "https://test-videos.co.uk/vids/jellyfish/mp4/h264/1080/Jellyfish_1080_10s_30MB.mp4",         bytes: 31458599, seconds: 10 }
+  ];
+
+  var video = document.getElementById("v");
+  var sourcesEl = document.getElementById("sources");
+  var verdictEl = document.getElementById("verdict");
+  var errEl = document.getElementById("err");
+  var el = {
+    label: document.getElementById("s-label"),
+    enc: document.getElementById("s-enc"),
+    res: document.getElementById("s-res"),
+    buf: document.getElementById("s-buf"),
+    drop: document.getElementById("s-drop")
+  };
+
+  var current = null;
+
+  function mbps(bytes, seconds) {
+    if (!bytes || !seconds) return null;
+    return (bytes * 8) / seconds / 1e6;
+  }
+  function fmt(n, d) { return n.toFixed(d === undefined ? 1 : d); }
+
+  function showError(msg) {
+    errEl.hidden = !msg;
+    errEl.textContent = msg || "";
+  }
+
+  // HLS (.m3u8) needs hls.js outside Safari; progressive MP4/WebM plays natively.
+  var hlsLoading = null;
+  function ensureHls(cb) {
+    if (window.Hls) return cb();
+    if (hlsLoading) { hlsLoading.push(cb); return; }
+    hlsLoading = [cb];
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js";
+    s.onload = function () {
+      var q = hlsLoading; hlsLoading = null;
+      q.forEach(function (fn) { fn(); });
+    };
+    s.onerror = function () { hlsLoading = null; showError("Could not load the HLS library."); };
+    document.head.appendChild(s);
+  }
+
+  function play(url) {
+    showError(null);
+    if (video._hls) { video._hls.destroy(); video._hls = null; }
+    var isHls = /\.m3u8(\?|#|$)/i.test(url);
+
+    if (!isHls || video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.load();
+      video.play().catch(function () {});
+      return;
+    }
+    ensureHls(function () {
+      if (!window.Hls || !window.Hls.isSupported()) {
+        showError("This browser cannot play HLS.");
+        return;
+      }
+      var hls = new window.Hls({ enableWorker: true });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, function () { video.play().catch(function () {}); });
+      hls.on(window.Hls.Events.ERROR, function (_e, data) {
+        if (data && data.fatal) showError("Stream error: " + data.details);
+      });
+      video._hls = hls;
+    });
+  }
+
+  function renderVerdict(rate) {
+    if (!rate) {
+      verdictEl.textContent = "Waiting for the file to report its duration…";
+      return;
+    }
+    verdictEl.innerHTML = rate < 1.5
+      ? "<strong>" + fmt(rate) + " Mbps</strong> — the \"1080p\" most streaming embeds hand you. On a large screen expect blocking in dark areas and banding in skies; acceptable on a phone only."
+      : rate < 8
+        ? "<strong>" + fmt(rate) + " Mbps</strong> — typical good streaming HD. Fine on a 55–65&Prime; TV, slightly soft in fast motion compared with a disc."
+        : rate < 18
+          ? "<strong>" + fmt(rate) + " Mbps</strong> — high-bitrate territory. Survives a big screen and upscaling without visible artefacts."
+          : "<strong>" + fmt(rate) + " Mbps</strong> — Blu-ray class (a disc is ~20–30 Mbps). This is what you want for a 65&Prime;+ panel or a projector.";
+  }
+
+  function markActive(btn) {
+    Array.prototype.forEach.call(sourcesEl.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
+  }
+
+  function select(source, btn) {
+    current = source;
+    markActive(btn || null);
+    el.label.textContent = source.label.split(" · ")[1] || source.label;
+    var rate = mbps(source.bytes, source.seconds);
+    el.enc.textContent = rate ? fmt(rate) + " Mbps" : "—";
+    renderVerdict(rate);
+    play(source.src);
+  }
+
+  function renderSources() {
+    SOURCES.forEach(function (s) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = s.label;
+      b.addEventListener("click", function () { select(s, b); });
+      sourcesEl.appendChild(b);
+    });
+  }
+
+  function updateStats() {
+    if (video.videoWidth) el.res.textContent = video.videoWidth + "×" + video.videoHeight;
+    var buf = video.buffered;
+    if (buf && buf.length) {
+      var ahead = buf.end(buf.length - 1) - video.currentTime;
+      el.buf.textContent = fmt(Math.max(ahead, 0)) + " s ahead";
+    }
+    var q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+    if (q) el.drop.textContent = String(q.droppedVideoFrames);
+  }
+
+  video.addEventListener("loadedmetadata", updateStats);
+  video.addEventListener("timeupdate", updateStats);
+  video.addEventListener("error", function () {
+    showError("This source failed to load. It may be blocked, offline, or the connection dropped.");
+  });
+  setInterval(updateStats, 500);
+
+  document.getElementById("file").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    current = { label: f.name };
+    markActive(null);
+    el.label.textContent = f.name.length > 22 ? f.name.slice(0, 21) + "…" : f.name;
+    el.enc.textContent = "reading…";
+    verdictEl.textContent = "Reading metadata to compute the real bitrate…";
+    showError(null);
+    play(URL.createObjectURL(f));
+
+    // Size ÷ duration is the true average bitrate of the file.
+    video.addEventListener("loadedmetadata", function once() {
+      video.removeEventListener("loadedmetadata", once);
+      var rate = mbps(f.size, video.duration);
+      el.enc.textContent = rate ? fmt(rate) + " Mbps" : "—";
+      renderVerdict(rate);
+    });
+  });
+
+  document.getElementById("fs").addEventListener("click", function () {
+    if (video.requestFullscreen) video.requestFullscreen();
+    else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+  });
+
+  var loopBtn = document.getElementById("loop");
+  video.loop = true;
+  loopBtn.addEventListener("click", function () {
+    video.loop = !video.loop;
+    loopBtn.setAttribute("aria-pressed", String(video.loop));
+  });
+
+  renderSources();
+
+  // ?src=<url> plays an arbitrary file or HLS manifest, e.g. an R2 bucket URL.
+  var param = new URLSearchParams(location.search).get("src");
+  if (param) {
+    select({ label: "Linked source", src: param, bytes: 0, seconds: 0 }, null);
+  } else {
+    select(SOURCES[1], sourcesEl.children[1]);
+  }
+})();
+</script>
+</body>
+</html>
